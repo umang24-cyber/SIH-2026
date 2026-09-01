@@ -1,0 +1,225 @@
+:root {
+  --bg-color: #0c0c0c;
+  --bg-card: #141414;
+  --fg-primary: #00ff66;
+  --fg-secondary: #38ef7d;
+  --fg-dim: #00883a;
+  --fg-muted: #557766;
+  --fg-highlight: #70ffaa;
+  --fg-white: #e6edf3;
+  --fg-warn: #eab308;
+  --fg-danger: #ef4444;
+  --font-mono: 'Fira Code', 'Share Tech Mono', 'Courier New', monospace;
+}
+
+* {
+  box-sizing: border-box;
+  margin: 0;
+  padding: 0;
+  font-family: var(--font-mono);
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+}
+
+html, body {
+  background-color: var(--bg-color);
+  color: var(--fg-primary);
+  height: 100vh;
+  width: 100vw;
+  overflow: hidden;
+  font-size: 15px;
+  line-height: 1.5;
+  user-select: text;
+}
+
+/* Scrollbar */
+::-webkit-scrollbar {
+  width: 8px;
+  height: 8px;
+}
+::-webkit-scrollbar-track {
+  background: #080808;
+}
+::-webkit-scrollbar-thumb {
+  background: #1a3322;
+  border-radius: 2px;
+}
+::-webkit-scrollbar-thumb:hover {
+  background: #00ff66;
+}
+
+/* Clean Linux Terminal Window */
+.terminal-window {
+  width: 100vw;
+  height: 100vh;
+  background-color: var(--bg-color);
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+}
+
+/* Optional Window Title Bar (Linux / GNOME / Xterm style) */
+.terminal-titlebar {
+  background-color: #161616;
+  border-bottom: 1px solid #222222;
+  padding: 6px 14px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  font-size: 13px;
+  color: #888888;
+  flex-shrink: 0;
+}
+
+.window-dots {
+  display: flex;
+  gap: 6px;
+  align-items: center;
+}
+
+.window-dot {
+  width: 10px;
+  height: 10px;
+  border-radius: 50% !important;
+}
+.dot-red { background-color: #ff5f56; }
+.dot-yellow { background-color: #ffbd2e; }
+.dot-green { background-color: #27c93f; }
+
+/* Main Scrolling Terminal Body */
+.terminal-body {
+  flex: 1;
+  padding: 16px 24px;
+  overflow-y: auto;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+/* Interactive Command Tags */
+.cmd-tag {
+  color: var(--fg-primary);
+  cursor: pointer;
+  display: inline-block;
+  transition: color 0.15s ease, text-shadow 0.15s ease;
+}
+.cmd-tag:hover {
+  color: #ffffff;
+  text-shadow: 0 0 6px rgba(0, 255, 102, 0.8);
+  text-decoration: underline;
+}
+
+.cmd-desc {
+  color: #888888;
+  margin-left: 8px;
+}
+
+/* Prompt Line */
+.prompt-line {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 4px;
+}
+
+.prompt-prefix {
+  color: #22c55e;
+  font-weight: 600;
+  user-select: none;
+}
+
+.prompt-host {
+  color: #38bdf8;
+}
+
+.prompt-path {
+  color: #a855f7;
+}
+
+.prompt-char {
+  color: #e6edf3;
+  margin-right: 6px;
+}
+
+.terminal-input {
+  background: transparent;
+  border: none;
+  outline: none;
+  color: #ffffff;
+  font-family: var(--font-mono);
+  font-size: 15px;
+  flex: 1;
+  min-width: 160px;
+}
+
+/* Blinking Block / Line Cursor */
+.cli-cursor {
+  display: inline-block;
+  width: 8px;
+  height: 16px;
+  background-color: var(--fg-primary);
+  animation: cursor-blink 1s step-start infinite;
+  vertical-align: text-bottom;
+}
+
+@keyframes cursor-blink {
+  50% { opacity: 0; }
+}
+
+/* Clean Output Blocks */
+.output-block {
+  margin-top: 4px;
+  margin-bottom: 8px;
+  line-height: 1.45;
+}
+
+.output-success {
+  color: var(--fg-primary);
+}
+
+.output-error {
+  color: var(--fg-danger);
+}
+
+.output-info {
+  color: var(--fg-highlight);
+}
+
+.output-dim {
+  color: #888888;
+}
+
+/* Clean Data Tables */
+.cli-table {
+  width: 100%;
+  max-width: 900px;
+  border-collapse: collapse;
+  margin: 8px 0;
+  font-size: 14px;
+}
+
+.cli-table th, .cli-table td {
+  padding: 6px 12px;
+  text-align: left;
+  border-bottom: 1px solid #1f2937;
+}
+
+.cli-table th {
+  color: #38ef7d;
+  border-bottom: 1px solid #00ff66;
+  font-weight: 600;
+}
+
+.cli-table tr:hover td {
+  background-color: rgba(0, 255, 102, 0.04);
+}
+
+/* Embedded 3D Canvas Box */
+.graph-container-box {
+  width: 100%;
+  height: 480px;
+  border: 1px solid #22442b;
+  background-color: #050a06;
+  position: relative;
+  margin: 10px 0;
+}
