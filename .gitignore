@@ -4,3 +4,17 @@ node_modules/
 dist/
 .env*
 .DS_Store
+Thumbs.db
+
+# Raw heavy datasets (>100MB)
+data/raw/
+data/raw/*
+
+# Python cache
+__pycache__/
+*.py[cod]
+*$py.class
+.ipynb_checkpoints/
+.venv/
+venv/
+
