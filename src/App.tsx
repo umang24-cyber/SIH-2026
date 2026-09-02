@@ -276,36 +276,27 @@ export function App() {
       {/* Terminal Content Buffer */}
       <div className="terminal-body">
         {/* Permanent Welcome Header & Available Commands (Never Erased) */}
-        <div className="output-block" style={{ borderBottom: '1px solid #1a2e20', paddingBottom: '14px', marginBottom: '8px' }}>
-          <pre style={{
-            color: '#22c55e',
-            fontFamily: 'var(--font-mono)',
-            fontSize: '12px',
-            lineHeight: 1.15,
-            marginBottom: '14px',
-            overflowX: 'auto',
-            whiteSpace: 'pre'
-          }}>{`.########..####.########.##....##....###....##.....##.##....##..#######..
-.##.....##..##.....##....##...##....##.##...##.....##.###...##.##.....##.
-.##.....##..##.....##....##..##....##...##..##.....##.####..##.......##..
-.########...##.....##....#####....##.....##.##.....##.##.##.##.....###...
-.##.....##..##.....##....##..##...#########.##.....##.##..####....##.....
-.##.....##..##.....##....##...##..##.....##.##.....##.##...###...........
-.########..####....##....##....##.##.....##..#######..##....##....##.....`}</pre>
+        <div className="output-block" style={{ borderBottom: '1px solid var(--border-mid)', paddingBottom: '14px', marginBottom: '8px' }}>
+          <pre className="ansi-shadow-logo">{`██████╗ ██╗████████╗██╗  ██╗ █████╗ ██╗   ██╗███╗   ██╗██████╗ 
+██╔══██╗██║╚══██╔══╝██║ ██╔╝██╔══██╗██║   ██║████╗  ██║╚════██╗
+██████╔╝██║   ██║   █████╔╝ ███████║██║   ██║██╔██╗ ██║  ▄███╔╝
+██╔══██╗██║   ██║   ██╔═██╗ ██╔══██║██║   ██║██║╚██╗██║  ▀▀══╝ 
+██████╔╝██║   ██║   ██║  ██╗██║  ██║╚██████╔╝██║ ╚████║  ██╗   
+╚═════╝ ╚═╝   ╚═╝   ╚═╝  ╚═╝╚═╝  ╚═╝ ╚═════╝ ╚═╝  ╚═══╝  ╚═╝   `}</pre>
 
-          <div style={{ color: '#ffffff', fontSize: '15px', fontWeight: 600, marginBottom: '4px' }}>
+          <div style={{ color: 'var(--fg-white)', fontSize: '15px', fontWeight: 600, marginBottom: '4px' }}>
             Welcome to BitKaun? (Version 1.0.0)
           </div>
-          <div style={{ color: '#888888', marginBottom: '16px', fontSize: '14px' }}>
+          <div style={{ color: 'var(--fg-muted)', marginBottom: '16px', fontSize: '14px' }}>
             Crypto Transaction Anomaly &amp; Forensics Engine.
             <br />
             Type <span className="cmd-tag" onClick={() => handleRunCommand('help')}>'help'</span> to see the list of available commands.
           </div>
 
-          <div style={{ color: '#22c55e', fontWeight: 600, marginBottom: '6px' }}>
+          <div style={{ color: 'var(--fg-primary)', fontWeight: 600, marginBottom: '6px' }}>
             Available Commands:
           </div>
-          <div style={{ display: 'flex', flexDirection: 'column', gap: '3px', marginBottom: '14px', color: '#cccccc' }}>
+          <div style={{ display: 'flex', flexDirection: 'column', gap: '3px', marginBottom: '14px', color: 'var(--fg-text)' }}>
             <div>
               <span className="cmd-tag" onClick={() => handleRunCommand('graph')}>[graph]</span> or <span className="cmd-tag" onClick={() => handleRunCommand('g')}>[g]</span>
               <span className="cmd-desc">- 3D interactive force graph of wallets &amp; transaction links</span>
@@ -336,7 +327,7 @@ export function App() {
             </div>
           </div>
 
-          <div style={{ color: '#22c55e', fontWeight: 600, marginBottom: '6px' }}>
+          <div style={{ color: 'var(--fg-primary)', fontWeight: 600, marginBottom: '6px' }}>
             Quick Queries:
           </div>
           <div style={{ display: 'flex', gap: '10px', flexWrap: 'wrap' }}>
@@ -360,15 +351,15 @@ export function App() {
               <div className="prompt-line" style={{ marginBottom: '4px' }}>
                 <span className="prompt-prefix">bitkaun@investigation</span>
                 <span className="prompt-char">:$</span>
-                <span style={{ color: '#ffffff' }}>{entry.command}</span>
+                <span style={{ color: 'var(--fg-white)' }}>{entry.command}</span>
               </div>
             )}
 
             {/* Entry Content Rendering */}
 
             {entry.type === 'HELP' && (
-              <div className="output-block" style={{ color: '#dddddd' }}>
-                <div style={{ color: '#00ff66', fontWeight: 600, marginBottom: '6px' }}>
+              <div className="output-block" style={{ color: 'var(--fg-text)' }}>
+                <div style={{ color: 'var(--fg-primary)', fontWeight: 600, marginBottom: '6px' }}>
                   BITKAUN MANUAL (1) - FORENSIC COMMAND REGISTRY
                 </div>
                 <table className="cli-table">
@@ -561,18 +552,21 @@ export function App() {
         <div className="prompt-line">
           <span className="prompt-prefix">bitkaun@investigation</span>
           <span className="prompt-char">:$</span>
-          <input
-            ref={inputRef}
-            type="text"
-            className="terminal-input"
-            value={inputVal}
-            onChange={e => setInputVal(e.target.value)}
-            onKeyDown={handleKeyDown}
-            autoFocus
-            spellCheck={false}
-            autoComplete="off"
-          />
-          <span className="cli-cursor" />
+          <div className="input-cursor-wrapper">
+            <span className="typed-text">{inputVal}</span>
+            <span className="cli-cursor" />
+            <input
+              ref={inputRef}
+              type="text"
+              className="terminal-real-input"
+              value={inputVal}
+              onChange={e => setInputVal(e.target.value)}
+              onKeyDown={handleKeyDown}
+              autoFocus
+              spellCheck={false}
+              autoComplete="off"
+            />
+          </div>
         </div>
 
         <div ref={scrollBottomRef} />

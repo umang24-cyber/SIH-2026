@@ -1,15 +1,18 @@
 :root {
-  --bg-color: #0c0c0c;
-  --bg-card: #141414;
-  --fg-primary: #00ff66;
-  --fg-secondary: #38ef7d;
-  --fg-dim: #00883a;
-  --fg-muted: #557766;
-  --fg-highlight: #70ffaa;
-  --fg-white: #e6edf3;
-  --fg-warn: #eab308;
-  --fg-danger: #ef4444;
-  --font-mono: 'Fira Code', 'Share Tech Mono', 'Courier New', monospace;
+  --bg-color: #000000;
+  --bg-card: #040804;
+  --fg-primary: #00cc55;
+  --fg-secondary: #00aa44;
+  --fg-dim: #006622;
+  --fg-muted: #558866;
+  --fg-highlight: #33ee77;
+  --fg-text: #b0e2bf;
+  --fg-white: #e0f5e8;
+  --fg-warn: #e69100;
+  --fg-danger: #e63946;
+  --border-dim: #0d2614;
+  --border-mid: #184424;
+  --font-mono: 'VT323', 'Share Tech Mono', 'Courier New', monospace;
 }
 
 * {
@@ -17,8 +20,9 @@
   margin: 0;
   padding: 0;
   font-family: var(--font-mono);
-  -webkit-font-smoothing: antialiased;
-  -moz-osx-font-smoothing: grayscale;
+  -webkit-font-smoothing: none;
+  -moz-osx-font-smoothing: unset;
+  text-rendering: geometricPrecision;
 }
 
 html, body {
@@ -27,28 +31,30 @@ html, body {
   height: 100vh;
   width: 100vw;
   overflow: hidden;
-  font-size: 15px;
-  line-height: 1.5;
+  font-size: 20px;
+  font-weight: 700;
+  line-height: 1.35;
+  letter-spacing: 0.5px;
   user-select: text;
 }
 
-/* Scrollbar */
+/* Custom Deep Scrollbar */
 ::-webkit-scrollbar {
   width: 8px;
   height: 8px;
 }
 ::-webkit-scrollbar-track {
-  background: #080808;
+  background: #000000;
 }
 ::-webkit-scrollbar-thumb {
-  background: #1a3322;
-  border-radius: 2px;
+  background: #0d2614;
+  border: 1px solid #14331c;
 }
 ::-webkit-scrollbar-thumb:hover {
-  background: #00ff66;
+  background: #00cc55;
 }
 
-/* Clean Linux Terminal Window */
+/* Widescreen Full Viewport Terminal Window */
 .terminal-window {
   width: 100vw;
   height: 100vh;
@@ -58,119 +64,163 @@ html, body {
   overflow: hidden;
 }
 
-/* Optional Window Title Bar (Linux / GNOME / Xterm style) */
+/* Window Title Bar (Deep Dark Xterm Style) */
 .terminal-titlebar {
-  background-color: #161616;
-  border-bottom: 1px solid #222222;
-  padding: 6px 14px;
+  background-color: #030603;
+  border-bottom: 1px solid var(--border-dim);
+  padding: 8px 24px;
   display: flex;
   align-items: center;
   justify-content: space-between;
-  font-size: 13px;
-  color: #888888;
+  font-size: 16px;
+  font-weight: 700;
+  color: #4e735b;
   flex-shrink: 0;
 }
 
 .window-dots {
   display: flex;
-  gap: 6px;
+  gap: 7px;
   align-items: center;
 }
 
 .window-dot {
-  width: 10px;
-  height: 10px;
+  width: 11px;
+  height: 11px;
   border-radius: 50% !important;
 }
-.dot-red { background-color: #ff5f56; }
-.dot-yellow { background-color: #ffbd2e; }
-.dot-green { background-color: #27c93f; }
+.dot-red { background-color: #c93b3e; }
+.dot-yellow { background-color: #d49a00; }
+.dot-green { background-color: #1ea847; }
 
-/* Main Scrolling Terminal Body */
+/* Widescreen Scrolling Terminal Body */
 .terminal-body {
   flex: 1;
-  padding: 16px 24px;
+  padding: 20px 28px;
   overflow-y: auto;
   display: flex;
   flex-direction: column;
-  gap: 12px;
+  gap: 8px;
+  width: 100%;
+}
+
+/* Authentic ANSI Shadow 3D Logo Header */
+.ansi-shadow-logo {
+  font-family: 'Consolas', 'Courier New', 'Lucida Console', monospace !important;
+  font-size: 14px !important;
+  line-height: 1.15 !important;
+  letter-spacing: 0px !important;
+  font-weight: 700 !important;
+  color: var(--fg-primary) !important;
+  white-space: pre !important;
+  overflow-x: auto;
+  margin-bottom: 14px;
+  display: block;
 }
 
 /* Interactive Command Tags */
 .cmd-tag {
   color: var(--fg-primary);
+  font-weight: 700;
   cursor: pointer;
   display: inline-block;
-  transition: color 0.15s ease, text-shadow 0.15s ease;
+  transition: color 0.1s ease;
 }
 .cmd-tag:hover {
   color: #ffffff;
-  text-shadow: 0 0 6px rgba(0, 255, 102, 0.8);
   text-decoration: underline;
 }
 
 .cmd-desc {
-  color: #888888;
-  margin-left: 8px;
+  color: var(--fg-muted);
+  margin-left: 10px;
 }
 
-/* Prompt Line */
+/* Prompt Line with Widescreen Flow */
 .prompt-line {
   display: flex;
   align-items: center;
   flex-wrap: wrap;
-  gap: 4px;
+  position: relative;
+  width: 100%;
+  margin-top: 4px;
 }
 
 .prompt-prefix {
-  color: #22c55e;
-  font-weight: 600;
+  color: #1a9e46;
+  font-weight: 700;
+  font-size: 20px;
   user-select: none;
 }
 
-.prompt-host {
-  color: #38bdf8;
-}
-
-.prompt-path {
-  color: #a855f7;
-}
-
 .prompt-char {
-  color: #e6edf3;
-  margin-right: 6px;
+  color: #a8d5b5;
+  font-weight: 700;
+  font-size: 20px;
+  margin-right: 8px;
+  user-select: none;
 }
 
-.terminal-input {
-  background: transparent;
-  border: none;
-  outline: none;
-  color: #ffffff;
-  font-family: var(--font-mono);
-  font-size: 15px;
+/* Input Wrapper & Following Green Blinking Cursor */
+.input-cursor-wrapper {
+  display: inline-flex;
+  align-items: center;
+  position: relative;
   flex: 1;
-  min-width: 160px;
+  min-height: 24px;
 }
 
-/* Blinking Block / Line Cursor */
+.typed-text {
+  color: var(--fg-white);
+  font-family: var(--font-mono);
+  font-size: 20px;
+  font-weight: 700;
+  white-space: pre;
+  letter-spacing: 0.5px;
+}
+
+/* Blinking MS-DOS Solid Green Rectangle Cursor */
 .cli-cursor {
   display: inline-block;
-  width: 8px;
-  height: 16px;
+  width: 11px;
+  height: 20px;
   background-color: var(--fg-primary);
-  animation: cursor-blink 1s step-start infinite;
-  vertical-align: text-bottom;
+  animation: cursor-blink 0.75s step-start infinite;
+  vertical-align: sub;
+  margin-left: 2px;
 }
 
 @keyframes cursor-blink {
   50% { opacity: 0; }
 }
 
+/* Completely transparent input to prevent any white box */
+.terminal-real-input {
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  opacity: 0 !important;
+  background: transparent !important;
+  background-color: transparent !important;
+  border: none !important;
+  outline: none !important;
+  box-shadow: none !important;
+  color: transparent !important;
+  caret-color: transparent !important;
+  cursor: default !important;
+  font-size: 20px !important;
+  padding: 0 !important;
+  margin: 0 !important;
+}
+
 /* Clean Output Blocks */
 .output-block {
-  margin-top: 4px;
+  margin-top: 2px;
   margin-bottom: 8px;
-  line-height: 1.45;
+  line-height: 1.35;
+  width: 100%;
 }
 
 .output-success {
@@ -186,40 +236,39 @@ html, body {
 }
 
 .output-dim {
-  color: #888888;
+  color: var(--fg-muted);
 }
 
-/* Clean Data Tables */
+/* Widescreen Deep Data Tables */
 .cli-table {
   width: 100%;
-  max-width: 900px;
   border-collapse: collapse;
   margin: 8px 0;
-  font-size: 14px;
+  font-size: 18px;
 }
 
 .cli-table th, .cli-table td {
   padding: 6px 12px;
   text-align: left;
-  border-bottom: 1px solid #1f2937;
+  border-bottom: 1px solid var(--border-dim);
 }
 
 .cli-table th {
-  color: #38ef7d;
-  border-bottom: 1px solid #00ff66;
-  font-weight: 600;
+  color: var(--fg-primary);
+  border-bottom: 1px solid var(--border-mid);
+  font-weight: 700;
 }
 
 .cli-table tr:hover td {
-  background-color: rgba(0, 255, 102, 0.04);
+  background-color: rgba(0, 204, 85, 0.04);
 }
 
 /* Embedded 3D Canvas Box */
 .graph-container-box {
   width: 100%;
-  height: 480px;
-  border: 1px solid #22442b;
-  background-color: #050a06;
+  height: 520px;
+  border: 1px solid var(--border-mid);
+  background-color: #000000;
   position: relative;
   margin: 10px 0;
 }
