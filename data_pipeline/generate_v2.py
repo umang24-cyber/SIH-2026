@@ -809,7 +809,7 @@ n_total = len(df_all)
 
 # --- relay_timestamp ---
 random_ms = rng.integers(50, 501, size=n_total)
-df_all["timestamp"] = pd.to_datetime(df_all["timestamp"])
+df_all["timestamp"] = pd.to_datetime(df_all["timestamp"]).dt.floor("s")
 df_all["relay_timestamp"] = df_all["timestamp"] - pd.to_timedelta(random_ms, unit="ms")
 
 # --- Decorrelated node_type and ASN assignment ---
