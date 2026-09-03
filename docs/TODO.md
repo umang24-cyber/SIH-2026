@@ -26,12 +26,12 @@
 
 | Status | Task | Owner | Priority | Notes |
 |:---:|---|:---:|:---:|---|
-| [ ] | Implement heterogeneous graph builder (Wallet, Transaction, IP nodes) in NetworkX | P4 | High | Schema per `DATA_DICTIONARY.md` Section 7 |
-| [ ] | Add graph edge constructors (`SENT`, `RECEIVED`, `BROADCAST`) with BTC amounts and telemetry | P4 | High | Parse JSON arrays for 1-to-many / many-to-1 links |
+| [x] | Implement heterogeneous graph builder (Wallet, Transaction, IP nodes) in NetworkX | P4/P6 | High | Implemented in `backend/app/services/graph_service.py` |
+| [x] | Add graph edge constructors (`SENT`, `RECEIVED`, `BROADCAST`) with BTC amounts and telemetry | P4/P6 | High | Multi-I/O array JSON mapping active |
 | [ ] | Implement `peeling_chain` detection heuristic (1→2 outputs, change address reuse chain traversal) | P4 | High | Per `DATA_DICTIONARY.md` Section 7c |
 | [ ] | Implement `layering` detection heuristic (fan-out N outputs followed by fan-in N inputs reconvergence) | P4 | High | Detect split-and-merge laundering structures |
 | [ ] | Implement `mixing` detection heuristic (N→N equal-value outputs, multi-round CoinJoin detection via Louvain/Leiden) | P4 | High | Partition equal-denomination subgraphs |
-| [ ] | Graph export serializer matching `/graph/{scenario_id}` in `API_CONTRACT.md` | P4 | High | Align early with P1/P2 frontend schema |
+| [x] | Graph export serializer matching `/graph/{scenario_id}` in `API_CONTRACT.md` | P4/P6 | High | Active and verified via unit tests |
 
 ---
 
@@ -52,11 +52,12 @@
 
 | Status | Task | Owner | Priority | Notes |
 |:---:|---|:---:|:---:|---|
-| [ ] | Set up project repository skeleton and virtual environment | P6 | High | In progress |
-| [ ] | Finalize database choice for offline prototype (SQLite vs PostgreSQL) | P6 | Medium | TODO: P6 decision |
-| [ ] | Implement CSV data ingestion script with JSON array parsing | P6 | High | Join `blockchain_transactions.csv` + `network_metadata.csv` on `txid` |
-| [ ] | Build FastAPI application serving all endpoints defined in `API_CONTRACT.md` | P6 | High | `/entity`, `/transaction`, `/graph`, `/alerts`, `/alerts/{id}/evidence` |
-| [ ] | Implement alert ranking engine merging P4 heuristics and P5 ML predictions | P6 | High | Rank by confidence score and severity |
+| [x] | Set up project repository skeleton, `.gitattributes`, and virtual environment | P6 | High | Completed |
+| [x] | Finalize database choice for offline prototype | P6 | High | Decision made: In-memory pandas dataframes (Postgres fallback) |
+| [x] | Implement CSV data ingestion script with JSON array parsing (`loader.py`, `parser.py`) | P6 | High | 82,078 transactions loaded and verified in memory |
+| [x] | Build FastAPI application serving all endpoints defined in `API_CONTRACT.md` | P6 | High | `/health`, `/entity`, `/transaction`, `/graph`, `/trace`, `/alerts` active |
+| [x] | Build multi-hop BFS pathfinder (`GET /trace`) | P6 | High | Tested and verified in `routes_trace.py` |
+| [ ] | Implement alert ranking engine merging P4 heuristics and P5 ML predictions | P6 | High | Connect ML inference output when ready |
 | [ ] | Verify official PS146 PDF from SIH portal for AI/ML Focus Areas table (common-input-ownership clustering, seed-based risk propagation) | P6 | High | Confirm before Phase 2 detection work is finalized |
 
 ---
@@ -65,10 +66,11 @@
 
 | Status | Task | Owner | Priority | Notes |
 |:---:|---|:---:|:---:|---|
-| [ ] | Build investigation dashboard layout against mocked alert data shaped like `API_CONTRACT.md` | P1 | High | Do not block on backend completion |
+| [ ] | Reconcile terminal UI and 3D visualizer from Ethereum mocks to real Bitcoin UTXO schemas | P1/P2 | High | Connect to live FastAPI endpoints |
 | [ ] | Implement ranked alert triage table with severity badges and filters | P1 | High | Filter by pattern_type, confidence, timestamp |
 | [ ] | Build interactive link-analysis graph viewer using Cytoscape.js / vis.js | P2 | High | Render Wallet, Transaction, and IP nodes with custom styling |
 | [ ] | Implement forensic evidence drawer showing SHAP feature attributions and telemetry card | P1/P2 | High | Display dual on-chain + network metadata view |
+| [ ] | Remove external Google Fonts CDN from `index.html` and bundle fonts locally | P1/P2 | High | For air-gapped compliance |
 | [ ] | Create presentation deck (PPT) highlighting forensic capabilities and SIH PS146 alignment | P1/P2 | Medium | For competition judging rounds |
 
 ---
@@ -77,6 +79,7 @@
 
 | Status | Task | Owner | Priority | Notes |
 |:---:|---|:---:|:---:|---|
+| [x] | Add `.gitattributes` enforcing `* text=auto eol=lf` | P6 | High | Completed |
 | [ ] | Package offline Linux dependencies (wheel files / offline pip cache for WSL2 Ubuntu 24.04) | P6 | High | Ensure 100% offline air-gapped runnability |
-| [ ] | Create end-to-end launch script (`run_system.sh` / `start_dev.bat`) | P6 | Medium | Launch backend FastAPI + frontend dev server |
+| [ ] | Create end-to-end launch script (`run_system.sh`) | P6 | Medium | Launch backend FastAPI + frontend dev server |
 | [ ] | End-to-end integration test: CSV ingestion → graph → ML inference → API → UI visualizer | P6 | High | Validate data integrity across entire stack |

@@ -6,13 +6,15 @@
 
 ## 1. Endpoint Summary
 
-All API endpoints strictly use field names and types specified in [DATA_DICTIONARY.md](file:///c:/Users/arora/SIH/SIH-2026/DATA_DICTIONARY.md).
+All API endpoints strictly use field names and types specified in [DATA_DICTIONARY.md](../DATA_DICTIONARY.md).
 
 | Method | Route | Description | Primary Owners |
 |---|---|---|---|
+| `GET` | `/health` | System telemetry, loaded transaction count, unique wallets, uptime. | P6 (Backend) |
 | `GET` | `/entity/{address}` | Retrieve address metadata, transaction counts, and exchange flag. | P6 (Backend), P1/P2 (Frontend) |
 | `GET` | `/transaction/{txid}` | Retrieve full transaction details (on-chain multi-I/O UTXO + network telemetry). | P6 (Backend), P1/P2 (Frontend) |
 | `GET` | `/graph/{scenario_id}` | Retrieve graph nodes (`Wallet`, `Transaction`, `IP`) and edges (`SENT`, `RECEIVED`, `BROADCAST`) for a scenario. | P4 (Graph), P6 (Backend), P2 (Graph UI) |
+| `GET` | `/trace` | Compute multi-hop shortest path between source and destination wallets. | P6 (Backend), P1/P2 (Frontend) |
 | `GET` | `/alerts` | Retrieve prioritized list of forensic candidate alerts with ML predictions and explanations. | P5 (ML), P6 (Backend), P1 (Alert Feed) |
 | `GET` | `/alerts/{candidate_id}/evidence` | Retrieve full forensic evidence dossier and feature attribution breakdown for a specific candidate. | P5 (ML/SHAP), P6 (Backend), P1/P2 (Frontend) |
 
@@ -20,7 +22,28 @@ All API endpoints strictly use field names and types specified in [DATA_DICTIONA
 
 ## 2. Detailed Endpoint Specifications
 
-### 2.1 `GET /entity/{address}`
+### 2.1 `GET /health`
+
+Returns server uptime, loaded transaction status, and memory store diagnostics.
+
+- **Response Status:** `200 OK`
+
+#### Example Response (JSON)
+```json
+{
+  "status": "ONLINE",
+  "app_name": "BitKaun AML Forensics API",
+  "version": "2.0.0",
+  "loaded_transactions": 82078,
+  "unique_scenarios": 17613,
+  "unique_wallets": 284401,
+  "uptime_seconds": 12.45
+}
+```
+
+---
+
+### 2.2 `GET /entity/{address}`
 
 Retrieves profile details for a given Bitcoin address.
 
@@ -51,7 +74,7 @@ Host: localhost:8000
 
 ---
 
-### 2.2 `GET /transaction/{txid}`
+### 2.3 `GET /transaction/{txid}`
 
 Retrieves the combined dual-layer ledger record and P2P telemetry for a specific `txid`.
 
@@ -103,7 +126,7 @@ Host: localhost:8000
 
 ---
 
-### 2.3 `GET /graph/{scenario_id}`
+### 2.4 `GET /graph/{scenario_id}`
 
 Retrieves the heterogeneous graph representation for an entire scenario or cluster, adhering to Section 7 of `DATA_DICTIONARY.md`.
 
@@ -214,7 +237,56 @@ Host: localhost:8000
 
 ---
 
-### 2.4 `GET /alerts`
+### 2.5 `GET /trace`
+
+Traces the multi-hop transaction flow path between a source address and destination address.
+
+- **Query Parameters:**
+  - `src` (string, required): Source Bitcoin address
+  - `dst` (string, required): Destination Bitcoin address
+  - `max_depth` (int, default: 6): Maximum hop search depth
+- **Response Status:** `200 OK`
+
+#### Example Request
+```http
+GET /trace?src=12dhqUGwzF6c6eW5F7DkyXyqBmW1&dst=1EcgU6KKSdjtWmXzy5W3EX34ibCoH&max_depth=4 HTTP/1.1
+Host: localhost:8000
+```
+
+#### Example Response (JSON)
+```json
+{
+  "source_address": "12dhqUGwzF6c6eW5F7DkyXyqBmW1",
+  "destination_address": "1EcgU6KKSdjtWmXzy5W3EX34ibCoH",
+  "path_found": true,
+  "hop_count": 2,
+  "total_transferred_btc": 0.26326308,
+  "hops": [
+    {
+      "hop_index": 1,
+      "from_wallet": "12dhqUGwzF6c6eW5F7DkyXyqBmW1",
+      "to_wallet": "1PZDhrao8CqYBnFzEk67TbPxX8MxbKjhmh",
+      "txid": 58234917,
+      "amount_btc": 0.21066308,
+      "timestamp": "2014-03-15 09:22:41",
+      "flagged_typology": "peeling_chain"
+    },
+    {
+      "hop_index": 2,
+      "from_wallet": "1PZDhrao8CqYBnFzEk67TbPxX8MxbKjhmh",
+      "to_wallet": "1EcgU6KKSdjtWmXzy5W3EX34ibCoH",
+      "txid": 58234918,
+      "amount_btc": 0.05260000,
+      "timestamp": "2014-03-15 09:22:42",
+      "flagged_typology": "peeling_chain"
+    }
+  ]
+}
+```
+
+---
+
+### 2.6 `GET /alerts`
 
 Retrieves a ranked list of candidate alerts identified by the graph detection heuristics and classified by the ML engine.
 
@@ -283,7 +355,7 @@ Host: localhost:8000
 
 ---
 
-### 2.5 `GET /alerts/{candidate_id}/evidence`
+### 2.7 `GET /alerts/{candidate_id}/evidence`
 
 Retrieves deep forensic evidence, SHAP feature attributions, and transaction telemetry breakdown for an alert candidate.
 
