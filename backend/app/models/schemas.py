@@ -19,7 +19,7 @@ class HealthResponse(BaseModel):
     uptime_seconds: float
 
 # ==========================================
-# 2. Entity / Wallet Schemas
+# 2. Entity / Wallet & Clustering Schemas
 # ==========================================
 
 class EntityResponse(BaseModel):
@@ -30,6 +30,16 @@ class EntityResponse(BaseModel):
     tx_count: int
     first_seen: str
     last_seen: str
+    associated_scenarios: List[str]
+
+class ClusterResponse(BaseModel):
+    query_address: str
+    cluster_id: str
+    cluster_size: int
+    co_owned_addresses: List[str]
+    total_cluster_received_btc: float
+    total_cluster_sent_btc: float
+    multi_input_tx_count: int
     associated_scenarios: List[str]
 
 # ==========================================
@@ -82,7 +92,7 @@ class GraphResponse(BaseModel):
     edges: List[GraphEdge]
 
 # ==========================================
-# 5. Multi-Hop Trace Schemas
+# 5. Multi-Hop Trace & Taint Analysis Schemas
 # ==========================================
 
 class TraceHop(BaseModel):
@@ -101,6 +111,22 @@ class TraceResponse(BaseModel):
     hop_count: int
     total_transferred_btc: float
     hops: List[TraceHop]
+
+class TaintNode(BaseModel):
+    address: str
+    hop_distance: int
+    taint_score: float = Field(description="Contamination level between 0.0 and 1.0")
+    received_btc_from_seed: float
+    via_txid: int
+    is_licit_exchange: bool = False
+
+class TaintResponse(BaseModel):
+    seed_address: str
+    decay_rate: float
+    max_depth: int
+    total_tainted_wallets: int
+    total_tainted_volume_btc: float
+    contaminated_wallets: List[TaintNode]
 
 # ==========================================
 # 6. Alert & Explainable Evidence Schemas

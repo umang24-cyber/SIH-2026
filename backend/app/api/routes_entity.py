@@ -1,9 +1,10 @@
 """
-Entity / Wallet Forensics Route.
+Entity / Wallet Forensics & CIOH Clustering Routes.
 """
 from fastapi import APIRouter, HTTPException
 from backend.app.services.data_service import data_service
-from backend.app.models.schemas import EntityResponse
+from backend.app.services.clustering_service import clustering_service
+from backend.app.models.schemas import EntityResponse, ClusterResponse
 
 router = APIRouter(tags=["Entity"])
 
@@ -20,3 +21,18 @@ def get_entity_profile(address: str):
             detail=f"Bitcoin address '{address}' not found in forensic ledger."
         )
     return entity
+
+@router.get("/entity/{address}/cluster", response_model=ClusterResponse)
+def get_entity_cluster(address: str):
+    """
+    Common-Input Ownership Heuristic (CIOH) Clustering:
+    Returns all co-owned Bitcoin addresses, multi-input transaction counts,
+    and total combined financial volume for the entity.
+    """
+    cluster = clustering_service.get_entity_cluster(address)
+    if not cluster:
+        raise HTTPException(
+            status_code=404,
+            detail=f"Bitcoin address '{address}' not found in cluster registry."
+        )
+    return cluster
