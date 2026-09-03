@@ -14,11 +14,15 @@
   --border-mid: #184424;
   --font-mono: 'VT323', 'Share Tech Mono', 'Courier New', monospace;
 
-  /* Custom 8-bit Retro Theme Pixel Cursors */
-  --cursor-default: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='24' height='24' viewBox='0 0 24 24' shape-rendering='crispEdges'%3E%3Cpath d='M0 0v17l4-4 4 8 3-1.5-4-7.5h5.5z' fill='%23000000' stroke='%2300cc55' stroke-width='1.5' stroke-linejoin='miter'/%3E%3Cpath d='M2 3v11l3-3 4 8 1-0.5-4-7.5h4z' fill='%2300cc55'/%3E%3C/svg%3E") 0 0, auto;
-  --cursor-pointer: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='24' height='24' viewBox='0 0 24 24' shape-rendering='crispEdges'%3E%3Cpath d='M4 2h3v7h2V5h3v4h1V6h3v5h1V8h3v8l-3 4h-7l-4-4v-4l-2-2V7h2v-5z' fill='%23000000' stroke='%2300cc55' stroke-width='1.5' stroke-linejoin='miter'/%3E%3Cpath d='M5 3h1v6h2V6h1v4h1V7h1v4h1V9h1v6l-2 3h-5l-3-3v-3l-1-1V8h1V3z' fill='%2300cc55'/%3E%3C/svg%3E") 5 1, pointer;
-  --cursor-text: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='24' height='24' viewBox='0 0 24 24' shape-rendering='crispEdges'%3E%3Cpath d='M4 2h8M8 2v14M4 16h8' fill='none' stroke='%2300cc55' stroke-width='2.5'/%3E%3Cpath d='M5 3h6M8 3v12M5 15h6' fill='none' stroke='%23000000' stroke-width='1'/%3E%3C/svg%3E") 4 9, text;
-  --cursor-wait: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='24' height='24' viewBox='0 0 24 24' shape-rendering='crispEdges'%3E%3Cpath d='M3 2h14v3l-4 4 4 4v3H3v-3l4-4-4-4V2z' fill='%23000000' stroke='%2300cc55' stroke-width='1.5'/%3E%3Cpath d='M5 4h10v1l-3 3 3 3v1H5v-1l3-3-3-3V4z' fill='%2300cc55'/%3E%3C/svg%3E") 8 8, wait;
+  /* Pixel-perfect 8-bit Retro Theme Cursors (32x32 padded canvas, rock-solid click states) */
+  --cursor-default: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='32' height='32' viewBox='0 0 32 32' shape-rendering='crispEdges'%3E%3Cpath d='M2 2v20l5-5 4 9 4-1.8-4.2-8.7h7.2z' fill='%23000000' stroke='%23000000' stroke-width='2' stroke-linejoin='miter'/%3E%3Cpath d='M3 4v16l4.2-4.2 4 8.6 1.8-0.8-4-8.6h6z' fill='%2300cc55'/%3E%3C/svg%3E") 2 2, auto;
+  --cursor-default-active: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='32' height='32' viewBox='0 0 32 32' shape-rendering='crispEdges'%3E%3Cpath d='M2 2v20l5-5 4 9 4-1.8-4.2-8.7h7.2z' fill='%23000000' stroke='%23000000' stroke-width='2' stroke-linejoin='miter'/%3E%3Cpath d='M3 4v16l4.2-4.2 4 8.6 1.8-0.8-4-8.6h6z' fill='%2333ee77'/%3E%3C/svg%3E") 2 2, auto;
+
+  --cursor-pointer: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='32' height='32' viewBox='0 0 32 32' shape-rendering='crispEdges'%3E%3Cpath d='M6 1h5v11h2V8h4v4h1V9h4v4h1v-2h4v9l-3 6h-9l-5-5v-4l-3-3v-6h3V1z' fill='%23000000' stroke='%23000000' stroke-width='2' stroke-linejoin='miter'/%3E%3Cpath d='M7 2h3v10h2V9h2v3h1v-2h2v3h1v-1h2v8l-2.5 5h-8l-4.5-4.5v-3.5l-2.5-2.5v-4h2.5V2z' fill='%2300cc55'/%3E%3C/svg%3E") 8 2, pointer;
+  --cursor-pointer-active: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='32' height='32' viewBox='0 0 32 32' shape-rendering='crispEdges'%3E%3Cpath d='M6 3h5v10h2V9h4v3h1v-1h4v3h1v-1h4v8l-3 6h-9l-5-5v-3l-3-3v-5h3V3z' fill='%23000000' stroke='%23000000' stroke-width='2' stroke-linejoin='miter'/%3E%3Cpath d='M7 4h3v9h2v-2h2v2h1v-1h2v2h1v-1h2v7l-2.5 5h-8l-4.5-4.5v-2.5l-2.5-2.5v-3h2.5V4z' fill='%2333ee77'/%3E%3C/svg%3E") 8 4, pointer;
+
+  --cursor-text: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='32' height='32' viewBox='0 0 32 32' shape-rendering='crispEdges'%3E%3Cpath d='M8 4h16M16 4v24M8 28h16' fill='none' stroke='%23000000' stroke-width='4'/%3E%3Cpath d='M8 4h16M16 4v24M8 28h16' fill='none' stroke='%2300cc55' stroke-width='2'/%3E%3C/svg%3E") 16 16, text;
+  --cursor-wait: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='32' height='32' viewBox='0 0 32 32' shape-rendering='crispEdges'%3E%3Cpath d='M4 3h24v5l-7 7 7 7v5H4v-5l7-7-7-7V3z' fill='%23000000' stroke='%23000000' stroke-width='2'/%3E%3Cpath d='M6 5h20v2l-6 6 6 6v2H6v-2l6-6-6-6V5z' fill='%2300cc55'/%3E%3C/svg%3E") 16 16, wait;
 }
 
 * {
@@ -30,6 +34,10 @@
   -moz-osx-font-smoothing: unset;
   text-rendering: geometricPrecision;
   cursor: var(--cursor-default);
+}
+
+*:active {
+  cursor: var(--cursor-default-active);
 }
 
 html, body {
@@ -44,6 +52,11 @@ html, body {
   letter-spacing: 0.5px;
   user-select: text;
   cursor: var(--cursor-default);
+  -webkit-user-drag: none;
+}
+
+html:active, body:active {
+  cursor: var(--cursor-default-active);
 }
 
 /* Custom Deep Scrollbar */
@@ -71,6 +84,22 @@ html, body {
   flex-direction: column;
   overflow: hidden;
   cursor: var(--cursor-default);
+  position: relative;
+}
+
+.terminal-window:active {
+  cursor: var(--cursor-default-active);
+}
+
+/* Ambient Subtle Matrix 0/1 Falling Dust Canvas */
+.ambient-binary-canvas {
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  pointer-events: none;
+  z-index: 1;
 }
 
 /* Window Title Bar (Deep Dark Xterm Style) */
@@ -86,6 +115,9 @@ html, body {
   color: #4e735b;
   flex-shrink: 0;
   cursor: var(--cursor-default);
+  user-select: none;
+  position: relative;
+  z-index: 10;
 }
 
 .window-dots {
@@ -98,8 +130,14 @@ html, body {
   width: 11px;
   height: 11px;
   border-radius: 50% !important;
-  cursor: var(--cursor-pointer);
+  cursor: var(--cursor-pointer) !important;
+  user-select: none;
 }
+
+.window-dot:active {
+  cursor: var(--cursor-pointer-active) !important;
+}
+
 .dot-red { background-color: #c93b3e; }
 .dot-yellow { background-color: #d49a00; }
 .dot-green { background-color: #1ea847; }
@@ -114,6 +152,9 @@ html, body {
   gap: 8px;
   width: 100%;
   cursor: var(--cursor-default);
+  position: relative;
+  z-index: 2;
+  background: transparent !important;
 }
 
 /* Authentic ANSI Shadow 3D Logo Header */
@@ -128,6 +169,7 @@ html, body {
   overflow-x: auto;
   margin-bottom: 14px;
   display: block;
+  user-select: none;
 }
 
 /* Interactive Command Tags & Clickable Links */
@@ -135,12 +177,19 @@ html, body {
   color: var(--fg-primary);
   font-weight: 700;
   cursor: var(--cursor-pointer) !important;
+  user-select: none !important;
+  -webkit-user-select: none !important;
   display: inline-block;
   transition: color 0.1s ease;
 }
+
 .cmd-tag:hover, a:hover {
   color: #ffffff;
   text-decoration: underline;
+}
+
+.cmd-tag:active, a:active, button:active, [role="button"]:active {
+  cursor: var(--cursor-pointer-active) !important;
 }
 
 .cmd-desc {
@@ -286,4 +335,20 @@ html, body {
   position: relative;
   margin: 10px 0;
   cursor: var(--cursor-default);
+}
+
+/* CLI Output Animation */
+.cli-line-fade {
+  animation: cliLineFadeIn 0.12s ease-out forwards;
+}
+
+@keyframes cliLineFadeIn {
+  from {
+    opacity: 0;
+    transform: translateY(-2px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
 }

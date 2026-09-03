@@ -1,0 +1,361 @@
+/* ==========================================================================
+   BitKaun? Forensic HUD Dashboard & Subwindow Styling (SIH-2026 PS146)
+   High Readability, Fluid Edge Flows, & Embedded CLI-Integrated Workspace
+   ========================================================================== */
+
+/* Embedded Terminal Dashboard Window (Part of CLI scroll stream) */
+.dashboard-embedded-window {
+  width: 100%;
+  height: 700px;
+  background-color: #000000;
+  border: 1px solid var(--border-mid);
+  border-radius: 4px;
+  position: relative;
+  overflow: hidden;
+  display: flex;
+  flex-direction: column;
+  margin: 12px 0 18px 0;
+  z-index: 10;
+  box-shadow: 0 4px 30px rgba(0, 0, 0, 0.95), 0 0 15px rgba(0, 204, 85, 0.15);
+  user-select: none;
+  font-family: 'Share Tech Mono', 'Consolas', monospace;
+  color: var(--fg-primary);
+  transition: height 0.3s cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+.dashboard-embedded-window.minimized {
+  height: 44px;
+}
+
+/* Master Top Forensic HUD Status Bar */
+.dashboard-topbar {
+  background-color: #020904;
+  border-bottom: 1px solid var(--border-mid);
+  padding: 8px 16px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  font-size: 13px;
+  flex-shrink: 0;
+  z-index: 30;
+}
+
+.topbar-left {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+}
+
+.hud-title {
+  font-weight: 700;
+  font-size: 14px;
+  color: #00ff66;
+  letter-spacing: 1px;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.hud-pill {
+  background: rgba(0, 204, 85, 0.12);
+  border: 1px solid #00cc55;
+  color: #00ff66;
+  padding: 3px 10px;
+  font-size: 12px;
+  font-weight: 600;
+  border-radius: 2px;
+  cursor: pointer;
+  transition: all 0.15s ease;
+}
+
+.hud-pill:hover,
+.hud-pill.active {
+  background: #00cc55;
+  color: #000000;
+  font-weight: 700;
+  box-shadow: 0 0 8px rgba(0, 204, 85, 0.5);
+}
+
+.topbar-right {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.close-btn {
+  background: rgba(220, 50, 50, 0.2);
+  border: 1px solid #ff4444;
+  color: #ff8888;
+  padding: 3px 10px;
+  font-size: 12px;
+  font-weight: 700;
+  cursor: pointer;
+  border-radius: 2px;
+  transition: all 0.15s ease;
+}
+
+.close-btn:hover {
+  background: #ff4444;
+  color: #000000;
+}
+
+/* Central Viewport Canvas Stage */
+.dashboard-stage {
+  flex: 1;
+  position: relative;
+  width: 100%;
+  height: 100%;
+  overflow: hidden;
+  background-color: #000000;
+}
+
+/* Background Link-Analysis Canvas */
+.graph-canvas-container {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  z-index: 1;
+  background: radial-gradient(circle at 50% 50%, #031407 0%, #000000 90%);
+}
+
+/* Animated Flowing Photon Beams Along Directed Edges */
+@keyframes flowDash {
+  from {
+    stroke-dashoffset: 48;
+  }
+  to {
+    stroke-dashoffset: 0;
+  }
+}
+
+.edge-flow-active {
+  stroke-dasharray: 6, 6;
+  animation: flowDash 1.2s linear infinite;
+}
+
+/* Breathing Node Glow */
+@keyframes nodePulseGlow {
+  0%, 100% {
+    filter: drop-shadow(0 0 3px rgba(0, 204, 85, 0.4));
+  }
+  50% {
+    filter: drop-shadow(0 0 12px rgba(0, 255, 102, 0.85));
+  }
+}
+
+.node-glow {
+  animation: nodePulseGlow 3s ease-in-out infinite;
+}
+
+/* TUI Subwindow Floating Frame with Crystal Clear Contrast */
+.tui-subwindow {
+  position: absolute;
+  background: rgba(1, 10, 4, 0.96);
+  border: 1px solid #00cc55;
+  box-shadow: 0 6px 30px rgba(0, 0, 0, 0.95), 0 0 14px rgba(0, 204, 85, 0.2);
+  display: flex;
+  flex-direction: column;
+  z-index: 20;
+  backdrop-filter: blur(8px);
+  border-radius: 3px;
+  min-width: 300px;
+  transition: transform 0.2s cubic-bezier(0.16, 1, 0.3, 1), box-shadow 0.2s ease;
+}
+
+.tui-subwindow:hover {
+  box-shadow: 0 8px 36px rgba(0, 0, 0, 0.98), 0 0 20px rgba(0, 255, 102, 0.35);
+  border-color: #00ff66;
+}
+
+.tui-window-titlebar {
+  background: #041609;
+  border-bottom: 1px solid #00cc55;
+  padding: 8px 12px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  font-size: 13px;
+  font-weight: 700;
+  letter-spacing: 0.8px;
+  color: #00ff66;
+  user-select: none;
+}
+
+.window-ctrls {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.window-ctrl-btn {
+  color: #a0c4ab;
+  cursor: pointer;
+  font-size: 13px;
+  line-height: 1;
+  padding: 2px 6px;
+  border-radius: 2px;
+  transition: all 0.15s ease;
+}
+
+.window-ctrl-btn:hover {
+  color: #ffffff;
+  background: rgba(0, 204, 85, 0.2);
+}
+
+.tui-window-body {
+  padding: 14px;
+  overflow-y: auto;
+  flex: 1;
+  font-size: 13px;
+  line-height: 1.5;
+  color: #e2e8f0; /* Crisp light slate for high readability */
+}
+
+/* Alert Queue Cards */
+.alert-card-item {
+  background: #031407;
+  border: 1px solid #005520;
+  padding: 10px 12px;
+  margin-bottom: 9px;
+  border-radius: 2px;
+  cursor: pointer;
+  transition: all 0.15s ease;
+}
+
+.alert-card-item:hover,
+.alert-card-item.selected {
+  background: #05260f;
+  border-color: #00ff66;
+  box-shadow: 0 0 10px rgba(0, 255, 102, 0.25);
+}
+
+.alert-card-item.selected {
+  border-left: 3px solid #00ff66;
+}
+
+.severity-tag {
+  display: inline-block;
+  padding: 2px 8px;
+  font-size: 11px;
+  font-weight: 700;
+  border-radius: 2px;
+  letter-spacing: 0.5px;
+}
+
+.severity-critical {
+  background: rgba(255, 50, 50, 0.25);
+  border: 1px solid #ff4444;
+  color: #ff7777;
+}
+
+.severity-high {
+  background: rgba(255, 170, 0, 0.25);
+  border: 1px solid #ffaa00;
+  color: #ffbb33;
+}
+
+.severity-medium {
+  background: rgba(0, 204, 85, 0.25);
+  border: 1px solid #00cc55;
+  color: #00ff88;
+}
+
+/* Dual-Layer Telemetry Dossier Styles (High Readability) */
+.telemetry-section-title {
+  color: #00ff66;
+  font-size: 12px;
+  font-weight: 700;
+  letter-spacing: 1.2px;
+  border-bottom: 1px solid #005520;
+  padding-bottom: 5px;
+  margin-bottom: 10px;
+}
+
+.telemetry-row {
+  display: flex;
+  justify-content: space-between;
+  margin-bottom: 7px;
+  font-size: 13px;
+}
+
+.telemetry-label {
+  color: #94a3b8; /* Crisp readable neutral */
+}
+
+.telemetry-value {
+  color: #ffffff; /* Crisp pure white values */
+  font-weight: 600;
+  font-family: 'Consolas', monospace;
+}
+
+/* Explainable AI (SHAP) Meter Bars (High Readability) */
+.shap-item {
+  margin-bottom: 11px;
+}
+
+.shap-header {
+  display: flex;
+  justify-content: space-between;
+  font-size: 12px;
+  margin-bottom: 4px;
+}
+
+.shap-bar-track {
+  height: 11px;
+  background: #020d04;
+  border: 1px solid #005520;
+  position: relative;
+  overflow: hidden;
+  border-radius: 2px;
+}
+
+.shap-bar-fill {
+  height: 100%;
+  transition: width 0.4s ease;
+}
+
+.shap-fill-risk-up {
+  background: linear-gradient(90deg, #00cc55, #00ff66);
+  box-shadow: 0 0 10px rgba(0, 255, 102, 0.5);
+}
+
+.shap-fill-risk-down {
+  background: #006626;
+}
+
+/* Minimized Window Dock at Bottom */
+.dashboard-dock {
+  background: #020904;
+  border-top: 1px solid var(--border-mid);
+  padding: 6px 16px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  font-size: 12px;
+  flex-shrink: 0;
+  z-index: 30;
+}
+
+.dock-pills {
+  display: flex;
+  gap: 8px;
+}
+
+.dock-pill {
+  background: rgba(0, 30, 12, 0.8);
+  border: 1px solid #00cc55;
+  color: #00ff66;
+  padding: 3px 10px;
+  cursor: pointer;
+  border-radius: 2px;
+  font-weight: 600;
+  transition: all 0.15s ease;
+}
+
+.dock-pill:hover,
+.dock-pill.active {
+  border-color: #00ff66;
+  color: #000000;
+  background: #00cc55;
+}

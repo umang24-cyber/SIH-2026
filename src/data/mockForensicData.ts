@@ -235,89 +235,49 @@ export const INITIAL_LOGS: KernelLogEntry[] = [
 
 export const COMMAND_REGISTRY: CommandDescriptor[] = [
   {
+    name: 'graph',
+    aliases: ['g', 'nodes', 'dashboard'],
+    usage: 'graph',
+    summary: 'Launch the interactive forensic link-analysis dashboard & TUI subwindows.',
+    description: 'Mounts the full-viewport hybrid CLI-GUI link-analysis workspace with 3 TUI subwindows (Ranked Alerts Queue, Dual-Layer Telemetry Dossier, and Explainable AI SHAP Attribution HUD) over the multi-entity Bitcoin transaction graph (Wallets, Transactions, and Relay IPs).',
+    category: 'FORENSICS',
+    examples: ['graph', 'g']
+  },
+  {
     name: 'help',
     aliases: ['man', '?', 'info'],
     usage: 'help [command]',
     summary: 'Display interactive Linux-style forensic manual and command syntax.',
-    description: 'Displays the complete forensic command reference, parameter specifications, alias dictionary, and step-by-step investigation procedures.',
+    description: 'Displays the active command reference, parameter specifications, alias dictionary, and usage instructions.',
     category: 'NAVIGATION',
-    examples: ['help', 'man inspect', 'help trace']
-  },
-  {
-    name: 'graph',
-    aliases: ['nodes', 'g', 'ls nodes'],
-    usage: 'graph [filter]',
-    summary: 'Mount and maximize the full-viewport 3D Force-Directed Graph canvas.',
-    description: 'Switches the primary TTY stage to the WebGL 3D Graph. Renders nodes as wireframe phosphor cubes, calculates physical spatial repulsive forces, and pulses directional photon beams along transaction links. Left click drag rotates, right click pans, scroll zooms, and clicking any node automatically opens its inspector dossier.',
-    category: 'NAVIGATION',
-    examples: ['graph', 'nodes', 'g']
-  },
-  {
-    name: 'inspect',
-    aliases: ['cat', 'hex', 'view'],
-    usage: 'inspect <NODE_ID>',
-    summary: 'Mount forensic byte hexdump and entity intelligence dossier.',
-    description: 'Renders raw memory byte hexdump, AML risk classification scores, linked cluster affiliations, transaction frequency, and cryptographic addresses for a specified entity ID.',
-    category: 'FORENSICS',
-    examples: ['inspect 0x71C84A9E', 'cat 0x77DD9900', 'inspect 0x44B12D03']
-  },
-  {
-    name: 'trace',
-    aliases: ['tr', 'path', 'flow'],
-    usage: 'trace <SRC_ID> <DST_ID>',
-    summary: 'Calculate and visually highlight the multi-hop fund flow in 3D space.',
-    description: 'Computes the shortest and highest-velocity transaction path between two addresses, detailing each intermediary hop, transferred ETH volume, timestamps, and laundering markers.',
-    category: 'FORENSICS',
-    examples: [
-      'trace 0x5C8821FF 0xEE3388A1',
-      'trace 0x71C84A9E 0x99FF4A1B',
-      'tr 0x71C84A9E 0x77DD9900'
-    ]
-  },
-  {
-    name: 'dmesg',
-    aliases: ['logs', 'd', 'tail -f'],
-    usage: 'dmesg [filter]',
-    summary: 'Stream live rolling kernel logs, AML intercepts, and system events.',
-    description: 'Displays real-time system audit logs, memory pool intercepts, and automated threat intelligence detection alerts.',
-    category: 'SYSTEM',
-    examples: ['dmesg', 'logs', 'd']
-  },
-  {
-    name: 'home',
-    aliases: ['banner', 'cd ~', 'cd', 'landing'],
-    usage: 'home',
-    summary: 'Return to the root landing screen with the detective ASCII art.',
-    description: 'Restores the root TTY1 welcome artwork (Evidence Scanner, Noir Fedora, Filigree Pipe), active investigation status, and quick-start tips.',
-    category: 'NAVIGATION',
-    examples: ['home', 'cd ~', 'banner']
-  },
-  {
-    name: 'sound',
-    aliases: ['audio', 'mute'],
-    usage: 'sound <on|off|toggle>',
-    summary: 'Toggle procedural retro terminal keyboard clicks and beep synthesis.',
-    description: 'Enables or disables the procedural Web Audio synthesizer that generates mechanical VT100 keystrokes and kernel alert chirps.',
-    category: 'SYSTEM',
-    examples: ['sound on', 'sound off', 'sound']
-  },
-  {
-    name: 'status',
-    aliases: ['sys', 'top', 'whoami', 'uname'],
-    usage: 'status',
-    summary: 'Display forensic kernel system diagnostics, memory, and session state.',
-    description: 'Outputs system uptime, active investigator PID, mapped cluster counts, and memory buffer allocations.',
-    category: 'SYSTEM',
-    examples: ['status', 'top', 'whoami']
+    examples: ['help', 'man help', '?']
   },
   {
     name: 'clear',
     aliases: ['cls'],
     usage: 'clear',
     summary: 'Flush current terminal stdout history buffer (Shortcut: Ctrl+L).',
-    description: 'Clears the bottom terminal command output history buffer and positions the cursor at the top.',
+    description: 'Clears the executed command output history buffer while keeping the top header anchored.',
     category: 'NAVIGATION',
     examples: ['clear', 'cls']
+  },
+  {
+    name: 'sound',
+    aliases: ['audio', 'mute'],
+    usage: 'sound <on|off|toggle>',
+    summary: 'Toggle procedural retro terminal keyboard clicks and arcade audio.',
+    description: 'Enables or disables the procedural Web Audio synthesizer that generates mechanical keystroke ticks and retro Pac-Man audio.',
+    category: 'SYSTEM',
+    examples: ['sound on', 'sound off', 'sound']
+  },
+  {
+    name: 'reboot',
+    aliases: ['boot', 'splash'],
+    usage: 'reboot',
+    summary: 'Replay Pac-Man Bitcoin arcade startup boot sequence.',
+    description: 'Re-initializes the session and plays the animated Pac-Man Bitcoin eating sequence with the frame-by-frame logo decryption.',
+    category: 'SYSTEM',
+    examples: ['reboot', 'splash']
   }
 ];
 
