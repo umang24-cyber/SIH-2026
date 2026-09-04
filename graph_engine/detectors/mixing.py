@@ -92,11 +92,14 @@ def detect(
             if G.nodes[nbr].get("node_type") == "wallet"
         ]
         # Collect output amounts for CV computation
+        # NOTE: G is a MultiDiGraph; G[u][v] → {edge_key: data_dict}.
+        # We extract the first (and expected only) RECEIVED edge per output wallet.
         output_amounts = [
-            G[tx_id][nbr]["amount_btc"]
+            next(iter(G[tx_id][nbr].values()))["amount_btc"]
             for nbr in G.successors(tx_id)
             if G.nodes[nbr].get("node_type") == "wallet"
         ]
+
 
         tx_meta[txid] = {
             "output_amounts": output_amounts,

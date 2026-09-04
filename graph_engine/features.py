@@ -33,7 +33,7 @@ log = logging.getLogger(__name__)
 
 def enrich_and_build_dataframe(
     candidates: list[CandidateStructure],
-    G: nx.DiGraph,
+    G: nx.MultiDiGraph,
 ) -> pd.DataFrame:
     """
     Enrich every candidate with network-layer features and return a flat DataFrame.
@@ -42,7 +42,7 @@ def enrich_and_build_dataframe(
     ----------
     candidates : list[CandidateStructure]
         All detected candidates (peeling, layering, mixing combined).
-    G : nx.DiGraph
+    G : nx.MultiDiGraph
         Full heterogeneous graph (needed to resolve BROADCAST edges for IPs).
 
     Returns
@@ -73,7 +73,7 @@ def enrich_and_build_dataframe(
 # Internal helpers
 # ---------------------------------------------------------------------------
 
-def _build_tx_ip_index(G: nx.DiGraph) -> dict[int, dict]:
+def _build_tx_ip_index(G: nx.MultiDiGraph) -> dict[int, dict]:
     """
     Return a mapping txid (int) → {
         relay_ip:        str,
@@ -152,6 +152,7 @@ _PEEL_COLS = [
     "chain_length",
     "total_peeled_btc",
     "amount_decay_rate",
+    "decay_consistency_score",
     "avg_time_gap_seconds",
     "min_time_gap_seconds",
     "max_time_gap_seconds",

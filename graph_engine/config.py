@@ -48,6 +48,13 @@ PEEL_MIN_CHAIN_LENGTH: int = 3
 # due to fee structure without discarding the chain.
 PEEL_AMOUNT_TOLERANCE: float = 0.05               # 5 % tolerance
 
+# Minimum ratio between carry-forward output amount and peeled amount
+# carry_amt / peeled_amt must be >= this to be considered an asymmetric peel
+PEEL_MIN_ASYMMETRY_RATIO: float = 2.0
+
+# Minimum decay-consistency score (0.5 * monotonicity + 0.5 * log-linear R^2)
+PEEL_MIN_DECAY_SCORE: float = 0.6
+
 # ---------------------------------------------------------------------------
 # Layering detector tunables
 # ---------------------------------------------------------------------------
@@ -63,6 +70,9 @@ LAYER_MIN_RECONVERGENCE_RATIO: float = 0.6
 
 # Maximum seconds from first fan-out tx to last fan-in tx
 LAYER_MAX_TIME_WINDOW_SECONDS: int = 72 * 3600    # 72 hours
+
+# Maximum time gap between consecutive hops in a layering branch
+LAYER_MAX_HOP_GAP_SECONDS: int = LAYER_MAX_TIME_WINDOW_SECONDS  # 72 hours
 
 # Wallets appearing in more transactions than this are treated as exchange-like
 # hubs and excluded from being a convergence sink
