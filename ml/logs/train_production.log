@@ -1,0 +1,34 @@
+==================================================
+1. LOADING V6 FROZEN DATA
+==================================================
+==================================================
+2. VALIDATING FEATURE MATRIX & SPLIT
+==================================================
+Train scenarios: 5926, Test scenarios: 1482
+Intersection: 0
+Feature columns (44): ['total_input_mean', 'total_output_mean', 'fee_ratio_mean', 'fee_ratio_std', 'amount_decay_slope', 'output_amount_gini', 'denomination_entropy', 'round_number_ratio', 'io_amount_similarity', 'num_txns', 'mean_num_inputs', 'mean_num_outputs', 'io_count_ratio', 'unique_input_addrs', 'unique_output_addrs', 'address_reuse_ratio', 'change_output_ratio', 'script_type_entropy', 'time_span_hours', 'inter_tx_delta_mean', 'inter_tx_delta_std', 'inter_tx_delta_min', 'burstiness_B', 'hour_of_day_entropy', 'prop_delta_mean', 'prop_delta_std', 'prop_delta_cv', 'suspicious_infra_ratio', 'unique_asn_count', 'asn_concentration', 'unique_country_count', 'country_concentration', 'unique_ip_count', 'ip_to_addr_ratio', 'alt_port_ratio', 'unique_user_agents', 'script_type_mode', 'max_chain_length', 'graph_density', 'avg_clustering', 'max_in_degree', 'max_out_degree', 'degree_assortativity', 'edge_to_node_ratio']
+==================================================
+3. BINARY MODEL TRAINING (PHASE 4)
+==================================================
+{'roc_auc': 0.9991992158358846, 'pr_auc': 0.9988505751135144, 'accuracy': 0.9912280701754386, 'bacc': 0.9905067415072495, 'f1': 0.9891576313594662, 'precision': 0.9916387959866221, 'recall': 0.9866888519134775}
+==================================================
+4. BINARY FEATURE IMPORTANCE (PHASE 5)
+==================================================
+==================================================
+5. TYPOLOGY MODEL TRAINING (PHASE 7)
+==================================================
+{'macro_f1': 1.0, 'weighted_f1': 1.0, 'accuracy': 1.0}
+==================================================
+6. ROBUSTNESS ABLATIONS (PHASE 6 & 8)
+==================================================
+==================================================
+7. CALIBRATION (PHASE 11)
+==================================================
+{'ece': 0.0074324864245619545, 'brier': 0.007888254709541798}
+==================================================
+8. ERROR ANALYSIS (PHASE 10)
+==================================================
+==================================================
+9. MANIFEST (PHASE 12)
+==================================================
+PIPELINE COMPLETED SUCCESSFULLY

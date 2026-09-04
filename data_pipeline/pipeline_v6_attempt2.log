@@ -1,0 +1,570 @@
+======================================================================
+PHASE 1 — Generating Licit (Normal) scenarios
+======================================================================
+  Generated 42,000 licit transactions across 3,163 scenarios
+
+======================================================================
+PHASE 2 — Hard-Negative Exchange Scenarios
+======================================================================
+  Generated 6,267 exchange transactions across 40 exchanges
+
+======================================================================
+PHASE 3 — Ransomware Campaigns (Macro-Structural Hybrids)
+======================================================================
+  Generated 28,000 ransomware txns across 2,165 campaigns
+
+======================================================================
+PHASE 4 — 260 Structurally Diverse Peeling Chains
+======================================================================
+  Planted 3,803 peeling txns across 260 scenarios
+
+======================================================================
+PHASE 5 — 260 Structurally Diverse Layering Clusters
+======================================================================
+  Planted 4,187 layering txns across 260 scenarios
+
+======================================================================
+PHASE 6 — 320 Structurally Diverse Mixing Clusters
+======================================================================
+  Planted 1,558 mixing txns across 320 scenarios
+
+======================================================================
+PHASE 6B — Licit Structural Equivalents
+======================================================================
+
+======================================================================
+PHASE 7 — Merging records and assigning hash-shuffled txids
+======================================================================
+  Total records generated: 96,251
+pattern_type
+normal           58703
+ransomware       28000
+layering          4187
+peeling_chain     3803
+mixing            1558
+  Assigning shuffled txids...
+  Collision resolution rounds: 1
+
+======================================================================
+PHASE 8 — Setting relay_timestamps
+======================================================================
+
+======================================================================
+PHASE 9 — Scenario-level stratified train/test split
+======================================================================
+  Total scenarios: 7,408
+  Train scenarios: 5,926 | Test scenarios: 1,482
+  Shared scenarios: 0
+
+======================================================================
+PHASE 10 — Saving CSV files
+======================================================================
+  Saved /home/param/SIH-2026/data/processed/blockchain_transactions.csv (96,251 rows)
+  Saved /home/param/SIH-2026/data/processed/network_metadata.csv (96,251 rows)
+  Saved train_blockchain.csv and train_network.csv (76,144 rows)
+  Saved test_blockchain.csv and test_network.csv (20,107 rows)
+
+======================================================================
+PHASE 11 — Quick integrity checks
+======================================================================
+  Accounting violations (>1e-4): 0
+  Mixed-label scenarios: 0
+  Pattern/scenario counts:
+    layering: 260 scenarios
+    mixing: 320 scenarios
+    normal: 4403 scenarios
+    peeling_chain: 260 scenarios
+    ransomware: 2165 scenarios
+  Node type overlap: 6/6 (100.0%)
+    Licit: ['bulletproof_host', 'datacenter', 'mobile', 'residential', 'tor_exit_node', 'vpn_proxy']
+    Illicit: ['bulletproof_host', 'datacenter', 'mobile', 'residential', 'tor_exit_node', 'vpn_proxy']
+
+======================================================================
+🎉 V5.0 GENERATION COMPLETE
+======================================================================
+
+============================================================
+  1. LOADING DATA
+============================================================
+Loading train_blockchain ... done — 76,144 rows
+Loading train_network   ... done — 76,144 rows
+Loading test_blockchain  ... done — 20,107 rows
+Loading test_network    ... done — 20,107 rows
+
+============================================================
+  2. ARRAY COLUMN INTEGRITY CHECK
+============================================================
+PASS — all input/output address and amount arrays are length-matched.
+
+============================================================
+  3. LABEL HOMOGENEITY CHECK
+============================================================
+PASS [train] — all scenarios have homogeneous is_illicit and pattern_type.
+PASS [test] — all scenarios have homogeneous is_illicit and pattern_type.
+
+All scenarios across both splits are label-homogeneous.
+
+============================================================
+  4. SCENARIO-LEVEL COUNTS PER PATTERN TYPE
+============================================================
+
+Pattern               Train Scenarios  Test Scenarios
+-----------------------------------------------------
+  layering                        208              52
+  mixing                          256              64
+  normal                        3,522             881
+  peeling_chain                   208              52
+  ransomware                    1,732             433
+  TOTAL                         5,926           1,482
+
+  [Expected] ransomware ~12897/~3225, normal ~1125/~281, peeling_chain ~32/~8, layering ~20/~5, mixing ~16/~4
+
+============================================================
+  5. HARD-NEGATIVE EXCHANGE SCENARIO IDENTIFICATION
+============================================================
+Top 40 normal/licit scenarios by txn count (expect ~30 with 50-500 txns = planted exchange wallets):
+
+ scenario_id  n_txns
+exchange_019     251
+exchange_002     249
+exchange_005     229
+exchange_025     229
+exchange_038     225
+exchange_008     213
+exchange_021     210
+exchange_040     207
+exchange_036     198
+exchange_033     197
+exchange_039     184
+exchange_018     159
+exchange_017     158
+exchange_009     155
+exchange_030     155
+exchange_020     150
+ licit_01502     149
+ licit_00439     148
+ licit_02556     146
+ licit_00356     145
+ licit_00065     143
+ licit_00554     143
+ licit_00490     142
+ licit_00865     142
+ licit_02921     139
+exchange_024     136
+ licit_00377     136
+ licit_02337     132
+ licit_00489     131
+ licit_01768     130
+ licit_01777     130
+ licit_01520     129
+ licit_01992     129
+ licit_03123     128
+ licit_02626     127
+ licit_00457     126
+ licit_00014     125
+ licit_02049     125
+ licit_01550     124
+ licit_02728     124
+
+  Scenarios with >= 50 txns: 172 (expected ~30)
+
+============================================================
+  6. GENERATING PLOTS
+============================================================
+  Saved: /home/param/SIH-2026/ml/outputs/scenario_counts_by_pattern.png
+  Saved: /home/param/SIH-2026/ml/outputs/scenario_counts_by_pattern_split.png
+  Saved: /home/param/SIH-2026/ml/outputs/scenario_size_boxplot.png
+  Saved: /home/param/SIH-2026/ml/outputs/scenario_illicit_balance.png
+
+============================================================
+  7. WRITING EDA REPORT
+============================================================
+  Saved: /home/param/SIH-2026/ml/outputs/eda_report.md
+
+============================================================
+  SCENARIO-LEVEL is_illicit BALANCE
+============================================================
+  Train:  3,522 licit (59.4%) |  2,404 illicit (40.6%)
+  Test:     881 licit (59.4%)  |    601 illicit (40.6%)
+
+============================================================
+  DONE — 01_eda_and_validation.py
+============================================================
+  Outputs in: /home/param/SIH-2026/ml/outputs
+
+============================================================
+  LOADING & PROCESSING TRAIN SPLIT
+============================================================
+
+============================================================
+  Processing: train
+============================================================
+  Joined dataframe: 76,144 rows, 5,926 scenarios
+  Feature matrix shape: (5926, 40)
+
+============================================================
+  LOADING & PROCESSING TEST SPLIT
+============================================================
+
+============================================================
+  Processing: test
+============================================================
+  Joined dataframe: 20,107 rows, 1,482 scenarios
+  Feature matrix shape: (1482, 40)
+
+============================================================
+  ENCODING script_type_mode (train-only fit)
+============================================================
+  Script type encoding: {'P2PKH': 0, 'P2SH': 1, 'P2WPKH': 2, 'P2WSH': 3}
+  Encoder saved: /home/param/SIH-2026/data/processed/script_type_encoder.json
+
+  Feature columns (37): ['total_input_mean', 'total_output_mean', 'fee_ratio_mean', 'fee_ratio_std', 'amount_decay_slope', 'output_amount_gini', 'denomination_entropy', 'round_number_ratio', 'io_amount_similarity', 'num_txns', 'mean_num_inputs', 'mean_num_outputs', 'io_count_ratio', 'unique_input_addrs', 'unique_output_addrs', 'address_reuse_ratio', 'change_output_ratio', 'script_type_entropy', 'time_span_hours', 'inter_tx_delta_mean', 'inter_tx_delta_std', 'inter_tx_delta_min', 'burstiness_B', 'hour_of_day_entropy', 'prop_delta_mean', 'prop_delta_std', 'prop_delta_cv', 'suspicious_infra_ratio', 'unique_asn_count', 'asn_concentration', 'unique_country_count', 'country_concentration', 'unique_ip_count', 'ip_to_addr_ratio', 'alt_port_ratio', 'unique_user_agents', 'script_type_mode']
+  Saved: /home/param/SIH-2026/data/processed/scenario_features_train.csv  (5,926 rows)
+  Saved: /home/param/SIH-2026/data/processed/scenario_features_test.csv  (1,482 rows)
+  Saved: /home/param/SIH-2026/data/processed/scenario_labels_train.csv  (5,926 rows)
+  Saved: /home/param/SIH-2026/data/processed/scenario_labels_test.csv  (1,482 rows)
+
+============================================================
+  VALIDATION GATE
+============================================================
+[PASS] scenario_features_train.csv has 5,926 rows == 5,926 unique train scenarios
+[PASS] scenario_features_test.csv  has 1,482 rows == 1,482 unique test scenarios
+[PASS] Zero NaN in train feature matrix
+[PASS] Zero NaN in test feature matrix
+[PASS] Labels not present in train features file
+[PASS] Labels not present in test features file
+
+--- Pearson |r| vs is_illicit (leakage check) ---
+  [train] No feature has |r| > 0.9 with is_illicit.
+  [train] Top-10 correlations:
+    unique_asn_count                    |r| = 0.3621
+    unique_ip_count                     |r| = 0.3588
+    unique_country_count                |r| = 0.3266
+    asn_concentration                   |r| = 0.2185
+    country_concentration               |r| = 0.1959
+    mean_num_inputs                     |r| = 0.1914
+    suspicious_infra_ratio              |r| = 0.1867
+    io_count_ratio                      |r| = 0.1793
+    hour_of_day_entropy                 |r| = 0.1668
+    ip_to_addr_ratio                    |r| = 0.1650
+  [test] No feature has |r| > 0.9 with is_illicit.
+  [test] Top-10 correlations:
+    unique_ip_count                     |r| = 0.3426
+    unique_asn_count                    |r| = 0.3411
+    unique_country_count                |r| = 0.3199
+    io_count_ratio                      |r| = 0.1993
+    asn_concentration                   |r| = 0.1919
+    suspicious_infra_ratio              |r| = 0.1906
+    country_concentration               |r| = 0.1834
+    mean_num_inputs                     |r| = 0.1776
+    mean_num_outputs                    |r| = 0.1625
+    prop_delta_std                      |r| = 0.1473
+
+--- Hard-negative exchange wallet spot check ---
+  [PASS] Found 172 high-txn licit scenarios. Sample (top 5):
+ scenario_id  num_txns  mean_num_outputs  is_illicit
+exchange_019       251          2.490040           0
+exchange_002       249          2.329317           0
+exchange_005       229          2.432314           0
+exchange_025       229          2.388646           0
+exchange_038       225          2.462222           0
+
+============================================================
+  VALIDATION GATE SUMMARY
+============================================================
+  ALL CHECKS PASSED. Safe to proceed to Day 2.
+
+============================================================
+  DONE — 02_feature_engineering.py
+============================================================
+  Outputs: /home/param/SIH-2026/data/processed
+    scenario_features_train.csv
+    scenario_features_test.csv
+    scenario_labels_train.csv
+    scenario_labels_test.csv
+    script_type_encoder.json
+
+============================================================
+  Processing graph features: train
+============================================================
+  76,144 rows, 5,926 scenarios
+    ... 2,000/5,926 scenarios processed
+    ... 4,000/5,926 scenarios processed
+  Done. Shape: (5926, 8)
+  Cycles detected: 1125 (fallback BFS used)
+  NaN counts:
+max_chain_length        0
+graph_density           0
+avg_clustering          0
+max_in_degree           0
+max_out_degree          0
+degree_assortativity    0
+edge_to_node_ratio      0
+scenario_id             0
+
+============================================================
+  Processing graph features: test
+============================================================
+  20,107 rows, 1,482 scenarios
+  Done. Shape: (1482, 8)
+  Cycles detected: 285 (fallback BFS used)
+  NaN counts:
+max_chain_length        0
+graph_density           0
+avg_clustering          0
+max_in_degree           0
+max_out_degree          0
+degree_assortativity    0
+edge_to_node_ratio      0
+scenario_id             0
+
+Saved: /home/param/SIH-2026/data/processed/scenario_graph_features_train.csv  (5,926 rows)
+Saved: /home/param/SIH-2026/data/processed/scenario_graph_features_test.csv   (1,482 rows)
+
+============================================================
+  DONE — 02b_graph_features.py
+============================================================
+
+============================================================
+  Merging: train
+============================================================
+  Phase-1 features: (5926, 38)
+  Graph features:   (5926, 8)
+  Merged shape:     (5926, 45)
+  NaN check: PASS — zero NaN
+  Saved: /home/param/SIH-2026/data/processed/scenario_features_full_train.csv
+
+  Dtypes:
+scenario_id                   str
+total_input_mean          float64
+total_output_mean         float64
+fee_ratio_mean            float64
+fee_ratio_std             float64
+amount_decay_slope        float64
+output_amount_gini        float64
+denomination_entropy      float64
+round_number_ratio        float64
+io_amount_similarity      float64
+num_txns                    int64
+mean_num_inputs           float64
+mean_num_outputs          float64
+io_count_ratio            float64
+unique_input_addrs          int64
+unique_output_addrs         int64
+address_reuse_ratio       float64
+change_output_ratio       float64
+script_type_entropy       float64
+time_span_hours           float64
+inter_tx_delta_mean       float64
+inter_tx_delta_std        float64
+inter_tx_delta_min        float64
+burstiness_B              float64
+hour_of_day_entropy       float64
+prop_delta_mean           float64
+prop_delta_std            float64
+prop_delta_cv             float64
+suspicious_infra_ratio    float64
+unique_asn_count            int64
+asn_concentration         float64
+unique_country_count        int64
+country_concentration     float64
+unique_ip_count             int64
+ip_to_addr_ratio          float64
+alt_port_ratio            float64
+unique_user_agents          int64
+script_type_mode            int64
+max_chain_length            int64
+graph_density             float64
+avg_clustering            float64
+max_in_degree               int64
+max_out_degree              int64
+degree_assortativity      float64
+edge_to_node_ratio        float64
+
+============================================================
+  Merging: test
+============================================================
+  Phase-1 features: (1482, 38)
+  Graph features:   (1482, 8)
+  Merged shape:     (1482, 45)
+  NaN check: PASS — zero NaN
+  Saved: /home/param/SIH-2026/data/processed/scenario_features_full_test.csv
+
+  Dtypes:
+scenario_id                   str
+total_input_mean          float64
+total_output_mean         float64
+fee_ratio_mean            float64
+fee_ratio_std             float64
+amount_decay_slope        float64
+output_amount_gini        float64
+denomination_entropy      float64
+round_number_ratio        float64
+io_amount_similarity      float64
+num_txns                    int64
+mean_num_inputs           float64
+mean_num_outputs          float64
+io_count_ratio            float64
+unique_input_addrs          int64
+unique_output_addrs         int64
+address_reuse_ratio       float64
+change_output_ratio       float64
+script_type_entropy       float64
+time_span_hours           float64
+inter_tx_delta_mean       float64
+inter_tx_delta_std        float64
+inter_tx_delta_min        float64
+burstiness_B              float64
+hour_of_day_entropy       float64
+prop_delta_mean           float64
+prop_delta_std            float64
+prop_delta_cv             float64
+suspicious_infra_ratio    float64
+unique_asn_count            int64
+asn_concentration         float64
+unique_country_count        int64
+country_concentration     float64
+unique_ip_count             int64
+ip_to_addr_ratio          float64
+alt_port_ratio            float64
+unique_user_agents          int64
+script_type_mode            int64
+max_chain_length            int64
+graph_density             float64
+avg_clustering            float64
+max_in_degree               int64
+max_out_degree              int64
+degree_assortativity      float64
+edge_to_node_ratio        float64
+
+============================================================
+  DONE — 02c_merge_features.py
+============================================================
+================================================================================
+🔍 V6 ACCEPTANCE AUDIT — UNIFIED PIPELINE
+================================================================================
+
+📂 Loading pipeline outputs...
+  ✓ Feature column sync verified: 44 features
+  ✓ Train: 5,926 scenarios, Test: 1,482 scenarios
+  ✓ Total: 7,408 scenarios
+
+--- Pre-Check: Label Leakage & Integrity ---
+  ✓ No label columns in feature matrix
+  Accounting: max residual = 0.00000000, violations = 0
+  Label homogeneity: 0 mixed-label scenarios
+  ✓ Label homogeneity: PASS
+
+--- Gate A: Single-Feature AUC (all features) ---
+  Top-10 single-feature AUCs:
+    mean_num_outputs                         AUC = 0.6916
+    unique_ip_count                          AUC = 0.6870
+    unique_asn_count                         AUC = 0.6764
+    unique_country_count                     AUC = 0.6572
+    max_in_degree                            AUC = 0.6551
+    mean_num_inputs                          AUC = 0.6527
+    degree_assortativity                     AUC = 0.6441
+    asn_concentration                        AUC = 0.6395
+    suspicious_infra_ratio                   AUC = 0.6338
+    max_chain_length                         AUC = 0.6228
+  Gate A: ✅ PASS — Max single-feature AUC = 0.6916 (mean_num_outputs)
+
+--- Gate B: Simple-Rule Balanced Accuracy ---
+  All-feature depth-2 tree BAcc: 0.8044
+  Best 2-feature pair: mean_num_outputs + unique_asn_count BAcc = 0.7837
+  Gate B: ✅ PASS — max = 0.8044
+
+--- Gate C: Distribution Overlap ---
+  Features with <=10% overlap: 0
+  Bottom-5 overlaps:
+    edge_to_node_ratio                       overlap = 37.5%
+    mean_num_outputs                         overlap = 40.7%
+    io_count_ratio                           overlap = 59.9%
+    unique_ip_count                          overlap = 62.7%
+    unique_asn_count                         overlap = 64.9%
+  Gate C: ✅ PASS — Min overlap = 37.5% (edge_to_node_ratio)
+
+--- Gate D: Correlation Documentation ---
+  High-correlation pairs (|r| > 0.80): 13
+    total_input_mean               ↔ total_output_mean              r = 1.0000
+    fee_ratio_mean                 ↔ fee_ratio_std                  r = 0.8906
+    fee_ratio_mean                 ↔ io_amount_similarity           r = -1.0000
+    fee_ratio_std                  ↔ io_amount_similarity           r = -0.8906
+    num_txns                       ↔ unique_input_addrs             r = 0.9246
+    num_txns                       ↔ unique_output_addrs            r = 0.8761
+    inter_tx_delta_mean            ↔ inter_tx_delta_std             r = 0.8999
+    prop_delta_std                 ↔ prop_delta_cv                  r = 0.8853
+    unique_asn_count               ↔ asn_concentration              r = -0.8696
+    unique_asn_count               ↔ unique_country_count           r = 0.9253
+    asn_concentration              ↔ unique_country_count           r = -0.8079
+    asn_concentration              ↔ country_concentration          r = 0.9174
+    unique_country_count           ↔ country_concentration          r = -0.8811
+
+--- Gate E: Rare Typology Scenario Counts ---
+  Typology scenario counts:
+    layering                    260 scenarios
+    mixing                      320 scenarios
+    normal                     4403 scenarios
+    peeling_chain               260 scenarios
+    ransomware                 2165 scenarios
+  Gate E: ✅ PASS — peeling_chain=260, layering=260, mixing=320
+
+--- Gate F: Within-Typology PCA Variation ---
+  peeling_chain       :  6 components for 90% variance (260 samples)
+  layering            :  4 components for 90% variance (260 samples)
+  mixing              :  5 components for 90% variance (320 samples)
+  ransomware          :  7 components for 90% variance (2165 samples)
+  Gate F: ✅ PASS — peeling_chain=6comp; layering=4comp; mixing=5comp; ransomware=7comp
+
+--- Gate G: Scenario-Level Split Integrity ---
+  Train scenarios: 5,926
+  Test scenarios:  1,482
+  Shared:          0
+  Gate G: ✅ PASS
+  Shared txids: 0
+
+--- Gate H: Categorical Overlap ---
+  country_code: 16 licit / 16 illicit / 16 shared (100.0%)
+  asn: 27 licit / 27 illicit / 27 shared (100.0%)
+  node_type: 6 licit / 6 illicit / 6 shared (100.0%)
+  Gate H: ✅ PASS — Min categorical overlap = 100.0%
+
+--- Gate I: Typology Ablation Robustness ---
+  Baseline OvR AUCs:
+    layering             AUC = 1.0000
+    mixing               AUC = 1.0000
+    peeling_chain        AUC = 1.0000
+    ransomware           AUC = 1.0000
+  Top-3 features to ablate: ['max_out_degree', 'degree_assortativity', 'address_reuse_ratio']
+    ❌ layering: baseline=1.0000 → ablated=1.0000 (drop=0.0000 < 0.03 — SUSPICIOUS)
+    ❌ mixing: baseline=1.0000 → ablated=1.0000 (drop=0.0000 < 0.03 — SUSPICIOUS)
+    ❌ peeling_chain: baseline=1.0000 → ablated=1.0000 (drop=0.0000 < 0.03 — SUSPICIOUS)
+    ❌ ransomware: baseline=1.0000 → ablated=1.0000 (drop=-0.0000 < 0.03 — SUSPICIOUS)
+  Gate I: ❌ FAIL — layering: Δ=0.0000; mixing: Δ=0.0000; peeling_chain: Δ=0.0000; ransomware: Δ=-0.0000
+
+--- Gate J: Binary Ablation Robustness ---
+  Baseline binary AUC:  0.9993
+  Top-3 ablated:        ['unique_asn_count', 'mean_num_outputs', 'io_count_ratio']
+  Ablated binary AUC:   0.9994
+  Drop:                 -0.0001
+  Gate J: INFORMATIONAL — baseline=0.9993, ablated=0.9994, drop=-0.0001, top3=['unique_asn_count', 'mean_num_outputs', 'io_count_ratio'] ⚠️ near-zero drop — possible redundancy
+
+================================================================================
+📋 GATE RESULTS SUMMARY
+================================================================================
+  Gate A [HARD]: ✅ PASS — Max single-feature AUC = 0.6916 (mean_num_outputs)
+  Gate B [HARD]: ✅ PASS — Depth-2 tree BAcc = 0.8044, Best pair (mean_num_outputs + unique_asn_count) = 0.7837
+  Gate C [HARD]: ✅ PASS — Min overlap = 37.5% (edge_to_node_ratio)
+  Gate D [SOFT]: ✅ PASS — 13 pairs with |r| > 0.80 documented
+  Gate E [HARD]: ✅ PASS — peeling_chain=260, layering=260, mixing=320
+  Gate F [SOFT]: ✅ PASS — peeling_chain=6comp; layering=4comp; mixing=5comp; ransomware=7comp
+  Gate G [HARD]: ✅ PASS — 0 shared scenarios
+  Gate H [HARD]: ✅ PASS — Min categorical overlap = 100.0%
+  Gate I [HARD]: ❌ FAIL — layering: Δ=0.0000; mixing: Δ=0.0000; peeling_chain: Δ=0.0000; ransomware: Δ=-0.0000
+  Gate J [SOFT]: ✅ PASS — baseline=0.9993, ablated=0.9994, drop=-0.0001, top3=['unique_asn_count', 'mean_num_outputs', 'io_count_ratio'] ⚠️ near-zero drop — possible redundancy
+================================================================================
+OVERALL: ❌ FAIL — HARD GATE(S) FAILED
+================================================================================
+
+📄 Report saved: /home/param/SIH-2026/V6_ACCEPTANCE_AUDIT.md
+ERROR conda.cli.main_run:execute(148): `conda run bash -c python data_pipeline/generate_v6.py && python ml/01_eda_and_validation.py && python ml/02_feature_engineering.py && python ml/02b_graph_features.py && python ml/02c_merge_features.py && python ml/audit_v6.py` failed. (See above for error)
