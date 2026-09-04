@@ -211,8 +211,8 @@ def compute_scenario_features(grp: pd.DataFrame) -> dict:
         change_flags.append(txn_change_count / len(out_amts))
     feats["change_output_ratio"] = float(np.mean(change_flags))
 
-    feats["fanout_ratio"] = feats["unique_output_addrs"] / n
-    feats["fanin_ratio"]  = feats["unique_input_addrs"]  / n
+    # fanout_ratio removed due to mathematical redundancy with mean_num_outputs
+    # fanin_ratio removed due to mathematical redundancy with mean_num_inputs
 
     script_counts = grp["script_type"].value_counts()
     feats["script_type_entropy"] = shannon_entropy(script_counts.values)
@@ -453,7 +453,7 @@ exchanges = train_feats_lbl[
     (train_feats_lbl["is_illicit"] == 0) &
     (train_feats_lbl["pattern_type"] == "normal") &
     (train_feats_lbl["num_txns"] >= 50)
-].nlargest(5, "num_txns")[["scenario_id", "num_txns", "fanout_ratio", "is_illicit"]]
+].nlargest(5, "num_txns")[["scenario_id", "num_txns", "mean_num_outputs", "is_illicit"]]
 if len(exchanges) > 0:
     print(f"  [PASS] Found {len(train_feats_lbl[(train_feats_lbl['is_illicit']==0) & (train_feats_lbl['num_txns']>=50)])} "
           f"high-txn licit scenarios. Sample (top 5):")
