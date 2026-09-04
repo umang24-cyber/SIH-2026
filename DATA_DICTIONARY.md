@@ -1,7 +1,7 @@
 # DATA_DICTIONARY.md — SIH PS 146 Bitcoin AML Dataset
 
 > **Audience:** P4 (Graph Engineer) and P5 (ML Engineer).
-> **Last updated:** 2026-09-03 · Data version **v3.0**.
+> **Last updated:** 2026-09-04 · Data version **v4.0**.
 
 ---
 
@@ -175,9 +175,9 @@ Each `txid` represents a multi-input / multi-output UTXO node:
 
 ---
 
-## 9. Resolution of Known Limitations (v1.0 vs v2.0 vs v3.0)
+## 9. Resolution of Known Limitations (v1.0 vs v2.0 vs v3.0 vs v4.0)
 
-| # | Issue in v1.0 / v2.0 | v3.0 Status | Resolution Details in v3.0 |
+| # | Issue in v1.0 / v2.0 / v3.0 | v4.0 Status | Resolution Details in v4.0 |
 |---|----------------------|-------------|----------------------------|
 | 1 | **`time_span_hours` AUC = 1.000000** | ✅ **RESOLVED** | Licit scenarios restructured into realistic episodes (hours to weeks). Illicit spans hours to weeks. **Duration AUC reduced to 0.5409**; 89.9% distribution overlap. |
 | 2 | **11,639-hour zero-overlap duration gap** | ✅ **RESOLVED** | Licit range: 0 to 2,136 hrs; Illicit range: 0 to 788 hrs. Overlap is continuous across all percentiles. |
@@ -189,6 +189,7 @@ Each `txid` represents a multi-input / multi-output UTXO node:
 | 8 | **Ransomware 1-txn artifact** | ✅ **RESOLVED** | Grouped into 2,043 multi-transaction campaigns (sizes 1–74 txns, durations up to 788 hrs). |
 | 9 | **Train/test leakage** | ✅ **RESOLVED** | 100% leak-free scenario-level stratified split: `train ∩ test scenarios == 0`. |
 | 10 | **Accounting identity** | ✅ **RESOLVED** | Strict UTXO accounting identity satisfied on 100% of rows (max residual = 0.00000000). |
+| 11 | **Issue 6: Typology classification fingerprints** | ✅ **RESOLVED (v4)** | Decoupled correlated features (fanin_ratio, unique_input_addrs, etc.) by introducing multivalued generative archetypes. OVR AUCs all < 0.99. Dropping top feature causes real Macro-F1 delta. |
 
 ---
 
@@ -199,6 +200,7 @@ Each `txid` represents a multi-input / multi-output UTXO node:
 | v1.0 | 2026-09-01 | P3 (Data Pipeline) | Initial release. Elliptic (46,564 rows) + Heist appended (25,000 rows). 1-input-1-output scalar format. | Baseline: 71,564 rows |
 | v2.0 | 2026-09-02 | P3 (Data Pipeline) | Multi-I/O array columns, planted typologies (peeling, layering, mixing), hard-negative exchanges, `scenario_id` & deterministic 80/20 train/test split. Failed pre-ML diagnostic due to 11,639h duration shortcut (AUC=1.0) and ASN leak (AUC=0.9998). | +10,514 rows (82,078 rows) |
 | v3.0 | 2026-09-03 | P3 (Data Pipeline) | Complete behavioral redesign: eliminated duration shortcut (AUC 0.5409, 89.9% overlap), resolved ASN/IP size proxies (entity IP persistence), scaled rare typologies (peeling: 2,915, mixing: 2,418, layering: 2,058), introduced structural diversity (branching peels, multi-tier layering, pre/post-mix CoinJoins), achieved 100% country overlap, zero leaking scenarios. Passes all 8 pre-ML acceptance gates (A–H) and 15 integrity checks. | +1,734 rows (Total: 83,812 rows) |
+| v4.0 | 2026-09-04 | P3 (Data Pipeline) | Resolved Issue 6: Typology fingerprinting. Added custom structural noise injection (address reuse, dust sweeps, change splits) for peeling, layering, mixing, and ransomware. Decoupled correlated features and reduced OVR AUCs below 0.99. Validated that ablation of top feature costs Macro-F1. | +330 rows (Total: 84,142 rows) |
 
 ---
 
