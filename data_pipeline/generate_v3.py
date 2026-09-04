@@ -433,16 +433,13 @@ for ex_idx in range(N_EXCHANGE_WALLETS):
 print(f"  Generated {len(exchange_records):,} exchange transactions across {N_EXCHANGE_WALLETS} exchanges")
 
 # ═══════════════════════════════════════════════════════════════════════════════
-# PHASE 4: CONSTRUCT RANSOMWARE CAMPAIGNS (MULTI-TRANSACTION, REALISTIC DURATION)
+# PHASE 4: CONSTRUCT RANSOMWARE CAMPAIGNS (MULTI-ARCHETYPE, REALISTIC STRUCTURAL DIVERSITY)
 # ═══════════════════════════════════════════════════════════════════════════════
 print("\n" + "=" * 70)
-print("PHASE 4 — Structuring Ransomware Campaigns with realistic durations & sizes")
+print("PHASE 4 — Structuring Ransomware Campaigns with diverse operational archetypes")
 print("=" * 70)
 
-# Total illicit Elliptic rows + Heist data
 # Total target for ransomware: ~28,000 transactions
-# Grouped into campaigns with sizes from 1 to 70 transactions, durations from 1 hour to 30 days!
-
 n_ransom_target = 28000
 ransom_records = []
 ransom_sc_counter = 0
@@ -455,25 +452,25 @@ while len(ransom_records) < n_ransom_target:
     ransom_sc_counter += 1
     sc_id = f"ransom_{ransom_sc_counter:04d}"
 
-    # Campaign archetype
-    arch = rng.choice([1, 2, 3, 4], p=[0.30, 0.40, 0.22, 0.08])
-    if arch == 1:
-        camp_size = int(rng.integers(1, 4))
-        camp_duration_hrs = float(rng.uniform(0.1, 8.0)) # 6 mins to 8 hrs
-    elif arch == 2:
-        camp_size = int(rng.integers(4, 15))
-        camp_duration_hrs = float(rng.uniform(4.0, 72.0)) # 4 to 72 hrs
-    elif arch == 3:
-        camp_size = int(rng.integers(15, 35))
+    # Campaign scale archetype
+    scale_arch = rng.choice([1, 2, 3, 4], p=[0.30, 0.40, 0.22, 0.08])
+    if scale_arch == 1:
+        camp_size = int(rng.integers(1, 5))
+        camp_duration_hrs = float(rng.uniform(0.1, 8.0))   # 6 mins to 8 hrs
+    elif scale_arch == 2:
+        camp_size = int(rng.integers(5, 16))
+        camp_duration_hrs = float(rng.uniform(4.0, 72.0))  # 4 to 72 hrs
+    elif scale_arch == 3:
+        camp_size = int(rng.integers(16, 36))
         camp_duration_hrs = float(rng.uniform(48.0, 360.0)) # 2 to 15 days
     else:
-        camp_size = int(rng.integers(35, 75))
+        camp_size = int(rng.integers(36, 76))
         camp_duration_hrs = float(rng.uniform(120.0, 800.0)) # 5 to 33 days
 
     remaining_ransom = n_ransom_target - len(ransom_records)
     camp_size = min(camp_size, remaining_ransom)
 
-    # Base timestamp
+    # Base timestamp & timing offsets
     sc_base_ts = random_timestamp_in_range(2013, 2018)
     if camp_size == 1:
         offsets_s = [0.0]
@@ -481,79 +478,287 @@ while len(ransom_records) < n_ransom_target:
         offsets_s = np.sort(rng.uniform(0, camp_duration_hrs * 3600.0, size=camp_size))
         offsets_s[0] = 0.0
 
-    # Campaign IP / ASN pool (victims + syndicate servers)
+    # Campaign IP / ASN pool
     n_ips = 1 if camp_size <= 2 else random.randint(2, min(5, camp_size))
     sc_asns = rng.choice(GLOBAL_ASNS, size=min(n_ips, 3), replace=True)
     sc_ips = [gen_ipv4_for_asn(ransom_sc_counter * 7 + i) for i in range(n_ips)]
 
-    # Primary syndicate wallet for this campaign
+    # Operational structure archetype:
+    # 1. Unique Per-Victim HD Wallets + Tree Sweeps/Consolidation (35%) [Breaks static hub star]
+    # 2. Static Campaign Wallet (Legacy WannaCry style) (25%)
+    # 3. Affiliate Profit-Sharing Split (RaaS LockBit style) (25%)
+    # 4. Rotating Syndicate Wallets + Direct Peels (15%)
+    op_archetype = rng.choice([1, 2, 3, 4], p=[0.35, 0.25, 0.25, 0.15])
+
+    # Core syndicate identity
     if heist_idx < len(heist_pool):
-        syndicate_wallet = heist_pool.iloc[heist_idx]["address"]
+        primary_syndicate = heist_pool.iloc[heist_idx]["address"]
         heist_idx += 1
     else:
-        syndicate_wallet = gen_unique_wallet(all_wallets)
+        primary_syndicate = gen_unique_wallet(all_wallets)
 
-    for t in range(camp_size):
-        txid_counter += 1
-        tx_ts = sc_base_ts + pd.Timedelta(seconds=float(offsets_s[t]))
-        fee = sample_fee()
+    if op_archetype == 1:
+        # Per-victim unique addresses + sweep consolidation
+        # Pool of victim deposit addresses
+        n_victims = max(1, camp_size // 2)
+        victim_deposit_addrs = [gen_unique_wallet(all_wallets) for _ in range(n_victims)]
+        unconsolidated = []
 
-        # Some transactions are victim payments (fan-in to ransom wallet)
-        # Some are distribution / consolidation hops
-        if random.random() < 0.7:
-            # Victim paying ransom
-            n_in = int(rng.choice([1, 1, 2], p=[0.6, 0.3, 0.1]))
-            n_out = 1 if random.random() < 0.7 else 2
-            total_amount = sample_amount()
-            in_amount = round(total_amount + fee, 8)
-            in_amounts = distribute_amount(in_amount, n_in)
-            out_amounts = distribute_amount(total_amount, n_out)
+        for t in range(camp_size):
+            txid_counter += 1
+            tx_ts = sc_base_ts + pd.Timedelta(seconds=float(offsets_s[t]))
+            fee = sample_fee()
 
-            in_addrs = [gen_unique_wallet(all_wallets) for _ in range(n_in)]
-            out_addrs = [syndicate_wallet]
-            if n_out > 1:
-                out_addrs.append(gen_unique_wallet(all_wallets))
-        else:
-            # Ransomware operator moving funds
-            n_in = 1
-            n_out = int(rng.choice([1, 2, 3], p=[0.4, 0.4, 0.2]))
-            total_amount = sample_amount()
-            in_amount = round(total_amount + fee, 8)
-            in_amounts = [in_amount]
-            out_amounts = distribute_amount(total_amount, n_out)
-            in_addrs = [syndicate_wallet]
-            out_addrs = [gen_unique_wallet(all_wallets) for _ in range(n_out)]
+            if (t < n_victims) or (random.random() < 0.55 and unconsolidated == []):
+                # Victim payout into assigned victim address
+                v_addr = victim_deposit_addrs[t % len(victim_deposit_addrs)]
+                n_in = int(rng.choice([1, 2], p=[0.75, 0.25]))
+                n_out = 1 if random.random() < 0.65 else 2
+                tot_amt = sample_amount()
+                in_amt = round(tot_amt + fee, 8)
+                in_amts = distribute_amount(in_amt, n_in)
+                out_amts = distribute_amount(tot_amt, n_out)
+                in_addrs = [gen_unique_wallet(all_wallets) for _ in range(n_in)]
+                out_addrs = [v_addr] + [gen_unique_wallet(all_wallets) for _ in range(n_out - 1)]
+                unconsolidated.append((v_addr, out_amts[0]))
+            elif len(unconsolidated) >= 2 and random.random() < 0.6:
+                # Sweep consolidation from 2-4 victim addresses to syndicate holding wallet
+                n_sweep = min(len(unconsolidated), random.randint(2, 4))
+                sweep_items = [unconsolidated.pop(0) for _ in range(n_sweep)]
+                in_addrs = [w for w, _ in sweep_items]
+                in_amts = [a for _, a in sweep_items]
+                tot_in = round(sum(in_amts), 8)
+                tot_out = round(tot_in - fee, 8)
+                if tot_out <= 1e-6:
+                    tot_out = 1e-6
+                n_out = 1 if random.random() < 0.8 else 2
+                out_amts = distribute_amount(tot_out, n_out)
+                out_addrs = [primary_syndicate] + [gen_unique_wallet(all_wallets) for _ in range(n_out - 1)]
+            else:
+                # Operator movement / split from syndicate holding
+                n_in = 1
+                n_out = int(rng.choice([1, 2, 3], p=[0.40, 0.40, 0.20]))
+                tot_amt = sample_amount()
+                in_amt = round(tot_amt + fee, 8)
+                in_amts = [in_amt]
+                out_amts = distribute_amount(tot_amt, n_out)
+                in_addrs = [primary_syndicate]
+                out_addrs = [gen_unique_wallet(all_wallets) for _ in range(n_out)]
 
-        # Network assignment
-        ip_idx = random.randint(0, len(sc_ips) - 1)
-        ip_choice = sc_ips[ip_idx]
-        asn_choice = sc_asns[ip_idx % len(sc_asns)]
+            # Adjust exact accounting residual
+            res = round(sum(in_amts) - sum(out_amts) - fee, 8)
+            if res != 0:
+                out_amts[-1] = round(out_amts[-1] + res, 8)
 
-        # Node type: 55% suspicious (VPN/Tor/Bulletproof), 45% normal (victim residential/mobile/cloud)
-        if random.random() < (1.0 - ILLICIT_NORMAL_FRACTION):
-            node_type = random.choice(["tor_exit_node", "vpn_proxy", "bulletproof_host"])
-        else:
-            node_type = asn_choice["infra"] if asn_choice["infra"] in ["residential", "mobile", "datacenter"] else "residential"
+            ip_idx = random.randint(0, len(sc_ips) - 1)
+            asn_choice = sc_asns[ip_idx % len(sc_asns)]
+            node_type = random.choice(["tor_exit_node", "vpn_proxy", "bulletproof_host", "residential", "datacenter"])
 
-        ransom_records.append({
-            "txid_counter": txid_counter,
-            "timestamp": tx_ts,
-            "input_addresses": json.dumps(in_addrs),
-            "output_addresses": json.dumps(out_addrs),
-            "input_amounts": json.dumps(in_amounts),
-            "output_amounts": json.dumps(out_amounts),
-            "fee_btc": fee,
-            "script_type": sample_script_type(),
-            "is_illicit": 1,
-            "pattern_type": "ransomware",
-            "scenario_id": sc_id,
-            "relay_ip": ip_choice,
-            "node_type": node_type,
-            "asn": asn_choice["asn"],
-            "isp": asn_choice["isp"],
-            "country_code": asn_choice["country"],
-            "_source": "ransomware_campaign",
-        })
+            ransom_records.append({
+                "txid_counter": txid_counter,
+                "timestamp": tx_ts,
+                "input_addresses": json.dumps(in_addrs),
+                "output_addresses": json.dumps(out_addrs),
+                "input_amounts": json.dumps(in_amts),
+                "output_amounts": json.dumps(out_amts),
+                "fee_btc": fee,
+                "script_type": sample_script_type(),
+                "is_illicit": 1,
+                "pattern_type": "ransomware",
+                "scenario_id": sc_id,
+                "relay_ip": sc_ips[ip_idx],
+                "node_type": node_type,
+                "asn": asn_choice["asn"],
+                "isp": asn_choice["isp"],
+                "country_code": asn_choice["country"],
+                "_source": "ransomware_campaign",
+            })
+
+    elif op_archetype == 2:
+        # Static Campaign Wallet (Legacy star-hub pattern)
+        for t in range(camp_size):
+            txid_counter += 1
+            tx_ts = sc_base_ts + pd.Timedelta(seconds=float(offsets_s[t]))
+            fee = sample_fee()
+
+            if random.random() < 0.65:
+                # Victim paying ransom to static wallet
+                n_in = int(rng.choice([1, 1, 2], p=[0.6, 0.3, 0.1]))
+                n_out = 1 if random.random() < 0.75 else 2
+                tot_amt = sample_amount()
+                in_amt = round(tot_amt + fee, 8)
+                in_amts = distribute_amount(in_amt, n_in)
+                out_amts = distribute_amount(tot_amt, n_out)
+                in_addrs = [gen_unique_wallet(all_wallets) for _ in range(n_in)]
+                out_addrs = [primary_syndicate]
+                if n_out > 1:
+                    out_addrs.append(gen_unique_wallet(all_wallets))
+            else:
+                # Operator distributing funds
+                n_in = 1
+                n_out = int(rng.choice([1, 2, 3], p=[0.45, 0.35, 0.20]))
+                tot_amt = sample_amount()
+                in_amt = round(tot_amt + fee, 8)
+                in_amts = [in_amt]
+                out_amts = distribute_amount(tot_amt, n_out)
+                in_addrs = [primary_syndicate]
+                out_addrs = [gen_unique_wallet(all_wallets) for _ in range(n_out)]
+
+            res = round(sum(in_amts) - sum(out_amts) - fee, 8)
+            if res != 0:
+                out_amts[-1] = round(out_amts[-1] + res, 8)
+
+            ip_idx = random.randint(0, len(sc_ips) - 1)
+            asn_choice = sc_asns[ip_idx % len(sc_asns)]
+            node_type = random.choice(["tor_exit_node", "vpn_proxy", "bulletproof_host", "residential"])
+
+            ransom_records.append({
+                "txid_counter": txid_counter,
+                "timestamp": tx_ts,
+                "input_addresses": json.dumps(in_addrs),
+                "output_addresses": json.dumps(out_addrs),
+                "input_amounts": json.dumps(in_amts),
+                "output_amounts": json.dumps(out_amts),
+                "fee_btc": fee,
+                "script_type": sample_script_type(),
+                "is_illicit": 1,
+                "pattern_type": "ransomware",
+                "scenario_id": sc_id,
+                "relay_ip": sc_ips[ip_idx],
+                "node_type": node_type,
+                "asn": asn_choice["asn"],
+                "isp": asn_choice["isp"],
+                "country_code": asn_choice["country"],
+                "_source": "ransomware_campaign",
+            })
+
+    elif op_archetype == 3:
+        # Affiliate Profit-Sharing Model (RaaS LockBit style)
+        affiliate_wallet = gen_unique_wallet(all_wallets)
+        core_operator = primary_syndicate
+
+        for t in range(camp_size):
+            txid_counter += 1
+            tx_ts = sc_base_ts + pd.Timedelta(seconds=float(offsets_s[t]))
+            fee = sample_fee()
+
+            if random.random() < 0.60:
+                # Victim payment split directly: 75% affiliate, 25% core
+                n_in = int(rng.choice([1, 2], p=[0.7, 0.3]))
+                tot_amt = sample_amount()
+                in_amt = round(tot_amt + fee, 8)
+                in_amts = distribute_amount(in_amt, n_in)
+                p_affiliate = round(tot_amt * float(rng.uniform(0.70, 0.82)), 8)
+                p_core = round(tot_amt - p_affiliate, 8)
+                out_addrs = [affiliate_wallet, core_operator]
+                out_amts = [p_affiliate, p_core]
+                in_addrs = [gen_unique_wallet(all_wallets) for _ in range(n_in)]
+            elif random.random() < 0.50:
+                # Affiliate moves / hops their share
+                n_in = 1
+                n_out = int(rng.choice([1, 2], p=[0.6, 0.4]))
+                tot_amt = sample_amount()
+                in_amt = round(tot_amt + fee, 8)
+                in_amts = [in_amt]
+                out_amts = distribute_amount(tot_amt, n_out)
+                in_addrs = [affiliate_wallet]
+                out_addrs = [gen_unique_wallet(all_wallets) for _ in range(n_out)]
+            else:
+                # Core moves / hops their share
+                n_in = 1
+                n_out = int(rng.choice([1, 2], p=[0.5, 0.5]))
+                tot_amt = sample_amount()
+                in_amt = round(tot_amt + fee, 8)
+                in_amts = [in_amt]
+                out_amts = distribute_amount(tot_amt, n_out)
+                in_addrs = [core_operator]
+                out_addrs = [gen_unique_wallet(all_wallets) for _ in range(n_out)]
+
+            res = round(sum(in_amts) - sum(out_amts) - fee, 8)
+            if res != 0:
+                out_amts[-1] = round(out_amts[-1] + res, 8)
+
+            ip_idx = random.randint(0, len(sc_ips) - 1)
+            asn_choice = sc_asns[ip_idx % len(sc_asns)]
+            node_type = random.choice(["tor_exit_node", "vpn_proxy", "bulletproof_host", "datacenter", "residential"])
+
+            ransom_records.append({
+                "txid_counter": txid_counter,
+                "timestamp": tx_ts,
+                "input_addresses": json.dumps(in_addrs),
+                "output_addresses": json.dumps(out_addrs),
+                "input_amounts": json.dumps(in_amts),
+                "output_amounts": json.dumps(out_amts),
+                "fee_btc": fee,
+                "script_type": sample_script_type(),
+                "is_illicit": 1,
+                "pattern_type": "ransomware",
+                "scenario_id": sc_id,
+                "relay_ip": sc_ips[ip_idx],
+                "node_type": node_type,
+                "asn": asn_choice["asn"],
+                "isp": asn_choice["isp"],
+                "country_code": asn_choice["country"],
+                "_source": "ransomware_campaign",
+            })
+
+    else:
+        # Rotating Syndicate Wallets + Direct Peeling
+        syndicate_wallets = [primary_syndicate] + [gen_unique_wallet(all_wallets) for _ in range(random.randint(2, 4))]
+        for t in range(camp_size):
+            txid_counter += 1
+            tx_ts = sc_base_ts + pd.Timedelta(seconds=float(offsets_s[t]))
+            fee = sample_fee()
+            target_syn = syndicate_wallets[t % len(syndicate_wallets)]
+
+            if random.random() < 0.55:
+                # Victim payout
+                n_in = int(rng.choice([1, 2], p=[0.75, 0.25]))
+                n_out = 1 if random.random() < 0.7 else 2
+                tot_amt = sample_amount()
+                in_amt = round(tot_amt + fee, 8)
+                in_amts = distribute_amount(in_amt, n_in)
+                out_amts = distribute_amount(tot_amt, n_out)
+                in_addrs = [gen_unique_wallet(all_wallets) for _ in range(n_in)]
+                out_addrs = [target_syn] + [gen_unique_wallet(all_wallets) for _ in range(n_out - 1)]
+            else:
+                # Direct peel / transfer from rotated wallet
+                n_in = 1
+                n_out = int(rng.choice([1, 2], p=[0.5, 0.5]))
+                tot_amt = sample_amount()
+                in_amt = round(tot_amt + fee, 8)
+                in_amts = [in_amt]
+                out_amts = distribute_amount(tot_amt, n_out)
+                in_addrs = [target_syn]
+                out_addrs = [gen_unique_wallet(all_wallets) for _ in range(n_out)]
+
+            res = round(sum(in_amts) - sum(out_amts) - fee, 8)
+            if res != 0:
+                out_amts[-1] = round(out_amts[-1] + res, 8)
+
+            ip_idx = random.randint(0, len(sc_ips) - 1)
+            asn_choice = sc_asns[ip_idx % len(sc_asns)]
+            node_type = random.choice(["tor_exit_node", "vpn_proxy", "bulletproof_host", "residential"])
+
+            ransom_records.append({
+                "txid_counter": txid_counter,
+                "timestamp": tx_ts,
+                "input_addresses": json.dumps(in_addrs),
+                "output_addresses": json.dumps(out_addrs),
+                "input_amounts": json.dumps(in_amts),
+                "output_amounts": json.dumps(out_amts),
+                "fee_btc": fee,
+                "script_type": sample_script_type(),
+                "is_illicit": 1,
+                "pattern_type": "ransomware",
+                "scenario_id": sc_id,
+                "relay_ip": sc_ips[ip_idx],
+                "node_type": node_type,
+                "asn": asn_choice["asn"],
+                "isp": asn_choice["isp"],
+                "country_code": asn_choice["country"],
+                "_source": "ransomware_campaign",
+            })
 
 print(f"  Generated {len(ransom_records):,} ransomware transactions across {ransom_sc_counter:,} campaigns")
 
@@ -569,15 +774,14 @@ peeling_records = []
 for sc_idx in range(N_PEELING_SCENARIOS):
     sc_id = f"peel_{sc_idx + 1:04d}"
 
-    # Structural diversity in peeling chains:
-    # 1. Chain length: short (4-8 hops), medium (9-16 hops), long (17-28 hops)
+    # Chain length diversity: short (4-8), medium (9-16), long (17-30)
     length_type = rng.choice([1, 2, 3], p=[0.40, 0.40, 0.20])
     if length_type == 1:
         n_hops = int(rng.integers(4, 9))
     elif length_type == 2:
         n_hops = int(rng.integers(9, 17))
     else:
-        n_hops = int(rng.integers(17, 29))
+        n_hops = int(rng.integers(17, 31))
 
     # Pacing: rapid automated (0.5 - 6 hrs), standard (6 - 36 hrs), slow stealth (36 - 280 hrs)
     pacing_type = rng.choice([1, 2, 3], p=[0.30, 0.45, 0.25])
@@ -592,95 +796,237 @@ for sc_idx in range(N_PEELING_SCENARIOS):
     time_offsets_s = np.sort(rng.uniform(0, total_duration_hrs * 3600.0, size=n_hops))
     time_offsets_s[0] = 0.0
 
-    # Branching probability: 20% of peeling chains fork into 2 sub-chains at midpoint
-    does_branch = (random.random() < 0.20) and (n_hops >= 8)
-
-    # Multi-input peel probability: 25% of peeling chains use 2 inputs at initial or intermediate hops
-    uses_multi_in = (random.random() < 0.25)
-
     # Scenario IP/ASN pool (1 to 3 IPs)
     n_ips = random.randint(1, 3)
     sc_asns = rng.choice(GLOBAL_ASNS, size=min(n_ips, 2), replace=True)
     sc_ips = [gen_ipv4_for_asn(sc_idx * 13 + i) for i in range(n_ips)]
 
-    # Initial funds
+    # Peeling archetype:
+    # 1. Classic Peeling with Direct Transfers & Multi-Outputs (35%) [breaks fanout_ratio==1.0]
+    # 2. Bifurcated / Tree Peeling (25%) [splits into concurrent peeling sub-chains]
+    # 3. Consolidated Peeling with Change Sweeps (25%) [breaks fanin_ratio==0.0]
+    # 4. Rapid Variable-Peel Chains (15%)
+    peel_arch = rng.choice([1, 2, 3, 4], p=[0.35, 0.25, 0.25, 0.15])
+
     initial_amount = round(float(rng.lognormal(-0.5, 1.2)), 8)
     initial_amount = max(initial_amount, 0.05)
     remaining = initial_amount
     current_wallet = gen_unique_wallet(all_wallets)
 
-    for hop in range(n_hops):
-        txid_counter += 1
-        fee = sample_fee()
-        hop_ts = sc_base_ts + pd.Timedelta(seconds=float(time_offsets_s[hop]))
+    if peel_arch == 2 and n_hops >= 8:
+        # Bifurcated / Tree Peeling: forks at midpoint
+        mid = n_hops // 2
+        chain1_wallet = current_wallet
+        chain1_remaining = remaining
+        chain2_wallet = None
+        chain2_remaining = 0.0
 
-        # Inputs
-        if hop == 0 and uses_multi_in:
-            in_wallet2 = gen_unique_wallet(all_wallets)
-            in_addrs = [current_wallet, in_wallet2]
-            p1 = round(remaining * 0.65, 8)
-            p2 = round(remaining - p1, 8)
-            in_amts = [p1, p2]
-        else:
-            in_addrs = [current_wallet]
-            in_amts = [remaining]
+        for hop in range(n_hops):
+            txid_counter += 1
+            fee = sample_fee()
+            hop_ts = sc_base_ts + pd.Timedelta(seconds=float(time_offsets_s[hop]))
 
-        # Outputs
-        peel_frac = round(float(rng.uniform(0.04, 0.25)), 4)
-        peel_amt = round(remaining * peel_frac, 8)
-        pass_amt = round(remaining - peel_amt - fee, 8)
+            if hop < mid:
+                # Pre-split hops: regular peeling with occasional 1-to-1 transfer
+                if random.random() < 0.25:
+                    # 1-to-1 direct transfer
+                    next_w = gen_unique_wallet(all_wallets)
+                    pass_amt = round(chain1_remaining - fee, 8)
+                    in_addrs = [chain1_wallet]
+                    in_amts = [chain1_remaining]
+                    out_addrs = [next_w]
+                    out_amts = [pass_amt]
+                    chain1_wallet = next_w
+                    chain1_remaining = pass_amt
+                else:
+                    # 1-to-2 peel
+                    peel_frac = float(rng.uniform(0.05, 0.20))
+                    peel_amt = round(chain1_remaining * peel_frac, 8)
+                    pass_amt = round(chain1_remaining - peel_amt - fee, 8)
+                    if pass_amt <= 1e-6: break
+                    peel_w = gen_unique_wallet(all_wallets)
+                    next_w = gen_unique_wallet(all_wallets)
+                    in_addrs = [chain1_wallet]
+                    in_amts = [chain1_remaining]
+                    out_addrs = [peel_w, next_w]
+                    out_amts = [peel_amt, pass_amt]
+                    chain1_wallet = next_w
+                    chain1_remaining = pass_amt
 
-        if pass_amt < 1e-6:
-            break
+            elif hop == mid:
+                # Bifurcation fork transaction: 1 input -> 2 main branch outputs
+                p1 = round((chain1_remaining - fee) * 0.55, 8)
+                p2 = round(chain1_remaining - fee - p1, 8)
+                w1 = gen_unique_wallet(all_wallets)
+                w2 = gen_unique_wallet(all_wallets)
+                in_addrs = [chain1_wallet]
+                in_amts = [chain1_remaining]
+                out_addrs = [w1, w2]
+                out_amts = [p1, p2]
+                chain1_wallet = w1
+                chain1_remaining = p1
+                chain2_wallet = w2
+                chain2_remaining = p2
 
-        peel_wallet = gen_unique_wallet(all_wallets)
-        next_wallet = gen_unique_wallet(all_wallets)
+            else:
+                # Alternating peels on branch 1 and branch 2
+                active_b = 1 if (hop % 2 == 0) else 2
+                cur_w = chain1_wallet if active_b == 1 else chain2_wallet
+                cur_rem = chain1_remaining if active_b == 1 else chain2_remaining
 
-        # Multi-output peel (peeling to 2 distinct recipients at once)
-        if random.random() < 0.20 and peel_amt > 2e-6:
-            peel_amt1 = round(peel_amt * 0.5, 8)
-            peel_amt2 = round(peel_amt - peel_amt1, 8)
-            peel_wallet2 = gen_unique_wallet(all_wallets)
-            out_addrs = [peel_wallet, peel_wallet2, next_wallet]
-            out_amts = [peel_amt1, peel_amt2, pass_amt]
-        else:
-            out_addrs = [peel_wallet, next_wallet]
-            out_amts = [peel_amt, pass_amt]
+                if cur_rem <= 2e-5:
+                    continue
 
-        # Adjust residual
-        total_in = round(sum(in_amts), 8)
-        total_out = round(sum(out_amts), 8)
-        residual = round(total_in - total_out - fee, 8)
-        if residual != 0:
-            out_amts[-1] = round(out_amts[-1] + residual, 8)
+                if random.random() < 0.25:
+                    next_w = gen_unique_wallet(all_wallets)
+                    pass_amt = round(cur_rem - fee, 8)
+                    in_addrs = [cur_w]
+                    in_amts = [cur_rem]
+                    out_addrs = [next_w]
+                    out_amts = [pass_amt]
+                    if active_b == 1:
+                        chain1_wallet, chain1_remaining = next_w, pass_amt
+                    else:
+                        chain2_wallet, chain2_remaining = next_w, pass_amt
+                else:
+                    peel_frac = float(rng.uniform(0.08, 0.25))
+                    peel_amt = round(cur_rem * peel_frac, 8)
+                    pass_amt = round(cur_rem - peel_amt - fee, 8)
+                    if pass_amt <= 1e-6: continue
+                    peel_w = gen_unique_wallet(all_wallets)
+                    next_w = gen_unique_wallet(all_wallets)
+                    in_addrs = [cur_w]
+                    in_amts = [cur_rem]
+                    out_addrs = [peel_w, next_w]
+                    out_amts = [peel_amt, pass_amt]
+                    if active_b == 1:
+                        chain1_wallet, chain1_remaining = next_w, pass_amt
+                    else:
+                        chain2_wallet, chain2_remaining = next_w, pass_amt
 
-        # Network assignment
-        ip_choice = random.choice(sc_ips)
-        asn_choice = random.choice(sc_asns)
-        node_type = random.choice(["vpn_proxy", "tor_exit_node", "residential", "datacenter"])
+            res = round(sum(in_amts) - sum(out_amts) - fee, 8)
+            if res != 0:
+                out_amts[-1] = round(out_amts[-1] + res, 8)
 
-        peeling_records.append({
-            "txid_counter": txid_counter,
-            "timestamp": hop_ts,
-            "input_addresses": json.dumps(in_addrs),
-            "output_addresses": json.dumps(out_addrs),
-            "input_amounts": json.dumps(in_amts),
-            "output_amounts": json.dumps(out_amts),
-            "fee_btc": fee,
-            "script_type": sample_script_type(),
-            "is_illicit": 1,
-            "pattern_type": "peeling_chain",
-            "scenario_id": sc_id,
-            "relay_ip": ip_choice,
-            "node_type": node_type,
-            "asn": asn_choice["asn"],
-            "isp": asn_choice["isp"],
-            "country_code": asn_choice["country"],
-            "_source": "planted_peeling_chain",
-        })
+            ip_choice = random.choice(sc_ips)
+            asn_choice = random.choice(sc_asns)
+            node_type = random.choice(["vpn_proxy", "tor_exit_node", "residential", "datacenter"])
 
-        current_wallet = next_wallet
-        remaining = out_amts[-1]
+            peeling_records.append({
+                "txid_counter": txid_counter,
+                "timestamp": hop_ts,
+                "input_addresses": json.dumps(in_addrs),
+                "output_addresses": json.dumps(out_addrs),
+                "input_amounts": json.dumps(in_amts),
+                "output_amounts": json.dumps(out_amts),
+                "fee_btc": fee,
+                "script_type": sample_script_type(),
+                "is_illicit": 1,
+                "pattern_type": "peeling_chain",
+                "scenario_id": sc_id,
+                "relay_ip": ip_choice,
+                "node_type": node_type,
+                "asn": asn_choice["asn"],
+                "isp": asn_choice["isp"],
+                "country_code": asn_choice["country"],
+                "_source": "planted_peeling_chain",
+            })
+
+    else:
+        # Archetype 1, 3, 4: Sequential Peeling with variable multi-in/multi-out, change sweeps, and 1-to-1 hops
+        peeled_wallets_pool = []
+        for hop in range(n_hops):
+            txid_counter += 1
+            fee = sample_fee()
+            hop_ts = sc_base_ts + pd.Timedelta(seconds=float(time_offsets_s[hop]))
+
+            # Multi-input sweep probability: sweep previously peeled change or external UTXO
+            is_multi_in = (peel_arch == 3 and random.random() < 0.35) or (random.random() < 0.12)
+
+            if is_multi_in:
+                if peeled_wallets_pool and random.random() < 0.60:
+                    extra_w, extra_amt = peeled_wallets_pool.pop(random.randint(0, len(peeled_wallets_pool) - 1))
+                else:
+                    extra_w = gen_unique_wallet(all_wallets)
+                    extra_amt = round(float(rng.uniform(0.01, 0.10)), 8)
+                in_addrs = [current_wallet, extra_w]
+                in_amts = [remaining, extra_amt]
+                total_in = round(remaining + extra_amt, 8)
+            else:
+                in_addrs = [current_wallet]
+                in_amts = [remaining]
+                total_in = remaining
+
+            # Hop structure:
+            # 25% 1-to-1 direct hop (no peel, breaks fanout_ratio == 1.0)
+            # 55% 1-to-2 standard peel
+            # 20% 1-to-3 multi-output peel
+            hop_shape = rng.choice([1, 2, 3], p=[0.25, 0.55, 0.20])
+
+            if hop_shape == 1:
+                # 1-to-1 direct transfer
+                pass_amt = round(total_in - fee, 8)
+                if pass_amt <= 1e-6: break
+                next_w = gen_unique_wallet(all_wallets)
+                out_addrs = [next_w]
+                out_amts = [pass_amt]
+            elif hop_shape == 2:
+                # 1-to-2 standard peel
+                peel_frac = float(rng.uniform(0.04, 0.28))
+                peel_amt = round(total_in * peel_frac, 8)
+                pass_amt = round(total_in - peel_amt - fee, 8)
+                if pass_amt <= 1e-6: break
+                peel_w = gen_unique_wallet(all_wallets)
+                next_w = gen_unique_wallet(all_wallets)
+                out_addrs = [peel_w, next_w]
+                out_amts = [peel_amt, pass_amt]
+                peeled_wallets_pool.append((peel_w, peel_amt))
+            else:
+                # 1-to-3 double peel
+                peel_frac1 = float(rng.uniform(0.03, 0.15))
+                peel_frac2 = float(rng.uniform(0.03, 0.15))
+                peel_amt1 = round(total_in * peel_frac1, 8)
+                peel_amt2 = round(total_in * peel_frac2, 8)
+                pass_amt = round(total_in - peel_amt1 - peel_amt2 - fee, 8)
+                if pass_amt <= 1e-6: break
+                p_w1 = gen_unique_wallet(all_wallets)
+                p_w2 = gen_unique_wallet(all_wallets)
+                next_w = gen_unique_wallet(all_wallets)
+                out_addrs = [p_w1, p_w2, next_w]
+                out_amts = [peel_amt1, peel_amt2, pass_amt]
+                peeled_wallets_pool.append((p_w1, peel_amt1))
+                peeled_wallets_pool.append((p_w2, peel_amt2))
+
+            res = round(sum(in_amts) - sum(out_amts) - fee, 8)
+            if res != 0:
+                out_amts[-1] = round(out_amts[-1] + res, 8)
+
+            ip_choice = random.choice(sc_ips)
+            asn_choice = random.choice(sc_asns)
+            node_type = random.choice(["vpn_proxy", "tor_exit_node", "residential", "datacenter"])
+
+            peeling_records.append({
+                "txid_counter": txid_counter,
+                "timestamp": hop_ts,
+                "input_addresses": json.dumps(in_addrs),
+                "output_addresses": json.dumps(out_addrs),
+                "input_amounts": json.dumps(in_amts),
+                "output_amounts": json.dumps(out_amts),
+                "fee_btc": fee,
+                "script_type": sample_script_type(),
+                "is_illicit": 1,
+                "pattern_type": "peeling_chain",
+                "scenario_id": sc_id,
+                "relay_ip": ip_choice,
+                "node_type": node_type,
+                "asn": asn_choice["asn"],
+                "isp": asn_choice["isp"],
+                "country_code": asn_choice["country"],
+                "_source": "planted_peeling_chain",
+            })
+
+            current_wallet = next_w
+            remaining = out_amts[-1]
 
 print(f"  Planted {len(peeling_records):,} peeling chain transactions across {N_PEELING_SCENARIOS} scenarios")
 
@@ -696,14 +1042,16 @@ layering_records = []
 for sc_idx in range(N_LAYERING_SCENARIOS):
     sc_id = f"layer_{sc_idx + 1:04d}"
 
-    # Structural diversity:
-    # Fan-out width: 3 to 12 intermediaries
-    n_fanout = int(rng.integers(3, 13))
+    # Structural Archetype:
+    # 1. Pure Fan-Out Dispersion (No Reconvergence) (30%) [breaks mandatory edge_to_node_ratio > 1.0]
+    # 2. Multi-Tier Split-and-Merge / Criss-Cross (30%)
+    # 3. Partial Reconvergence & Secondary Dispersion (25%)
+    # 4. Daisy-Chain Relay Layering (15%)
+    layer_arch = rng.choice([1, 2, 3, 4], p=[0.30, 0.30, 0.25, 0.15])
 
-    # Multi-source: 1 to 3 sources
+    n_fanout = int(rng.integers(3, 13))
     n_sources = int(rng.choice([1, 2, 3], p=[0.60, 0.30, 0.10]))
 
-    # Pacing: fast (1-8 hrs), medium (8-48 hrs), slow/multi-week (48-350 hrs)
     pacing_arch = rng.choice([1, 2, 3], p=[0.25, 0.50, 0.25])
     if pacing_arch == 1:
         total_duration_hrs = float(rng.uniform(1.0, 8.0))
@@ -724,16 +1072,12 @@ for sc_idx in range(N_LAYERING_SCENARIOS):
     total_amount = round(float(rng.lognormal(0.2, 1.4)), 8)
     total_amount = max(total_amount, 0.15)
 
-    # 1. FAN-OUT TRANSACTION
+    # 1. INITIAL FAN-OUT TRANSACTION
     txid_counter += 1
     fee1 = sample_fee()
     in_amts = distribute_amount(round(total_amount + fee1, 8), n_sources)
     intermediate_wallets = [gen_unique_wallet(all_wallets) for _ in range(n_fanout)]
     out_amts = distribute_amount(total_amount, n_fanout)
-
-    ip_choice = random.choice(sc_ips)
-    asn_choice = random.choice(sc_asns)
-    node_type = random.choice(["vpn_proxy", "tor_exit_node", "bulletproof_host", "datacenter"])
 
     layering_records.append({
         "txid_counter": txid_counter,
@@ -747,27 +1091,25 @@ for sc_idx in range(N_LAYERING_SCENARIOS):
         "is_illicit": 1,
         "pattern_type": "layering",
         "scenario_id": sc_id,
-        "relay_ip": ip_choice,
-        "node_type": node_type,
-        "asn": asn_choice["asn"],
-        "isp": asn_choice["isp"],
-        "country_code": asn_choice["country"],
+        "relay_ip": random.choice(sc_ips),
+        "node_type": random.choice(["vpn_proxy", "tor_exit_node", "bulletproof_host", "datacenter"]),
+        "asn": random.choice(sc_asns)["asn"],
+        "isp": random.choice(sc_asns)["isp"],
+        "country_code": random.choice(sc_asns)["country"],
         "_source": "planted_layering",
     })
 
-    # 2. INTERMEDIARY HOPS (Pass-throughs / multi-tier criss-cross)
-    # Some intermediaries pass through directly, some split further
+    # 2. INTERMEDIARY HOPS
     active_wallets = list(zip(intermediate_wallets, out_amts))
     next_stage_wallets = []
-
-    stage1_duration = total_duration_hrs * 0.4
+    stage1_duration = total_duration_hrs * 0.45
     intermediate_offsets_s = np.sort(rng.uniform(300.0, stage1_duration * 3600.0, size=n_fanout))
 
     for idx, (iw, ia) in enumerate(active_wallets):
-        # 60% chance of intermediary pass-through or sub-split hop
-        if random.random() < 0.65:
+        if random.random() < 0.70:
             txid_counter += 1
-            fee_hop = sample_fee()
+            fee_hop = min(sample_fee(), round(ia * 0.05, 8))
+            fee_hop = max(fee_hop, 1e-8)
             hop_amt = round(ia - fee_hop, 8)
             if hop_amt <= 1e-6:
                 next_stage_wallets.append((iw, ia))
@@ -775,9 +1117,8 @@ for sc_idx in range(N_LAYERING_SCENARIOS):
 
             hop_ts = sc_base_ts + pd.Timedelta(seconds=float(intermediate_offsets_s[idx]))
 
-            # Sub-split or single pass-through
-            if random.random() < 0.35:
-                # Sub-split into 2 intermediate wallets
+            # Sub-split (1-to-2) or 1-to-1 pass-through
+            if random.random() < 0.40:
                 w1 = gen_unique_wallet(all_wallets)
                 w2 = gen_unique_wallet(all_wallets)
                 parts = distribute_amount(hop_amt, 2)
@@ -790,6 +1131,10 @@ for sc_idx in range(N_LAYERING_SCENARIOS):
                 hop_out_addrs = [w1]
                 hop_out_amts = [hop_amt]
                 next_stage_wallets.append((w1, hop_amt))
+
+            res = round(ia - sum(hop_out_amts) - fee_hop, 8)
+            if res != 0:
+                hop_out_amts[-1] = round(hop_out_amts[-1] + res, 8)
 
             layering_records.append({
                 "txid_counter": txid_counter,
@@ -813,51 +1158,125 @@ for sc_idx in range(N_LAYERING_SCENARIOS):
         else:
             next_stage_wallets.append((iw, ia))
 
-    # 3. FAN-IN CONSOLIDATION (Consolidate into 1 or 2 collectors)
-    n_collectors = 1 if random.random() < 0.75 else 2
-    collector_wallets = [gen_unique_wallet(all_wallets) for _ in range(n_collectors)]
+    # 3. CONSOLIDATION / DISPERSION STAGE
+    if layer_arch == 1:
+        # Pure Dispersion: intermediaries deposit directly to separate exit endpoints (NO reconvergence!)
+        for w_item, a_item in next_stage_wallets:
+            if random.random() < 0.50:
+                txid_counter += 1
+                fee_exit = min(sample_fee(), round(a_item * 0.05, 8))
+                fee_exit = max(fee_exit, 1e-8)
+                exit_amt = round(a_item - fee_exit, 8)
+                if exit_amt <= 1e-6: continue
+                exit_w = gen_unique_wallet(all_wallets)
+                exit_ts = sc_base_ts + pd.Timedelta(hours=float(rng.uniform(stage1_duration, total_duration_hrs)))
+                layering_records.append({
+                    "txid_counter": txid_counter,
+                    "timestamp": exit_ts,
+                    "input_addresses": json.dumps([w_item]),
+                    "output_addresses": json.dumps([exit_w]),
+                    "input_amounts": json.dumps([a_item]),
+                    "output_amounts": json.dumps([exit_amt]),
+                    "fee_btc": fee_exit,
+                    "script_type": sample_script_type(),
+                    "is_illicit": 1,
+                    "pattern_type": "layering",
+                    "scenario_id": sc_id,
+                    "relay_ip": random.choice(sc_ips),
+                    "node_type": random.choice(["vpn_proxy", "tor_exit_node", "datacenter"]),
+                    "asn": random.choice(sc_asns)["asn"],
+                    "isp": random.choice(sc_asns)["isp"],
+                    "country_code": random.choice(sc_asns)["country"],
+                    "_source": "planted_layering",
+                })
 
-    # Group next_stage_wallets for consolidation
-    # If too many inputs for single txn (max 8), chunk them
-    chunk_size = 6
-    fanin_chunks = [next_stage_wallets[i:i + chunk_size] for i in range(0, len(next_stage_wallets), chunk_size)]
+    elif layer_arch == 3:
+        # Partial Reconvergence: 50% reconverge to collector, 50% exit independently
+        n_recon = max(1, len(next_stage_wallets) // 2)
+        recon_wallets = next_stage_wallets[:n_recon]
+        exit_wallets = next_stage_wallets[n_recon:]
 
-    fanin_ts_base = sc_base_ts + pd.Timedelta(hours=total_duration_hrs * 0.8)
+        # Fan-in recon_wallets
+        collector_w = gen_unique_wallet(all_wallets)
+        chunk_size = 6
+        fanin_chunks = [recon_wallets[i:i + chunk_size] for i in range(0, len(recon_wallets), chunk_size)]
+        fanin_ts_base = sc_base_ts + pd.Timedelta(hours=total_duration_hrs * 0.8)
 
-    for c_idx, chunk in enumerate(fanin_chunks):
-        txid_counter += 1
-        fee_in = sample_fee()
-        chunk_in_addrs = [w for w, _ in chunk]
-        chunk_in_amts = [a for _, a in chunk]
-        chunk_total_in = round(sum(chunk_in_amts), 8)
-        chunk_total_out = round(chunk_total_in - fee_in, 8)
-        if chunk_total_out <= 1e-6:
-            chunk_total_out = 1e-6
+        for c_idx, chunk in enumerate(fanin_chunks):
+            txid_counter += 1
+            chunk_in_addrs = [w for w, _ in chunk]
+            chunk_in_amts = [a for _, a in chunk]
+            tot_in = round(sum(chunk_in_amts), 8)
+            fee_in = min(sample_fee(), round(tot_in * 0.05, 8))
+            fee_in = max(fee_in, 1e-8)
+            tot_out = round(tot_in - fee_in, 8)
+            if tot_out <= 1e-6: continue
+            fanin_ts = fanin_ts_base + pd.Timedelta(minutes=(c_idx + 1) * 20)
 
-        chunk_out_addrs = collector_wallets if n_collectors <= len(collector_wallets) else [collector_wallets[0]]
-        chunk_out_amts = distribute_amount(chunk_total_out, len(chunk_out_addrs))
+            layering_records.append({
+                "txid_counter": txid_counter,
+                "timestamp": fanin_ts,
+                "input_addresses": json.dumps(chunk_in_addrs),
+                "output_addresses": json.dumps([collector_w]),
+                "input_amounts": json.dumps(chunk_in_amts),
+                "output_amounts": json.dumps([tot_out]),
+                "fee_btc": fee_in,
+                "script_type": sample_script_type(),
+                "is_illicit": 1,
+                "pattern_type": "layering",
+                "scenario_id": sc_id,
+                "relay_ip": random.choice(sc_ips),
+                "node_type": random.choice(["vpn_proxy", "tor_exit_node", "datacenter"]),
+                "asn": random.choice(sc_asns)["asn"],
+                "isp": random.choice(sc_asns)["isp"],
+                "country_code": random.choice(sc_asns)["country"],
+                "_source": "planted_layering",
+            })
 
-        fanin_ts = fanin_ts_base + pd.Timedelta(minutes=(c_idx + 1) * 30)
+    else:
+        # Full / Standard Fan-In Consolidation
+        n_collectors = 1 if random.random() < 0.70 else 2
+        collector_wallets = [gen_unique_wallet(all_wallets) for _ in range(n_collectors)]
+        chunk_size = 6
+        fanin_chunks = [next_stage_wallets[i:i + chunk_size] for i in range(0, len(next_stage_wallets), chunk_size)]
+        fanin_ts_base = sc_base_ts + pd.Timedelta(hours=total_duration_hrs * 0.8)
 
-        layering_records.append({
-            "txid_counter": txid_counter,
-            "timestamp": fanin_ts,
-            "input_addresses": json.dumps(chunk_in_addrs),
-            "output_addresses": json.dumps(chunk_out_addrs),
-            "input_amounts": json.dumps(chunk_in_amts),
-            "output_amounts": json.dumps(chunk_out_amts),
-            "fee_btc": fee_in,
-            "script_type": sample_script_type(),
-            "is_illicit": 1,
-            "pattern_type": "layering",
-            "scenario_id": sc_id,
-            "relay_ip": random.choice(sc_ips),
-            "node_type": random.choice(["vpn_proxy", "tor_exit_node", "residential", "datacenter"]),
-            "asn": random.choice(sc_asns)["asn"],
-            "isp": random.choice(sc_asns)["isp"],
-            "country_code": random.choice(sc_asns)["country"],
-            "_source": "planted_layering",
-        })
+        for c_idx, chunk in enumerate(fanin_chunks):
+            txid_counter += 1
+            chunk_in_addrs = [w for w, _ in chunk]
+            chunk_in_amts = [a for _, a in chunk]
+            tot_in = round(sum(chunk_in_amts), 8)
+            fee_in = min(sample_fee(), round(tot_in * 0.05, 8))
+            fee_in = max(fee_in, 1e-8)
+            tot_out = round(tot_in - fee_in, 8)
+            if tot_out <= 1e-6: continue
+            chunk_out_addrs = collector_wallets if n_collectors <= len(collector_wallets) else [collector_wallets[0]]
+            chunk_out_amts = distribute_amount(tot_out, len(chunk_out_addrs))
+            fanin_ts = fanin_ts_base + pd.Timedelta(minutes=(c_idx + 1) * 30)
+
+            res = round(tot_in - sum(chunk_out_amts) - fee_in, 8)
+            if res != 0:
+                chunk_out_amts[-1] = round(chunk_out_amts[-1] + res, 8)
+
+            layering_records.append({
+                "txid_counter": txid_counter,
+                "timestamp": fanin_ts,
+                "input_addresses": json.dumps(chunk_in_addrs),
+                "output_addresses": json.dumps(chunk_out_addrs),
+                "input_amounts": json.dumps(chunk_in_amts),
+                "output_amounts": json.dumps(chunk_out_amts),
+                "fee_btc": fee_in,
+                "script_type": sample_script_type(),
+                "is_illicit": 1,
+                "pattern_type": "layering",
+                "scenario_id": sc_id,
+                "relay_ip": random.choice(sc_ips),
+                "node_type": random.choice(["vpn_proxy", "tor_exit_node", "residential", "datacenter"]),
+                "asn": random.choice(sc_asns)["asn"],
+                "isp": random.choice(sc_asns)["isp"],
+                "country_code": random.choice(sc_asns)["country"],
+                "_source": "planted_layering",
+            })
 
 print(f"  Planted {len(layering_records):,} layering transactions across {N_LAYERING_SCENARIOS} scenarios")
 
@@ -873,13 +1292,16 @@ mixing_records = []
 for sc_idx in range(N_MIXING_SCENARIOS):
     sc_id = f"mix_{sc_idx + 1:04d}"
 
-    # Structural diversity:
-    # 1. Rounds: 2 to 7 rounds
-    n_rounds = int(rng.integers(2, 8))
-    # 2. Participants: 3 to 7 participants
+    # Structural Archetype:
+    # 1. Tiered & Multi-Denomination CoinJoin (Wasabi / Whirlpool style) (35%)
+    # 2. Whirlpool-style Fixed Pools with Churn & Exits (30%)
+    # 3. JoinMarket-style Maker/Taker Asymmetric Mix (20%)
+    # 4. Decentralized Multi-Round P2P Mini-Mixes (15%)
+    mix_arch = rng.choice([1, 2, 3, 4], p=[0.35, 0.30, 0.20, 0.15])
+
+    n_rounds = int(rng.integers(2, 7))
     n_participants = int(rng.integers(3, 8))
 
-    # Pacing: quick CoinJoin (1 to 6 hrs), scheduled mix (6 to 36 hrs), slow batch mix (36 to 200 hrs)
     pacing_arch = rng.choice([1, 2, 3], p=[0.30, 0.45, 0.25])
     if pacing_arch == 1:
         total_duration_hrs = float(rng.uniform(1.0, 6.0))
@@ -892,133 +1314,38 @@ for sc_idx in range(N_MIXING_SCENARIOS):
     round_offsets_s = np.sort(rng.uniform(0, total_duration_hrs * 3600.0, size=n_rounds))
     round_offsets_s[0] = 0.0
 
-    # Participants bring their own IPs (3 to 6 IPs across 2-3 ASNs)
+    # Participants bring their own IPs
     n_ips = min(n_participants, random.randint(3, 5))
     sc_asns = rng.choice(GLOBAL_ASNS, size=min(n_ips, 3), replace=True)
     sc_ips = [gen_ipv4_for_asn(sc_idx * 23 + i) for i in range(n_ips)]
-
-    # Denomination type:
-    # 70% standard equal output denomination (classic CoinJoin)
-    # 30% tiered or change-output CoinJoin
-    has_change = (random.random() < 0.30)
 
     # Initial participant wallets
     participant_wallets = [gen_unique_wallet(all_wallets) for _ in range(n_participants)]
     base_denom = round(float(rng.lognormal(-0.8, 0.9)), 8)
     base_denom = max(base_denom, 0.02)
 
-    current_in_wallets = participant_wallets
+    current_in_wallets = participant_wallets.copy()
     current_amount_per_p = base_denom
 
-    # Pre-mix split (Tx0): 1 or 2 participants split unequal deposit into standard mix denomination
+    # Pre-mix split or relay hops (Tx0)
     n_premix = random.randint(1, 2)
     for p_idx in range(n_premix):
         txid_counter += 1
         fee_pre = sample_fee()
-        raw_deposit = round(base_denom * 1.35 + fee_pre, 8)
-        pre_in_wallet = gen_unique_wallet(all_wallets)
-        pre_change = gen_unique_wallet(all_wallets)
-        
         pre_ts = sc_base_ts - pd.Timedelta(minutes=random.randint(10, 120))
-        mixing_records.append({
-            "txid_counter": txid_counter,
-            "timestamp": pre_ts,
-            "input_addresses": json.dumps([pre_in_wallet]),
-            "output_addresses": json.dumps([participant_wallets[p_idx], pre_change]),
-            "input_amounts": json.dumps([raw_deposit]),
-            "output_amounts": json.dumps([base_denom, round(raw_deposit - base_denom - fee_pre, 8)]),
-            "fee_btc": fee_pre,
-            "script_type": sample_script_type(),
-            "is_illicit": 1,
-            "pattern_type": "mixing",
-            "scenario_id": sc_id,
-            "relay_ip": random.choice(sc_ips),
-            "node_type": random.choice(["tor_exit_node", "vpn_proxy", "residential"]),
-            "asn": random.choice(sc_asns)["asn"],
-            "isp": random.choice(sc_asns)["isp"],
-            "country_code": random.choice(sc_asns)["country"],
-            "_source": "planted_mixing",
-        })
+        pre_in_wallet = gen_unique_wallet(all_wallets)
 
-    # CoinJoin Rounds
-    for rnd in range(n_rounds):
-        txid_counter += 1
-        fee = sample_fee()
-        round_ts = sc_base_ts + pd.Timedelta(seconds=float(round_offsets_s[rnd]))
-
-        total_in = round(current_amount_per_p * n_participants, 8)
-        total_out = round(total_in - fee, 8)
-        out_per_p = round(total_out / n_participants, 8)
-
-        new_wallets = [gen_unique_wallet(all_wallets) for _ in range(n_participants)]
-
-        if has_change and rnd == 0:
-            # First round includes change outputs
-            change_wallets = [gen_unique_wallet(all_wallets) for _ in range(n_participants)]
-            # Equal denomination outputs + small change
-            denom_amt = round(out_per_p * 0.85, 8)
-            change_amt = round((total_out - (denom_amt * n_participants)) / n_participants, 8)
-            out_addrs = new_wallets + change_wallets
-            out_amts = [denom_amt] * n_participants + [change_amt] * n_participants
-            # Fix residual
-            residual = round(total_in - sum(out_amts) - fee, 8)
-            out_amts[-1] = round(out_amts[-1] + residual, 8)
-            current_amount_per_p = denom_amt
-        else:
-            out_addrs = new_wallets
-            out_amts = [out_per_p] * n_participants
-            residual = round(total_in - sum(out_amts) - fee, 8)
-            out_amts[-1] = round(out_amts[-1] + residual, 8)
-            current_amount_per_p = out_per_p
-
-        in_addrs = current_in_wallets.copy()
-        in_amts = distribute_amount(round(total_in, 8), n_participants)
-
-        # Network assignment: Coordinator / peer relay
-        ip_choice = random.choice(sc_ips)
-        asn_choice = random.choice(sc_asns)
-        node_type = random.choice(["tor_exit_node", "vpn_proxy", "residential", "datacenter"])
-
-        mixing_records.append({
-            "txid_counter": txid_counter,
-            "timestamp": round_ts,
-            "input_addresses": json.dumps(in_addrs),
-            "output_addresses": json.dumps(out_addrs),
-            "input_amounts": json.dumps(in_amts),
-            "output_amounts": json.dumps(out_amts),
-            "fee_btc": fee,
-            "script_type": sample_script_type(),
-            "is_illicit": 1,
-            "pattern_type": "mixing",
-            "scenario_id": sc_id,
-            "relay_ip": ip_choice,
-            "node_type": node_type,
-            "asn": asn_choice["asn"],
-            "isp": asn_choice["isp"],
-            "country_code": asn_choice["country"],
-            "_source": "planted_mixing",
-        })
-
-        current_in_wallets = new_wallets
-
-    # Post-mix consolidation / payout: 1 or 2 participants transfer mixed funds to cold storage
-    n_postmix = random.randint(1, 2)
-    for p_idx in range(n_postmix):
-        txid_counter += 1
-        fee_post = sample_fee()
-        post_in_amt = round(current_amount_per_p, 8)
-        post_out_amt = round(post_in_amt - fee_post, 8)
-        if post_out_amt > 1e-6:
-            cold_wallet = gen_unique_wallet(all_wallets)
-            post_ts = round_ts + pd.Timedelta(minutes=random.randint(15, 180))
+        if random.random() < 0.40:
+            # 1-to-1 pre-mix relay transfer
+            raw_deposit = round(base_denom + fee_pre, 8)
             mixing_records.append({
                 "txid_counter": txid_counter,
-                "timestamp": post_ts,
-                "input_addresses": json.dumps([current_in_wallets[p_idx]]),
-                "output_addresses": json.dumps([cold_wallet]),
-                "input_amounts": json.dumps([post_in_amt]),
-                "output_amounts": json.dumps([post_out_amt]),
-                "fee_btc": fee_post,
+                "timestamp": pre_ts,
+                "input_addresses": json.dumps([pre_in_wallet]),
+                "output_addresses": json.dumps([current_in_wallets[p_idx]]),
+                "input_amounts": json.dumps([raw_deposit]),
+                "output_amounts": json.dumps([base_denom]),
+                "fee_btc": fee_pre,
                 "script_type": sample_script_type(),
                 "is_illicit": 1,
                 "pattern_type": "mixing",
@@ -1030,6 +1357,188 @@ for sc_idx in range(N_MIXING_SCENARIOS):
                 "country_code": random.choice(sc_asns)["country"],
                 "_source": "planted_mixing",
             })
+        else:
+            # 1-to-2 pre-mix split + change
+            raw_deposit = round(base_denom * float(rng.uniform(1.2, 1.8)) + fee_pre, 8)
+            pre_change = gen_unique_wallet(all_wallets)
+            mixing_records.append({
+                "txid_counter": txid_counter,
+                "timestamp": pre_ts,
+                "input_addresses": json.dumps([pre_in_wallet]),
+                "output_addresses": json.dumps([current_in_wallets[p_idx], pre_change]),
+                "input_amounts": json.dumps([raw_deposit]),
+                "output_amounts": json.dumps([base_denom, round(raw_deposit - base_denom - fee_pre, 8)]),
+                "fee_btc": fee_pre,
+                "script_type": sample_script_type(),
+                "is_illicit": 1,
+                "pattern_type": "mixing",
+                "scenario_id": sc_id,
+                "relay_ip": random.choice(sc_ips),
+                "node_type": random.choice(["tor_exit_node", "vpn_proxy", "residential"]),
+                "asn": random.choice(sc_asns)["asn"],
+                "isp": random.choice(sc_asns)["isp"],
+                "country_code": random.choice(sc_asns)["country"],
+                "_source": "planted_mixing",
+            })
+
+    if mix_arch == 3:
+        # JoinMarket-style Maker/Taker Asymmetric Mix
+        # 1 Taker brings 2 inputs, pays fee to N-1 Makers (1 input each)
+        for rnd in range(n_rounds):
+            txid_counter += 1
+            fee = sample_fee()
+            round_ts = sc_base_ts + pd.Timedelta(seconds=float(round_offsets_s[rnd]))
+
+            taker_extra_in = gen_unique_wallet(all_wallets)
+            taker_inputs = [current_in_wallets[0], taker_extra_in]
+            maker_inputs = current_in_wallets[1:]
+            round_in_addrs = taker_inputs + maker_inputs
+
+            maker_amt = base_denom
+            taker_amt1 = round(base_denom * 0.7, 8)
+            taker_amt2 = round(base_denom * 0.5, 8)
+            round_in_amts = [taker_amt1, taker_amt2] + [maker_amt] * len(maker_inputs)
+            total_in = round(sum(round_in_amts), 8)
+
+            # Equal mixed output + maker reward + taker change
+            mixed_output_amt = base_denom
+            maker_reward = round(base_denom * 0.002, 8)
+            total_makers = len(maker_inputs)
+            taker_change = round(total_in - (mixed_output_amt * n_participants) - (maker_reward * total_makers) - fee, 8)
+            if taker_change <= 1e-6: taker_change = 1e-6
+
+            new_wallets = [gen_unique_wallet(all_wallets) for _ in range(n_participants)]
+            taker_change_wallet = gen_unique_wallet(all_wallets)
+            maker_fee_wallets = [gen_unique_wallet(all_wallets) for _ in range(total_makers)]
+
+            round_out_addrs = new_wallets + [taker_change_wallet] + maker_fee_wallets
+            round_out_amts = [mixed_output_amt] * n_participants + [taker_change] + [maker_reward] * total_makers
+
+            res = round(total_in - sum(round_out_amts) - fee, 8)
+            if res != 0:
+                round_out_amts[-1] = round(round_out_amts[-1] + res, 8)
+
+            ip_choice = random.choice(sc_ips)
+            asn_choice = random.choice(sc_asns)
+            node_type = random.choice(["tor_exit_node", "vpn_proxy", "residential"])
+
+            mixing_records.append({
+                "txid_counter": txid_counter,
+                "timestamp": round_ts,
+                "input_addresses": json.dumps(round_in_addrs),
+                "output_addresses": json.dumps(round_out_addrs),
+                "input_amounts": json.dumps(round_in_amts),
+                "output_amounts": json.dumps(round_out_amts),
+                "fee_btc": fee,
+                "script_type": sample_script_type(),
+                "is_illicit": 1,
+                "pattern_type": "mixing",
+                "scenario_id": sc_id,
+                "relay_ip": ip_choice,
+                "node_type": node_type,
+                "asn": asn_choice["asn"],
+                "isp": asn_choice["isp"],
+                "country_code": asn_choice["country"],
+                "_source": "planted_mixing",
+            })
+            current_in_wallets = new_wallets
+
+    else:
+        # Archetypes 1, 2, 4: CoinJoin with Tiered Denominations, Churn & Change
+        for rnd in range(n_rounds):
+            txid_counter += 1
+            fee = sample_fee()
+            round_ts = sc_base_ts + pd.Timedelta(seconds=float(round_offsets_s[rnd]))
+
+            # In Archetype 2 (churn), only a subset continues to later rounds
+            if mix_arch == 2 and rnd >= 1:
+                active_p_count = max(3, n_participants - rnd)
+                churn_in_wallets = current_in_wallets[:active_p_count]
+                # External liquidity joins
+                new_externals = [gen_unique_wallet(all_wallets) for _ in range(n_participants - active_p_count)]
+                round_in_addrs = churn_in_wallets + new_externals
+            else:
+                round_in_addrs = current_in_wallets.copy()
+
+            total_in = round(current_amount_per_p * len(round_in_addrs), 8)
+            total_out = round(total_in - fee, 8)
+            out_per_p = round(total_out / len(round_in_addrs), 8)
+            new_wallets = [gen_unique_wallet(all_wallets) for _ in range(len(round_in_addrs))]
+
+            # Multi-denomination change or unequal outputs (Wasabi style, 45% of rounds)
+            if mix_arch == 1 and random.random() < 0.60:
+                change_wallets = [gen_unique_wallet(all_wallets) for _ in range(len(round_in_addrs))]
+                denom_amt = round(out_per_p * float(rng.uniform(0.70, 0.90)), 8)
+                change_amt = round((total_out - (denom_amt * len(round_in_addrs))) / len(round_in_addrs), 8)
+                out_addrs = new_wallets + change_wallets
+                out_amts = [denom_amt] * len(round_in_addrs) + [change_amt] * len(round_in_addrs)
+                current_amount_per_p = denom_amt
+            else:
+                out_addrs = new_wallets
+                out_amts = [out_per_p] * len(round_in_addrs)
+                current_amount_per_p = out_per_p
+
+            res = round(total_in - sum(out_amts) - fee, 8)
+            if res != 0:
+                out_amts[-1] = round(out_amts[-1] + res, 8)
+
+            in_amts = distribute_amount(round(total_in, 8), len(round_in_addrs))
+
+            ip_choice = random.choice(sc_ips)
+            asn_choice = random.choice(sc_asns)
+            node_type = random.choice(["tor_exit_node", "vpn_proxy", "residential", "datacenter"])
+
+            mixing_records.append({
+                "txid_counter": txid_counter,
+                "timestamp": round_ts,
+                "input_addresses": json.dumps(round_in_addrs),
+                "output_addresses": json.dumps(out_addrs),
+                "input_amounts": json.dumps(in_amts),
+                "output_amounts": json.dumps(out_amts),
+                "fee_btc": fee,
+                "script_type": sample_script_type(),
+                "is_illicit": 1,
+                "pattern_type": "mixing",
+                "scenario_id": sc_id,
+                "relay_ip": ip_choice,
+                "node_type": node_type,
+                "asn": asn_choice["asn"],
+                "isp": asn_choice["isp"],
+                "country_code": asn_choice["country"],
+                "_source": "planted_mixing",
+            })
+            current_in_wallets = new_wallets
+
+    # Post-mix consolidation / payout: 1 or 2 participants transfer mixed funds
+    n_postmix = random.randint(1, 2)
+    for p_idx in range(n_postmix):
+        if p_idx < len(current_in_wallets):
+            txid_counter += 1
+            fee_post = sample_fee()
+            post_in_amt = round(current_amount_per_p, 8)
+            post_out_amt = round(post_in_amt - fee_post, 8)
+            if post_out_amt > 1e-6:
+                cold_wallet = gen_unique_wallet(all_wallets)
+                post_ts = sc_base_ts + pd.Timedelta(seconds=float(round_offsets_s[-1])) + pd.Timedelta(minutes=random.randint(15, 180))
+                mixing_records.append({
+                    "txid_counter": txid_counter,
+                    "timestamp": post_ts,
+                    "input_addresses": json.dumps([current_in_wallets[p_idx]]),
+                    "output_addresses": json.dumps([cold_wallet]),
+                    "input_amounts": json.dumps([post_in_amt]),
+                    "output_amounts": json.dumps([post_out_amt]),
+                    "fee_btc": fee_post,
+                    "script_type": sample_script_type(),
+                    "is_illicit": 1,
+                    "pattern_type": "mixing",
+                    "scenario_id": sc_id,
+                    "relay_ip": random.choice(sc_ips),
+                    "node_type": random.choice(["tor_exit_node", "vpn_proxy", "residential"]),
+                    "asn": random.choice(sc_asns)["asn"],
+                    "isp": random.choice(sc_asns)["isp"],
+                    "country_code": random.choice(sc_asns)["country"],
+                    "_source": "planted_mixing",
+                })
 
 print(f"  Planted {len(mixing_records):,} mixing transactions across {N_MIXING_SCENARIOS} scenarios")
 
