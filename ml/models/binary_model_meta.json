@@ -1,7 +1,7 @@
 {
   "log_transform_time_span_hours": false,
   "calibration_method": "isotonic",
-  "scale_pos_weight": 0.08677207867335134,
+  "scale_pos_weight": 1.0919340849956636,
   "feature_cols": [
     "total_input_mean",
     "total_output_mean",
@@ -50,7 +50,7 @@
     "degree_assortativity",
     "edge_to_node_ratio"
   ],
-  "test_roc_auc": 1.0,
-  "test_pr_auc": 1.0,
-  "ece_final": 0.0
+  "test_roc_auc": 0.9964980330664907,
+  "test_pr_auc": 0.996311140687333,
+  "ece_final": 0.0072858825190164084
 }
