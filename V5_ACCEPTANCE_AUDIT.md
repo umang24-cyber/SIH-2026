@@ -1,6 +1,6 @@
 # V5 Acceptance Audit Report — SIH PS 146 AML Synthetic Dataset
 
-> **Audit Date:** 2026-09-04 13:35
+> **Audit Date:** 2026-09-04 14:36
 > **Dataset Version:** v5.0  
 > **Feature Count:** 46 (pipeline-synced, structurally verified)
 > **Overall Audit Status:** ❌ FAIL — HARD GATE(S) FAILED
@@ -11,109 +11,108 @@
 
 | Gate | Type | Status | Details |
 |------|------|--------|---------|
-| A | HARD | ❌ FAIL | Max single-feature AUC = 0.9288 (address_reuse_ratio) |
-| B | HARD | ❌ FAIL | Depth-2 tree BAcc = 0.9292, Best pair (address_reuse_ratio + max_in_degree) = 0.9349 |
-| C | HARD | ✅ PASS | Min overlap = 14.9% (address_reuse_ratio) |
-| D | SOFT | ✅ PASS | 16 pairs with |r| > 0.80 documented |
-| E | HARD | ✅ PASS | peeling_chain=260, layering=260, mixing=320 |
-| F | SOFT | ✅ PASS | peeling_chain=6comp; layering=6comp; mixing=6comp; ransomware=8comp |
+| A | HARD | ✅ PASS | Max single-feature AUC = 0.7573 (max_chain_length) |
+| B | HARD | ❌ FAIL | Depth-2 tree BAcc = 0.8750, Best pair (max_chain_length + address_reuse_ratio) = 0.7602 |
+| C | HARD | ✅ PASS | Min overlap = 27.9% (edge_to_node_ratio) |
+| D | SOFT | ✅ PASS | 15 pairs with |r| > 0.80 documented |
+| E | HARD | ✅ PASS | peeling_chain=660, layering=1060, mixing=720 |
+| F | SOFT | ✅ PASS | peeling_chain=5comp; layering=4comp; mixing=4comp; ransomware=8comp |
 | G | HARD | ✅ PASS | 0 shared scenarios |
-| H | HARD | ❌ FAIL | Min categorical overlap = 83.3% |
-| I | HARD | ❌ FAIL | layering: Δ=0.0000; mixing: Δ=0.0000; peeling_chain: Δ=0.0000; ransomware: Δ=0.0000 |
-| J | SOFT | ✅ PASS | baseline=0.9957, ablated=0.9945, drop=0.0012, top3=['address_reuse_ratio', 'max_in_degree', 'edge_to_node_ratio'] ⚠️ near-zero drop — possible redundancy |
+| H | HARD | ✅ PASS | Min categorical overlap = 100.0% |
+| I | HARD | ❌ FAIL | layering: Δ=0.0025; mixing: Δ=0.0026; peeling_chain: Δ=0.0052; ransomware: Δ=0.0019 |
+| J | SOFT | ✅ PASS | baseline=0.9995, ablated=0.9996, drop=-0.0000, top3=['edge_to_node_ratio', 'unique_asn_count', 'fanout_ratio'] ⚠️ near-zero drop — possible redundancy |
 
 ---
 
 ## Gate A: Single-Feature AUC Analysis
 
-Max single-feature AUC: **0.9288** (threshold: < 0.90)
+Max single-feature AUC: **0.7573** (threshold: < 0.90)
 
 | Feature | AUC |
 |---------|-----|
-| address_reuse_ratio | 0.9288 |
-| edge_to_node_ratio | 0.9055 |
-| suspicious_infra_ratio | 0.8042 |
-| max_in_degree | 0.7684 |
-| fanout_ratio | 0.7177 |
-| unique_asn_count | 0.7034 |
-| unique_ip_count | 0.6826 |
-| unique_country_count | 0.6804 |
-| asn_concentration | 0.6666 |
-| max_chain_length | 0.6555 |
-| io_count_ratio | 0.6489 |
-| country_concentration | 0.6473 |
-| mean_num_outputs | 0.6294 |
-| output_amount_gini | 0.6076 |
-| unique_input_addrs | 0.5964 |
+| max_chain_length | 0.7573 |
+| address_reuse_ratio | 0.7206 |
+| fee_ratio_mean | 0.7187 |
+| io_amount_similarity | 0.7187 |
+| total_output_mean | 0.7171 |
+| total_input_mean | 0.7171 |
+| burstiness_B | 0.7083 |
+| inter_tx_delta_min | 0.6802 |
+| change_output_ratio | 0.6635 |
+| ip_to_addr_ratio | 0.6541 |
+| fee_ratio_std | 0.6531 |
+| inter_tx_delta_std | 0.6521 |
+| suspicious_infra_ratio | 0.6343 |
+| edge_to_node_ratio | 0.6342 |
+| degree_assortativity | 0.6093 |
 
 ---
 
 ## Gate B: Simple-Rule Separability
 
-- All-feature depth-2 tree BAcc: **0.9292**
-- Best 2-feature pair (address_reuse_ratio + max_in_degree): **0.9349**
+- All-feature depth-2 tree BAcc: **0.8750**
+- Best 2-feature pair (max_chain_length + address_reuse_ratio): **0.7602**
 - Threshold: < 0.85
 
 ---
 
 ## Gate C: Distribution Overlap
 
-Min overlap: **14.9%** (address_reuse_ratio)
+Min overlap: **27.9%** (edge_to_node_ratio)
 
 | Feature | Overlap % |
 |---------|-----------|
-| address_reuse_ratio | 14.9% |
-| edge_to_node_ratio | 18.3% |
-| suspicious_infra_ratio | 43.9% |
-| fanout_ratio | 53.3% |
-| unique_asn_count | 59.8% |
-| unique_ip_count | 64.3% |
-| unique_country_count | 67.3% |
-| max_in_degree | 69.4% |
-| mean_num_outputs | 69.7% |
-| asn_concentration | 72.6% |
-| fanin_ratio | 73.6% |
-| degree_assortativity | 74.3% |
-| unique_input_addrs | 74.4% |
-| io_count_ratio | 74.5% |
-| country_concentration | 75.1% |
+| edge_to_node_ratio | 27.9% |
+| fanout_ratio | 32.0% |
+| mean_num_outputs | 35.3% |
+| address_reuse_ratio | 41.2% |
+| degree_assortativity | 41.4% |
+| fanin_ratio | 48.2% |
+| mean_num_inputs | 48.8% |
+| inter_tx_delta_min | 51.2% |
+| graph_density | 56.7% |
+| burstiness_B | 58.0% |
+| hour_of_day_entropy | 58.6% |
+| io_count_ratio | 59.0% |
+| max_chain_length | 61.7% |
+| ip_to_addr_ratio | 63.9% |
+| asn_concentration | 66.0% |
 
 ---
 
 ## Gate D: Correlation Analysis
 
-16 pairs with |r| > 0.80 documented.
+15 pairs with |r| > 0.80 documented.
 
 | Feature 1 | Feature 2 | r |
 |-----------|-----------|---|
 | total_input_mean | total_output_mean | 1.0000 |
+| fee_ratio_mean | fee_ratio_std | 0.8921 |
 | fee_ratio_mean | io_amount_similarity | -1.0000 |
-| denomination_entropy | hour_of_day_entropy | 0.8045 |
-| denomination_entropy | graph_density | -0.8189 |
-| num_txns | unique_input_addrs | 0.9642 |
-| num_txns | unique_output_addrs | 0.9439 |
-| mean_num_inputs | fanin_ratio | 0.9700 |
-| mean_num_outputs | fanout_ratio | 0.9551 |
-| unique_input_addrs | unique_output_addrs | 0.9759 |
-| inter_tx_delta_mean | inter_tx_delta_std | 0.8793 |
-| prop_delta_std | prop_delta_cv | 0.9136 |
-| unique_asn_count | asn_concentration | -0.8667 |
-| unique_asn_count | unique_country_count | 0.9080 |
-| asn_concentration | country_concentration | 0.8954 |
-| unique_country_count | country_concentration | -0.8751 |
-| max_in_degree | max_out_degree | 0.8607 |
+| fee_ratio_std | io_amount_similarity | -0.8921 |
+| num_txns | unique_input_addrs | 0.9240 |
+| num_txns | unique_output_addrs | 0.8747 |
+| mean_num_inputs | fanin_ratio | 0.9834 |
+| mean_num_outputs | fanout_ratio | 0.9816 |
+| inter_tx_delta_mean | inter_tx_delta_std | 0.9117 |
+| prop_delta_std | prop_delta_cv | 0.8859 |
+| unique_asn_count | asn_concentration | -0.8651 |
+| unique_asn_count | unique_country_count | 0.9231 |
+| asn_concentration | unique_country_count | -0.8055 |
+| asn_concentration | country_concentration | 0.9199 |
+| unique_country_count | country_concentration | -0.8783 |
 
 ---
 
 ## Gate E: Typology Counts
 
-peeling_chain=260, layering=260, mixing=320
+peeling_chain=660, layering=1060, mixing=720
 
 ---
 
 ## Gate F: Within-Typology PCA
 
-peeling_chain=6comp; layering=6comp; mixing=6comp; ransomware=8comp
+peeling_chain=5comp; layering=4comp; mixing=4comp; ransomware=8comp
 
 ---
 
@@ -125,26 +124,26 @@ peeling_chain=6comp; layering=6comp; mixing=6comp; ransomware=8comp
 
 ## Gate H: Categorical Overlap
 
-Min categorical overlap = 83.3%
+Min categorical overlap = 100.0%
 
 ---
 
 ## Gate I: Typology Ablation (Critical)
 
-Top-3 features ablated: ['fanout_ratio', 'mean_num_outputs', 'unique_input_addrs']
+Top-3 features ablated: ['degree_assortativity', 'fanout_ratio', 'io_count_ratio']
 
 | Typology | Baseline AUC | Ablated AUC | Drop |
 |----------|-------------|-------------|------|
-| layering | 0.9999 | 0.9999 | 0.0000 |
-| mixing | 1.0000 | 1.0000 | 0.0000 |
-| peeling_chain | 1.0000 | 1.0000 | 0.0000 |
-| ransomware | 1.0000 | 1.0000 | 0.0000 |
+| layering | 0.8623 | 0.8598 | 0.0025 |
+| mixing | 0.9510 | 0.9484 | 0.0026 |
+| peeling_chain | 0.9484 | 0.9432 | 0.0052 |
+| ransomware | 0.9026 | 0.9007 | 0.0019 |
 
 ---
 
 ## Gate J: Binary Ablation (Informational)
 
-baseline=0.9957, ablated=0.9945, drop=0.0012, top3=['address_reuse_ratio', 'max_in_degree', 'edge_to_node_ratio'] ⚠️ near-zero drop — possible redundancy
+baseline=0.9995, ablated=0.9996, drop=-0.0000, top3=['edge_to_node_ratio', 'unique_asn_count', 'fanout_ratio'] ⚠️ near-zero drop — possible redundancy
 
 ---
 
