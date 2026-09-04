@@ -64,23 +64,26 @@ The pipeline is organized into a modular 6-step workflow orchestrated by [`main.
 ## 3. Module Breakdown & Implemented Work
 
 ### 3.1. Ingestion Engine ([`graph_engine/ingest.py`](file:///c:/Users/HP/OneDrive/Desktop/SIH-2026/graph_engine/ingest.py))
+* **`RawTxRecord` Schema-Binding Adapter:** Abstracted ingestion layer that decouples the engine from the raw dataset schema. Maps variable CSV field names into a consistent internal `RawTxRecord` dataclass, preventing downstream breakage if the incoming data schema changes.
 * **CSV Parsing & Unpacking:** Reads `blockchain_transactions.csv` and `network_metadata.csv`, decoding stringified array representations for `input_addresses`, `input_amounts`, `output_addresses`, and `output_amounts`.
 * **Join Verification:** Executes a strict inner join on `txid`, verifying row parity with zero transaction drops.
-* **Integrity Validation:** Enforces positive amounts, valid ISO-8601 UTC timestamps, non-empty addresses, and valid fee conservation.
+* **Integrity Validation:** Enforces positive amounts, valid timestamps, non-empty addresses, and valid fee conservation. Rows failing hard validation (e.g., missing timestamps or empty inputs/outputs) are flagged and skipped.
 
 ### 3.2. Graph Construction ([`graph_engine/graph_build.py`](file:///c:/Users/HP/OneDrive/Desktop/SIH-2026/graph_engine/graph_build.py))
 * **Full Heterogeneous Directed Graph ($G$):**
+  * **Type:** `networkx.MultiDiGraph` (defensive correctness against duplicate network relay events and parallel intra-transaction paths).
   * **Nodes:**
     * `wallet` (`w:<address>`): Bitcoin addresses with in/out degree metrics.
     * `transaction` (`tx:<txid>`): Individual Bitcoin transactions with fee, script type, and timestamp.
-    * `ip` (`ip:<relay_ip>`): Network broadcast relay nodes with ASN, ISP, country code, and infrastructure classification (`tor_exit_node`, `datacenter`, `vpn_proxy`, `residential`).
+    * `ip` (`ip:<relay_ip>`): Network broadcast relay nodes with ASN, ISP, country code, and infrastructure classification.
   * **Edges:**
     * `SENT`: `wallet` $\to$ `transaction` (contains `amount_btc`).
     * `RECEIVED`: `transaction` $\to$ `wallet` (contains `amount_btc`).
     * `BROADCAST`: `ip` $\to$ `transaction` (contains relay timestamp, port, and user agent).
+  * **Structural Validation:** Includes `verify_bipartite(G)` to assert graph integrity (no direct wallet $\to$ wallet or transaction $\to$ transaction edges, and proper degree distribution constraints).
 * **Wallet-to-Wallet Projection ($P$):**
-  * MultiDiGraph projecting direct transfers from sender wallets to recipient wallets across transactions: $w_A \xrightarrow{\text{SENT}} tx_T \xrightarrow{\text{RECEIVED}} w_B \implies w_A \xrightarrow{(txid, amount, timestamp)} w_B$.
-  * Preserves multi-edge granularity and time ordering.
+  * `MultiDiGraph` projecting direct transfers from sender wallets to recipient wallets across transactions: $w_A \xrightarrow{\text{SENT}} tx_T \xrightarrow{\text{RECEIVED}} w_B \implies w_A \xrightarrow{(txid, amount, timestamp, fee, script\_type)} w_B$.
+  * Explicitly preserves multi-edge granularity and time ordering without collapsing or netting amounts.
 
 ### 3.3. Shared Structures ([`graph_engine/structures.py`](file:///c:/Users/HP/OneDrive/Desktop/SIH-2026/graph_engine/structures.py))
 * **`CandidateStructure` Dataclass:**
