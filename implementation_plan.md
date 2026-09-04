@@ -6,19 +6,24 @@
 
 ---
 
-## Verified Dataset Reality (from actual data exploration)
+## Verified Dataset Reality — v3.0 (updated 2026-09-03)
 
 | Pattern | Train Scenarios | Test Scenarios | Txns/Scenario (median) |
 |---------|:-:|:-:|:-:|
-| ransomware | 12,897 | 3,225 | 2 |
-| normal | 1,125 | 281 | 32 |
-| peeling_chain | 32 | 8 | 8 |
-| layering | 20 | 5 | 5 |
-| mixing | 16 | 4 | 4 |
-| **Total** | **14,090** | **3,523** | — |
+| ransomware | 1,634 | 409 | 9 |
+| normal | 2,518 | 630 | 7 |
+| peeling_chain | 208 | 52 | 10 |
+| layering | 208 | 52 | 8 |
+| mixing | 256 | 64 | 8 |
+| **Total** | **4,824** | **1,207** | — |
 
-> [!CAUTION]
-> **Class scarcity is severe.** Layering has 5 test scenarios, mixing has 4. A 5-class multiclass model evaluated on the fixed test split is statistically meaningless for these classes — a single misclassification moves accuracy by 20-25%. This fundamentally shapes the plan.
+**Binary class balance (scenario-level):** 52.2% licit / 47.8% illicit → `scale_pos_weight` ≈ 1.09 (computed dynamically).
+
+> [!NOTE]
+> **v3 resolved the v2 class scarcity problem.** Rare typologies now have 52–64 test scenarios each (vs 4–8 in v2). Macro-F1 evaluation is now statistically meaningful. LOSOCV on training split uses 208–256 scenarios per rare class.
+
+> [!IMPORTANT]
+> **v2 values are OBSOLETE.** The old 14,090/3,523 scenario counts, 92%/8% class balance, and `scale_pos_weight≈0.087` must NOT be used anywhere.
 
 > [!IMPORTANT]
 > **Label homogeneity verified**: 0 scenarios have mixed `is_illicit` or `pattern_type` within them. Scenario-level aggregation is safe.
