@@ -1,17 +1,23 @@
 {
   "binary_fp": [
-    "licit_00004",
-    "licit_00474",
-    "licit_01247",
-    "licit_02581",
-    "licit_02950"
+    "normal_00010",
+    "normal_00029",
+    "normal_00031",
+    "normal_00037",
+    "normal_00043"
   ],
   "binary_fn": [
-    "peel_0010",
-    "peel_0101",
-    "peel_0184",
-    "peel_0206",
-    "ransom_0030"
+    "layering_04868",
+    "layering_04882",
+    "layering_04900",
+    "layering_04905",
+    "layering_04910"
   ],
-  "typology_errs": []
+  "typology_errs": [
+    "layering_04868",
+    "layering_04882",
+    "layering_04900",
+    "layering_04919",
+    "layering_04952"
+  ]
 }
