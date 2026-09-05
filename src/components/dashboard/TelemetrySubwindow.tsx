@@ -1,9 +1,11 @@
 import React from 'react';
 import { GraphNode, ForensicScenario } from '../../data/forensicScenarios';
+import type { GraphData } from "../../types/graph";
 
 interface TelemetrySubwindowProps {
   selectedNode: GraphNode | null;
   scenario: ForensicScenario;
+  graphData: GraphData;
   onMinimize: () => void;
   onClose: () => void;
   style?: React.CSSProperties;
@@ -12,11 +14,38 @@ interface TelemetrySubwindowProps {
 export const TelemetrySubwindow: React.FC<TelemetrySubwindowProps> = ({
   selectedNode,
   scenario,
+  graphData,
   onMinimize,
   onClose,
   style
 }) => {
   const targetNode = selectedNode || scenario.nodes.find(n => n.type === 'Transaction') || scenario.nodes[0];
+  const adaptedNode =
+  graphData.nodes.find(
+    (node) => node.id === targetNode.id
+  ) ?? null;
+  const transactionAmount =
+  targetNode.type === 'Transaction'
+    ? scenario.edges
+        .filter(
+          (edge) =>
+            edge.source === targetNode.id &&
+            edge.type === 'RECEIVED'
+        )
+        .reduce(
+          (total, edge) =>
+            total + (edge.amount_btc || 0),
+          0
+        )
+    : 0;
+  const transactionCount =
+  targetNode.type === "Wallet"
+    ? graphData.edges.filter(
+        edge =>
+          edge.source === targetNode.id ||
+          edge.target === targetNode.id
+      ).length
+    : 0;
 
   return (
     <div
@@ -57,45 +86,127 @@ export const TelemetrySubwindow: React.FC<TelemetrySubwindowProps> = ({
           LAYER 1: ON-CHAIN UTXO FINANCIAL LEDGER
         </div>
 
-        {targetNode.type === 'Wallet' && (
-          <div>
-            <div className="telemetry-row">
-              <span className="telemetry-label">Full Address:</span>
-              <span className="telemetry-value">{targetNode.properties.address}</span>
-            </div>
-            <div className="telemetry-row">
-              <span className="telemetry-label">Holding Balance:</span>
-              <span className="telemetry-value" style={{ color: '#00ff66' }}>{targetNode.properties.balance_btc} BTC</span>
-            </div>
-            <div className="telemetry-row">
-              <span className="telemetry-label">Entity Status:</span>
-              <span className="telemetry-value" style={{ color: targetNode.properties.is_licit_exchange ? '#00aaff' : '#ffaa00' }}>
-                {targetNode.properties.is_licit_exchange ? 'VERIFIED_EXCHANGE (LICIT)' : 'PRIVATE_UNLICENSED_ADDRESS'}
-              </span>
-            </div>
-          </div>
-        )}
+{targetNode.type === 'Wallet' && (
+  <div>
+    <div className="telemetry-row">
+      <span className="telemetry-label">
+        Full Address:
+      </span>
+
+      <span className="telemetry-value">
+        {targetNode.properties.address}
+      </span>
+    </div>
+
+    <div className="telemetry-row">
+      <span className="telemetry-label">
+        Transaction Count:
+      </span>
+
+      <span
+        className="telemetry-value"
+        style={{ color: '#00ff66' }}
+      >
+        {transactionCount}
+      </span>
+    </div>
+
+    <div className="telemetry-row">
+  <span className="telemetry-label">
+    Risk Score:
+  </span>
+
+  <span
+    className="telemetry-value"
+    style={{
+      color:
+        adaptedNode?.type === "WALLET"
+          ? (adaptedNode.riskScore ?? 0) >= 0.8
+            ? "#ff4444"
+            : (adaptedNode.riskScore ?? 0) >= 0.5
+            ? "#ff9900"
+            : "#00ff66"
+          : "#ffffff",
+    }}
+  >
+    {adaptedNode?.type === "WALLET"
+      ? adaptedNode.riskScore?.toFixed(2) ?? "N/A"
+      : "N/A"}
+  </span>
+</div>
+
+    <div className="telemetry-row">
+      <span className="telemetry-label">
+        Tags:
+      </span>
+
+      <span className="telemetry-value">
+  {adaptedNode?.type === "WALLET"
+    ? adaptedNode.tags?.length
+      ? adaptedNode.tags.join(", ")
+      : "None"
+    : "None"}
+</span>
+    </div>
+
+        <div className="telemetry-row">
+      <span className="telemetry-label">
+        Cluster ID:
+      </span>
+
+      <span className="telemetry-value">
+        {adaptedNode?.type === "WALLET"
+          ? adaptedNode.clusterId ?? "N/A"
+          : "N/A"}
+      </span>
+    </div>
+  </div>
+)}
 
         {targetNode.type === 'Transaction' && (
-          <div>
-            <div className="telemetry-row">
-              <span className="telemetry-label">Transaction ID:</span>
-              <span className="telemetry-value">{targetNode.properties.txid}</span>
-            </div>
-            <div className="telemetry-row">
-              <span className="telemetry-label">Ledger Timestamp:</span>
-              <span className="telemetry-value">{targetNode.properties.timestamp}</span>
-            </div>
-            <div className="telemetry-row">
-              <span className="telemetry-label">Mining Network Fee:</span>
-              <span className="telemetry-value">{targetNode.properties.fee_btc} BTC</span>
-            </div>
-            <div className="telemetry-row">
-              <span className="telemetry-label">Script Encoding:</span>
-              <span className="telemetry-value" style={{ color: '#00ff66' }}>{targetNode.properties.script_type}</span>
-            </div>
-          </div>
-        )}
+  <div>
+    <div className="telemetry-row">
+      <span className="telemetry-label">Transaction ID:</span>
+      <span className="telemetry-value">
+        {targetNode.properties.txid}
+      </span>
+    </div>
+
+    <div className="telemetry-row">
+  <span className="telemetry-label">Amount:</span>
+  <span
+    className="telemetry-value"
+    style={{ color: '#00ff66' }}
+  >
+    {transactionAmount.toFixed(4)} BTC
+  </span>
+</div>
+
+    <div className="telemetry-row">
+      <span className="telemetry-label">Fee:</span>
+      <span className="telemetry-value">
+        {targetNode.properties.fee_btc} BTC
+      </span>
+    </div>
+
+    <div className="telemetry-row">
+      <span className="telemetry-label">Timestamp:</span>
+      <span className="telemetry-value">
+        {targetNode.properties.timestamp}
+      </span>
+    </div>
+
+    <div className="telemetry-row">
+      <span className="telemetry-label">Script Encoding:</span>
+      <span
+        className="telemetry-value"
+        style={{ color: '#00ff66' }}
+      >
+        {targetNode.properties.script_type}
+      </span>
+    </div>
+  </div>
+)}
 
         {targetNode.type === 'IP' && (
           <div>
