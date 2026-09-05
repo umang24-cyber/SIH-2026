@@ -14,13 +14,18 @@ router = APIRouter(tags=["Alerts"])
 
 @router.get("/alerts", response_model=AlertListResponse)
 def get_alerts(
-    min_confidence: float = Query(0.50, ge=0.0, le=1.0, description="Minimum ML confidence filter"),
+    min_confidence: float = Query(
+        0.50,
+        ge=0.0,
+        le=1.0,
+        description="Minimum typology confidence filter",
+    ),
     pattern_type: Optional[str] = Query(None, description="Filter by typology: peeling_chain, layering, mixing, ransomware"),
     limit: int = Query(50, ge=1, le=200)
 ):
     """
     Retrieve dynamically detected and ranked candidate alerts.
-    Filters by minimum confidence threshold and specific laundering typologies.
+    Filters by minimum typology confidence and specific laundering typologies.
     """
     alerts = typology_detector.get_alerts(
         min_confidence=min_confidence,

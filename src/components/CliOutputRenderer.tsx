@@ -241,7 +241,9 @@ export const CliOutputRenderer: React.FC<CliOutputRendererProps> = ({
                     <span style={{ color: alt.severity === 'CRITICAL' ? '#ff3344' : '#ffaa00', fontWeight: 'bold' }}>
                       [{alt.severity}] {alt.predicted_pattern_type?.toUpperCase()}
                     </span>
-                    <span style={{ color: '#33ff88' }}>Confidence: {(alt.confidence * 100).toFixed(1)}%</span>
+                    <span style={{ color: '#33ff88' }}>
+                      Binary: {(alt.binary_confidence * 100).toFixed(1)}% | Typology: {(alt.typology_confidence * 100).toFixed(1)}%
+                    </span>
                   </div>
                   <div style={{ fontSize: '13px', color: '#aaffaa', margin: '4px 0' }}>{alt.explanation}</div>
                   <div style={{ fontSize: '12px', color: '#66aa77' }}>

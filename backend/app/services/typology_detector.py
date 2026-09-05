@@ -9,13 +9,15 @@ DESIGN (post Task-2 fix):
 
   For each candidate it calls ml_service.score_candidate() which returns:
     - binary is_illicit probability (binary XGBoost model)
-    - typology class + calibrated confidence (typology XGBoost model)
+    - typology class or explicit ambiguity + calibrated typology confidence
     - SHAP attributions for BOTH models
     - natural-language typology explanation from actual SHAP features
 
   The final alert shown on the dashboard uses:
-    - typology label  = ML model argmax class  (NOT the detector's shape guess)
-    - confidence      = ML model's calibrated typology probability
+    - typology label  = ML model class or explicit low-confidence ambiguity
+                         (NOT the detector's shape guess)
+    - binary_confidence = binary model probability for the illicit prediction
+    - typology_confidence = ML model's calibrated typology probability
     - explanation     = ML model SHAP-derived natural-language string
     - is_ml_driven    = True (always, for every alert this module emits)
 
@@ -63,7 +65,7 @@ class TypologyDetector:
         """
         Run structural candidate detectors, then score every candidate with the
         ML models.  Only candidates where binary model predicts is_illicit=True
-        emit alerts.  All label/confidence values come from the ML models.
+        emit alerts.  All labels and confidence values come from the ML models.
         """
         if not data_service.is_ready:
             data_service.initialize()
@@ -117,19 +119,23 @@ class TypologyDetector:
 
             # ML model drives all final alert fields
             ml_typology    = ml_result["typology"]
-            ml_confidence  = ml_result["confidence"]
+            ml_binary_confidence = ml_result["binary_confidence"]
+            ml_typology_confidence = ml_result["typology_confidence"]
             ml_risk_score  = ml_result["risk_score"]
             ml_explanation = ml_result.get("typology_explanation", "")
             binary_shap    = ml_result.get("binary_shap", [])
             typology_shap  = ml_result.get("typology_shap", [])
 
-            severity = _severity_from_confidence(ml_confidence)
+            # Preserve the existing severity semantics: severity reflects
+            # confidence in the named typology, not binary illicit risk.
+            severity = _severity_from_confidence(ml_typology_confidence)
 
             alert = AlertSummary(
                 candidate_id=cand_id,
                 scenario_id=cand["scenario_id"],
                 predicted_pattern_type=ml_typology,
-                confidence=round(ml_confidence, 4),
+                binary_confidence=round(ml_binary_confidence, 4),
+                typology_confidence=round(ml_typology_confidence, 4),
                 severity=severity,
                 explanation=ml_explanation,
                 primary_wallet=cand["primary_wallet"],
@@ -152,8 +158,8 @@ class TypologyDetector:
                 typology_explanation=ml_explanation,
             )
 
-        # Sort by confidence descending (ML model confidence, not a hardcoded constant)
-        alerts.sort(key=lambda a: a.confidence, reverse=True)
+        # Sort by typology confidence, preserving the previous alert ordering.
+        alerts.sort(key=lambda a: a.typology_confidence, reverse=True)
         self.detected_alerts = alerts
 
         # Build txid → typologies map
@@ -443,7 +449,8 @@ class TypologyDetector:
             candidate_id=alert.candidate_id,
             scenario_id=alert.scenario_id,
             predicted_pattern_type=alert.predicted_pattern_type,
-            confidence=alert.confidence,
+            binary_confidence=alert.binary_confidence,
+            typology_confidence=alert.typology_confidence,
             typology_heuristic_match={
                 "heuristic_name": f"{heuristic_type}_traversal",
                 "chain_length": len(alert.member_txids),
@@ -483,7 +490,7 @@ class TypologyDetector:
             self.scan_all_typologies()
         filtered = [
             a for a in self.detected_alerts
-            if a.confidence >= min_confidence
+            if a.typology_confidence >= min_confidence
             and (pattern_type is None or a.predicted_pattern_type.lower() == pattern_type.lower())
         ]
         return filtered[:limit]

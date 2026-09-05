@@ -166,7 +166,12 @@ class AlertSummary(BaseModel):
     candidate_id: str
     scenario_id: str
     predicted_pattern_type: str
-    confidence: float
+    binary_confidence: float = Field(
+        description="Binary XGBoost probability for the predicted is_illicit class."
+    )
+    typology_confidence: float = Field(
+        description="Top-class probability from the typology XGBoost model."
+    )
     severity: str = Field(description="CRITICAL, HIGH, MEDIUM, LOW")
     explanation: str
     primary_wallet: str
@@ -175,7 +180,7 @@ class AlertSummary(BaseModel):
     detected_at: str
     is_ml_driven: bool = Field(
         default=True,
-        description="True when label/confidence come from the ML model, not a hardcoded heuristic."
+        description="True when label and confidence fields come from the ML model, not a hardcoded heuristic."
     )
     risk_score: float = Field(default=0.0, description="Binary model P(illicit) score from 0–1.")
 
@@ -193,7 +198,12 @@ class EvidenceResponse(BaseModel):
     candidate_id: str
     scenario_id: str
     predicted_pattern_type: str
-    confidence: float
+    binary_confidence: float = Field(
+        description="Binary XGBoost probability for the predicted is_illicit class."
+    )
+    typology_confidence: float = Field(
+        description="Top-class probability from the typology XGBoost model."
+    )
     typology_heuristic_match: Dict[str, Any]
     # Binary model SHAP attributions (kept for backwards compatibility)
     ml_feature_attributions: List[FeatureAttribution]

@@ -141,7 +141,8 @@ export interface AlertSummary {
   candidate_id: string;
   scenario_id: string;
   predicted_pattern_type: string;
-  confidence: number;
+  binary_confidence: number;
+  typology_confidence: number;
   severity: string;
   explanation: string;
   primary_wallet: string;

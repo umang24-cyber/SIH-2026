@@ -45,6 +45,8 @@ FORBIDDEN_FEATURES = {
     "scenario_id",
     "is_licit_exchange",
 }
+BINARY_ILLICIT_THRESHOLD = 0.50
+TYPOLOGY_CONFIDENCE_THRESHOLD = 0.60
 
 # Natural-language templates for typology SHAP explanations.
 # Keyed by typology class name → list of (feature_name, direction, phrase) triples.
@@ -87,6 +89,16 @@ _TYPOLOGY_FEATURE_PHRASES: Dict[str, Dict[str, str]] = {
     },
 }
 
+# Plain-language names for binary-model SHAP output.  Unknown features still
+# use the same readable raw-name fallback used by the typology explanation.
+_BINARY_FEATURE_PHRASES: Dict[str, str] = {
+    "num_txns": "transaction count",
+    "suspicious_infra_ratio": "suspicious relay infrastructure",
+    "prop_delta_cv": "propagation-delay variability",
+    "output_amount_gini": "output amount inequality",
+    "fee_ratio_std": "fee-ratio variation",
+}
+
 
 def _make_typology_explanation(
     typology: str,
@@ -114,6 +126,30 @@ def _make_typology_explanation(
     return (
         f"Flagged as likely {typology} (confidence {confidence*100:.1f}%): "
         f"{evidence_str}."
+    )
+
+
+def _make_generic_illicit_explanation(
+    binary_confidence: float,
+    binary_shap: List[Dict[str, Any]],
+) -> str:
+    """Explain an illicit prediction when no typology clears the confidence gate."""
+    evidence_parts = []
+    for item in binary_shap[:3]:
+        fname = item["feature_name"]
+        direction = item["direction"]
+        phrase = _BINARY_FEATURE_PHRASES.get(fname, fname.replace("_", " "))
+        qualifier = "elevated" if direction == "RISK_INCREASING" else "reduced"
+        evidence_parts.append(
+            f"{qualifier} {phrase} ({fname}={item['value']:.3g}, "
+            f"SHAP {item['shap_value']:+.3f})"
+        )
+
+    evidence_str = "; ".join(evidence_parts) if evidence_parts else "no available feature attributions"
+    return (
+        f"Flagged as illicit by the binary model (confidence {binary_confidence*100:.1f}%): "
+        f"{evidence_str}. Typology is ambiguous below the "
+        f"{TYPOLOGY_CONFIDENCE_THRESHOLD:.0%} confidence threshold."
     )
 
 
@@ -379,7 +415,7 @@ class MLService:
         """
         Predict binary risk and, when illicit, decode the typology safely.
         Returns calibrated probabilities for both binary and typology models.
-        Confidence = max class probability from the typology model (not binary distance).
+        ``binary_confidence`` and ``typology_confidence`` are always separate.
         """
         if not self.is_loaded:
             self.load_model()
@@ -400,7 +436,7 @@ class MLService:
                 return {
                     "risk_score": 0.0,
                     "is_illicit": False,
-                    "confidence": 0.0,
+                    "binary_confidence": 0.0,
                     "model_used": "unknown",
                     "scenario_id": None,
                     "typology": "normal",
@@ -422,7 +458,7 @@ class MLService:
             return {
                 "risk_score": 0.0,
                 "is_illicit": False,
-                "confidence": 0.0,
+                "binary_confidence": 0.0,
                 "model_used": "unknown",
                 "scenario_id": scenario_id,
                 "typology": "normal",
@@ -438,7 +474,7 @@ class MLService:
             return {
                 "risk_score": 0.0,
                 "is_illicit": False,
-                "confidence": 0.0,
+                "binary_confidence": 0.0,
                 "model_used": "binary_error",
                 "scenario_id": scenario_id,
                 "typology": "unknown",
@@ -447,12 +483,11 @@ class MLService:
                 "error": str(exc),
             }
 
-        is_illicit = bool(score >= 0.5)
+        is_illicit = bool(score >= BINARY_ILLICIT_THRESHOLD)
         result: Dict[str, Any] = {
             "risk_score": round(score, 4),
             "is_illicit": is_illicit,
-            # Binary confidence: distance from 0.5 threshold, normalized to [0,1]
-            "confidence": round(abs(score - 0.5) * 2, 4),
+            "binary_confidence": round(score if is_illicit else 1.0 - score, 4),
             "model_used": "xgboost_v7",
             "scenario_id": scenario_id,
             "typology": "normal" if not is_illicit else "unknown",
@@ -466,9 +501,6 @@ class MLService:
                 class_index = int(np.argmax(typ_proba))
                 typ_confidence = float(typ_proba[class_index])
                 result["typology"] = self._decode_typology(class_index)
-                # Override confidence with the typology model's calibrated probability
-                # (more meaningful than binary distance for the alert ranking score)
-                result["confidence"] = round(typ_confidence, 4)
                 result["typology_confidence"] = round(typ_confidence, 4)
                 result["typology_class_index"] = class_index
             except Exception as exc:
@@ -486,7 +518,7 @@ class MLService:
     ) -> Dict[str, Any]:
         """
         Full ML scoring for a candidate subgraph (list of tx dicts).
-        Returns binary risk + typology label + confidence + SHAP explanations
+        Returns binary risk + separate binary/typology confidence fields + SHAP explanations
         for BOTH models.  Used by typology_detector to produce ML-driven alerts.
         """
         if not self.is_loaded:
@@ -496,15 +528,15 @@ class MLService:
             features = self.extract_features(scenario_txs)
             bin_proba = self.model.predict_proba(features)[0]
             risk_score = float(bin_proba[1])
-            is_illicit = bool(risk_score >= 0.5)
+            is_illicit = bool(risk_score >= BINARY_ILLICIT_THRESHOLD)
         except Exception as exc:
             logger.exception("Binary inference failed for candidate %s", candidate_id)
             return {
                 "risk_score": 0.0,
                 "is_illicit": False,
-                "confidence": 0.0,
-                "typology": "unknown",
+                "binary_confidence": 0.0,
                 "typology_confidence": 0.0,
+                "typology": "unknown",
                 "typology_class_index": -1,
                 "binary_shap": [],
                 "typology_shap": [],
@@ -523,13 +555,24 @@ class MLService:
                 typ_proba = self.typology_model.predict_proba(features)[0]
                 typ_class_idx = int(np.argmax(typ_proba))
                 typ_confidence = float(typ_proba[typ_class_idx])
-                typology = self._decode_typology(typ_class_idx)
-
-                # Typology SHAP for the predicted class
-                typ_shap = self.explain_typology_features(
-                    scenario_txs, predicted_class_index=typ_class_idx, top_n=5
-                )
-                typ_explanation = _make_typology_explanation(typology, typ_confidence, typ_shap)
+                if typ_confidence >= TYPOLOGY_CONFIDENCE_THRESHOLD:
+                    # High-confidence typology path is intentionally unchanged.
+                    typology = self._decode_typology(typ_class_idx)
+                    typ_shap = self.explain_typology_features(
+                        scenario_txs, predicted_class_index=typ_class_idx, top_n=5
+                    )
+                    typ_explanation = _make_typology_explanation(typology, typ_confidence, typ_shap)
+                else:
+                    # The binary model still flags the candidate, but the
+                    # typology model is not strong enough to name one class.
+                    ranked_classes = np.argsort(typ_proba)[::-1][:2]
+                    first_idx, second_idx = (int(index) for index in ranked_classes)
+                    first_name = self._decode_typology(first_idx)
+                    second_name = self._decode_typology(second_idx)
+                    typology = (
+                        f"ambiguous between {first_name} ({typ_proba[first_idx]*100:.1f}%) "
+                        f"and {second_name} ({typ_proba[second_idx]*100:.1f}%)"
+                    )
             except Exception as exc:
                 logger.exception("Typology inference/SHAP failed for candidate %s", candidate_id)
                 typ_explanation = "Typology scoring failed."
@@ -541,13 +584,14 @@ class MLService:
         except Exception:
             logger.exception("Binary SHAP failed for candidate %s", candidate_id)
 
-        # Final confidence: typology model probability when illicit, binary distance otherwise
-        final_confidence = round(typ_confidence if is_illicit else abs(risk_score - 0.5) * 2, 4)
+        binary_confidence = round(risk_score if is_illicit else 1.0 - risk_score, 4)
+        if is_illicit and typ_confidence < TYPOLOGY_CONFIDENCE_THRESHOLD:
+            typ_explanation = _make_generic_illicit_explanation(binary_confidence, bin_shap)
 
         return {
             "risk_score": round(risk_score, 4),
             "is_illicit": is_illicit,
-            "confidence": final_confidence,
+            "binary_confidence": binary_confidence,
             "typology": typology,
             "typology_confidence": round(typ_confidence, 4),
             "typology_class_index": typ_class_idx,
