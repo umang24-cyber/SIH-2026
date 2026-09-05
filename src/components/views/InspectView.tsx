@@ -49,7 +49,7 @@ export const InspectView: React.FC<InspectViewProps> = ({ node, onRunCommand }) 
           <div style={{ color: '#33ff88', fontWeight: 'bold', marginBottom: '6px', borderBottom: '1px dashed #004d20', paddingBottom: '4px' }}>
             LEDGER &amp; TELEMETRY
           </div>
-          <p><strong>CURRENT BALANCE:</strong> <span style={{ color: '#33ff88' }}>{node.balanceEth.toLocaleString()} ETH</span></p>
+          <p><strong>CURRENT UTXO BALANCE:</strong> <span style={{ color: '#33ff88' }}>{(node.balanceBtc ?? node.balanceEth ?? 0).toLocaleString()} BTC</span></p>
           <p><strong>TX LIFETIME COUNT:</strong> {node.txCount.toLocaleString()} transactions</p>
           <p><strong>FIRST SEEN:</strong> {node.firstSeen}</p>
           <p><strong>LAST OBSERVED:</strong> {node.lastSeen}</p>
@@ -78,8 +78,8 @@ export const InspectView: React.FC<InspectViewProps> = ({ node, onRunCommand }) 
       {/* Raw Memory Hexdump */}
       <div style={{ border: '1px solid #007a33', padding: '10px', background: '#000502', marginBottom: '16px' }}>
         <div style={{ color: '#33ff88', fontWeight: 'bold', marginBottom: '6px', display: 'flex', justifyContent: 'space-between' }}>
-          <span>RAW MEMORY / BYTECODE HEXDUMP (/proc/holmes/entity/{node.id})</span>
-          <span style={{ fontSize: '13px', color: '#007a33' }}>OFFSET: 0x00000000 - 0x00000080</span>
+          <span>RAW BITCOIN SCRIPT / TRANSACTION BYTECODE (/proc/bitkaun/raw_tx/{node.id.slice(0, 10)})</span>
+          <span style={{ fontSize: '13px', color: '#007a33' }}>OFFSET: 0x00000000 - 0x00000050</span>
         </div>
         <pre style={{ fontFamily: 'var(--font-code)', fontSize: '13px', color: '#00ff66', overflowX: 'auto', lineHeight: 1.4 }}>
           {hexLines.join('\n')}
@@ -92,8 +92,8 @@ export const InspectView: React.FC<InspectViewProps> = ({ node, onRunCommand }) 
         <span className="cmd-clickable" onClick={() => onRunCommand('graph')}>
           [Switch to 3D Graph]
         </span>
-        <span className="cmd-clickable" onClick={() => onRunCommand(`trace ${node.id} 0xEE3388A1`)}>
-          [Trace to Cashout OTC: 0xEE3388A1]
+        <span className="cmd-clickable" onClick={() => onRunCommand(`trace ${node.id} 1s6D1TaSbKqeTG5YMhWWRJ85Ve8s7Y`)}>
+          [Trace to Cashout OTC: 1s6D1TaSbKqeTG5YMhWWRJ85Ve8s7Y]
         </span>
         <span className="cmd-clickable" onClick={() => onRunCommand('dmesg')}>
           [View Kernel Logs]

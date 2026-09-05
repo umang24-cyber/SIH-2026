@@ -86,14 +86,14 @@ export const TraceView: React.FC<TraceViewProps> = ({
                           RISK: {node?.riskScore || 50}/100
                         </span>
                         <span style={{ marginLeft: '12px', color: '#33ff88' }}>
-                          BAL: {node?.balanceEth || 0} ETH
+                          BAL: {node?.balanceBtc ?? node?.balanceEth ?? 0} BTC
                         </span>
                       </div>
                     </div>
 
                     {nextEdge && (
                       <div style={{ padding: '6px 0 6px 24px', borderLeft: '2px dashed #00ff66', marginLeft: '16px', color: '#33ff88', fontSize: '13px' }}>
-                        <div>▼ <strong>TRANSFERRED:</strong> {nextEdge.amountEth} ETH | <strong>TX:</strong> {nextEdge.txHash.slice(0, 18)}...</div>
+                        <div>▼ <strong>TRANSFERRED:</strong> {nextEdge.amountBtc ?? nextEdge.amountEth} BTC | <strong>TX:</strong> {nextEdge.txHash}</div>
                         <div style={{ color: '#007a33' }}>TIMESTAMP: {nextEdge.timestamp}</div>
                       </div>
                     )}
@@ -124,9 +124,10 @@ export const TraceView: React.FC<TraceViewProps> = ({
             The graph engine could not find an unbroken directed flow sequence between these two addresses with current depth parameters.
           </p>
           <div style={{ color: '#00ff66' }}>
-            Try tracing known suspect hops: <br />
-            &gt; <span className="cmd-clickable" onClick={() => onRunCommand('trace 0x5C8821FF 0xEE3388A1')}>trace 0x5C8821FF 0xEE3388A1</span><br />
-            &gt; <span className="cmd-clickable" onClick={() => onRunCommand('trace 0x71C84A9E 0x77DD9900')}>trace 0x71C84A9E 0x77DD9900</span>
+            Try tracing known verified candidate typologies: <br />
+            &gt; <span className="cmd-clickable" onClick={() => onRunCommand('trace peel_0564')}>trace peel_0564</span> (4-Hop UTXO Peeling Chain)<br />
+            &gt; <span className="cmd-clickable" onClick={() => onRunCommand('trace layer_1054')}>trace layer_1054</span> (14-Branch Reconvergence Layering)<br />
+            &gt; <span className="cmd-clickable" onClick={() => onRunCommand('trace 1PTqbgVoXSbuzQKrDGw2M2tchx 1s6D1TaSbKqeTG5YMhWWRJ85Ve8s7Y')}>trace 1PTqbgVoXSbuzQKrDGw2M2tchx 1s6D1TaSbKqeTG5YMhWWRJ85Ve8s7Y</span>
           </div>
         </div>
       )}
