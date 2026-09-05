@@ -6,6 +6,9 @@ import { TelemetrySubwindow } from './TelemetrySubwindow';
 import { ShapSubwindow } from './ShapSubwindow';
 import { sound } from '../../audio/soundEngine';
 import '../../styles/dashboard.css';
+import GraphEngine from "../../graph/components/GraphEngine";
+import { adaptScenarioToGraphData } from "../../adapters/forensicGraphAdapter";
+import type { GraphMode } from "../../types/graph";
 
 interface ForensicDashboardProps {
   onClose: () => void;
@@ -16,6 +19,8 @@ export const ForensicDashboard: React.FC<ForensicDashboardProps> = ({ onClose })
   const scenario = FORENSIC_SCENARIOS[scenarioId] || FORENSIC_SCENARIOS.peel_001;
 
   const [selectedNode, setSelectedNode] = useState<GraphNode | null>(null);
+  const [graphMode, setGraphMode] =
+  useState<GraphMode>("OVERVIEW");
   const [selectedAlert, setSelectedAlert] = useState<ForensicAlert | null>(scenario.alerts[0] || null);
 
   // Master Window Collapse/Expand
@@ -92,6 +97,10 @@ export const ForensicDashboard: React.FC<ForensicDashboardProps> = ({ onClose })
   const walletCount = scenario.nodes.filter(n => n.type === 'Wallet').length;
   const txCount = scenario.nodes.filter(n => n.type === 'Transaction').length;
   const ipCount = scenario.nodes.filter(n => n.type === 'IP').length;
+  const graphData = adaptScenarioToGraphData(
+  scenario.nodes,
+  scenario.edges
+);
 
   return (
     <div className={`dashboard-embedded-window ${isWindowCollapsed ? 'minimized' : ''}`}>
@@ -157,7 +166,53 @@ export const ForensicDashboard: React.FC<ForensicDashboardProps> = ({ onClose })
           >
             [X] SHAP
           </span>
+          <button
+  className={`hud-pill ${
+    graphMode === "OVERVIEW" ? "active" : ""
+  }`}
+  onClick={() => {
+    setGraphMode("OVERVIEW");
+    sound.playKeyClick();
+  }}
+>
+  OVERVIEW
+</button>
 
+<button
+  className={`hud-pill ${
+    graphMode === "FLOW" ? "active" : ""
+  }`}
+  onClick={() => {
+    setGraphMode("FLOW");
+    sound.playKeyClick();
+  }}
+>
+  FLOW
+</button>
+<button
+  className={`hud-pill ${
+    graphMode === "RISK" ? "active" : ""
+  }`}
+  onClick={() => {
+    setGraphMode("RISK");
+    sound.playKeyClick();
+  }}
+>
+  RISK
+</button>
+<button
+  className={`hud-pill ${
+    graphMode === "CLUSTER"
+      ? "active"
+      : ""
+  }`}
+  onClick={() => {
+    setGraphMode("CLUSTER");
+    sound.playKeyClick();
+  }}
+>
+  CLUSTER
+</button>
           {/* Window Collapse / Expand */}
           <button
             className="hud-pill"
@@ -178,12 +233,25 @@ export const ForensicDashboard: React.FC<ForensicDashboardProps> = ({ onClose })
       {!isWindowCollapsed && (
         <div className="dashboard-stage">
           {/* Fullscreen Link-Analysis Graph Canvas Backdrop */}
-          <GraphCanvasBackdrop
-            nodes={scenario.nodes}
-            edges={scenario.edges}
-            selectedNodeId={selectedNode?.id || null}
-            onSelectNode={handleSelectNode}
-          />
+          <GraphEngine
+  data={graphData}
+  mode={graphMode}
+  selectedNodeId={selectedNode?.id || null}
+  onSelectNode={(nodeId) => {
+    if (nodeId === null) {
+      setSelectedNode(null);
+      return;
+    }
+
+    const node = scenario.nodes.find(
+      (currentNode) => currentNode.id === nodeId
+    );
+
+    if (node) {
+      handleSelectNode(node);
+    }
+  }}
+/>
 
           {/* Subwindow 1: Ranked Alerts Inbox (Top-Left) */}
           {showAlerts && !minAlerts && (
@@ -200,12 +268,13 @@ export const ForensicDashboard: React.FC<ForensicDashboardProps> = ({ onClose })
           {/* Subwindow 2: Dual-Layer Telemetry Dossier (Top-Right) */}
           {showTelemetry && !minTelemetry && (
             <TelemetrySubwindow
-              selectedNode={selectedNode}
-              scenario={scenario}
-              onMinimize={() => setMinTelemetry(true)}
-              onClose={() => setShowTelemetry(false)}
-              style={{ top: '16px', right: '20px' }}
-            />
+  selectedNode={selectedNode}
+  scenario={scenario}
+  graphData={graphData}
+  onMinimize={() => setMinTelemetry(true)}
+  onClose={() => setShowTelemetry(false)}
+  style={{ top: '16px', right: '20px' }}
+/>
           )}
 
           {/* Subwindow 3: Explainable AI SHAP Attribution HUD (Bottom-Left) */}

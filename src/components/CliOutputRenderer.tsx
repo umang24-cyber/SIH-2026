@@ -1,9 +1,9 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { ForensicNode, ForensicLink, KernelLogEntry } from '../types/terminal';
 import { COMMAND_REGISTRY, MOCK_HEX_DUMPS } from '../data/mockForensicData';
-import { GraphView3D } from './views/GraphView3D';
 import { sound } from '../audio/soundEngine';
 import { ForensicDashboard } from './dashboard/ForensicDashboard';
+import GraphView from '../graph/components/GraphView';
 
 export interface TerminalEntry {
   id: string;
@@ -167,15 +167,15 @@ export const CliOutputRenderer: React.FC<CliOutputRendererProps> = ({
 
       {/* 2. FORENSIC GRAPH HUD WORKSPACE (Embedded in CLI Stream) */}
       {entry.type === 'GRAPH' && (
-        <div className="output-block" style={{ width: '100%' }}>
-          <ForensicDashboard
-            onClose={() => {
-              if (onCloseEntry) {
-                onCloseEntry(entry.id);
-              }
-            }}
-          />
-        </div>
+          <div className="output-block" style={{ width: '100%' }}>
+            <ForensicDashboard
+              onClose={() => {
+                if (onCloseEntry) {
+                  onCloseEntry(entry.id);
+                }
+              }}
+              />
+            </div>
       )}
 
       {/* 3. INSPECT DOSSIER STREAM */}

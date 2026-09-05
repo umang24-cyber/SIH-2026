@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { GraphNode, GraphEdge } from '../../data/forensicScenarios';
+import type { GraphNode, GraphEdge } from '../../types/graph';
 
 interface GraphCanvasBackdropProps {
   nodes: GraphNode[];
@@ -17,7 +17,21 @@ export const GraphCanvasBackdrop: React.FC<GraphCanvasBackdropProps> = ({
   const [hoveredNodeId, setHoveredNodeId] = useState<string | null>(null);
 
   const getNode = (id: string) => nodes.find(n => n.id === id);
+  const getNodePosition = (nodeId: string) => {
+  const index = nodes.findIndex(node => node.id === nodeId);
 
+  const totalNodes = nodes.length;
+
+  const angle = (index / totalNodes) * Math.PI * 2;
+
+  const radiusX = 35;
+  const radiusY = 32;
+
+  return {
+    x: 50 + Math.cos(angle) * radiusX,
+    y: 50 + Math.sin(angle) * radiusY
+  };
+};
   return (
     <div className="graph-canvas-container">
       <svg
@@ -78,10 +92,13 @@ export const GraphCanvasBackdrop: React.FC<GraphCanvasBackdropProps> = ({
 
           const strokeWidth = isHighlighted ? 3 : isBroadcast ? 1.5 : 2;
 
-          const x1 = `${sourceNode.x}%`;
-          const y1 = `${sourceNode.y}%`;
-          const x2 = `${targetNode.x}%`;
-          const y2 = `${targetNode.y}%`;
+          const sourcePosition = getNodePosition(sourceNode.id);
+          const targetPosition = getNodePosition(targetNode.id);
+
+          const x1 = `${sourcePosition.x}%`;
+          const y1 = `${sourcePosition.y}%`;
+          const x2 = `${targetPosition.x}%`;
+          const y2 = `${targetPosition.y}%`;
 
           return (
             <g key={edge.id}>
@@ -114,10 +131,10 @@ export const GraphCanvasBackdrop: React.FC<GraphCanvasBackdropProps> = ({
               />
 
               {/* High-Readability Amount Badge Along Edge */}
-              {edge.amount_btc && (
+              {edge.amountBtc !== undefined && (
                 <text
-                  x={`${(sourceNode.x + targetNode.x) / 2}%`}
-                  y={`${(sourceNode.y + targetNode.y) / 2 - 1.5}%`}
+                  x={`${(sourcePosition.x + targetPosition.x) / 2}%`}
+                  y={`${(sourcePosition.y + targetPosition.y) / 2 - 1.5}%`}
                   textAnchor="middle"
                   style={{
                     paintOrder: 'stroke fill',
@@ -130,7 +147,7 @@ export const GraphCanvasBackdrop: React.FC<GraphCanvasBackdropProps> = ({
                     fontFamily: "'Share Tech Mono', monospace"
                   }}
                 >
-                  {edge.amount_btc} BTC
+                  {edge.amountBtc} BTC
                 </text>
               )}
             </g>
@@ -142,6 +159,8 @@ export const GraphCanvasBackdrop: React.FC<GraphCanvasBackdropProps> = ({
           const isSelected = node.id === selectedNodeId;
           const isHovered = node.id === hoveredNodeId;
 
+          const position = getNodePosition(node.id);
+
           return (
             <g
               key={node.id}
@@ -152,20 +171,20 @@ export const GraphCanvasBackdrop: React.FC<GraphCanvasBackdropProps> = ({
               style={{ cursor: 'pointer' }}
             >
               {/* Node Geometry based on Type */}
-              {node.type === 'Wallet' && (
+              {node.type === 'WALLET' && (
                 /* Hexagonal / Circular Wallet Node */
                 <g>
                   <circle
-                    cx={`${node.x}%`}
-                    cy={`${node.y}%`}
+                    cx={`${position.x}%`}
+                    cy={`${position.y}%`}
                     r={isSelected ? 20 : 16}
-                    fill={node.properties.is_licit_exchange ? '#021829' : '#021d0a'}
-                    stroke={node.properties.is_licit_exchange ? '#00aaff' : isSelected ? '#00ff66' : '#00cc55'}
+                    fill="#021d0a"
+                    stroke={isSelected ? '#00ff66' : '#00cc55'}
                     strokeWidth={isSelected ? 3 : 2}
                   />
                   <text
-                    x={`${node.x}%`}
-                    y={`${node.y}%`}
+                    x={`${position.y}%`}
+                    y={`${position.y}%`}
                     dy="5"
                     fill="#ffffff"
                     fontSize="13"
@@ -178,12 +197,12 @@ export const GraphCanvasBackdrop: React.FC<GraphCanvasBackdropProps> = ({
                 </g>
               )}
 
-              {node.type === 'Transaction' && (
+              {node.type === 'TRANSACTION' && (
                 /* Square Transaction Node */
                 <g>
                   <rect
-                    x={`calc(${node.x}% - ${isSelected ? 18 : 15}px)`}
-                    y={`calc(${node.y}% - ${isSelected ? 18 : 15}px)`}
+                    x={`calc(${position.y}% - ${isSelected ? 18 : 15}px)`}
+                    y={`calc(${position.y}% - ${isSelected ? 18 : 15}px)`}
                     width={isSelected ? 36 : 30}
                     height={isSelected ? 36 : 30}
                     fill="#221102"
@@ -192,8 +211,8 @@ export const GraphCanvasBackdrop: React.FC<GraphCanvasBackdropProps> = ({
                     rx="3"
                   />
                   <text
-                    x={`${node.x}%`}
-                    y={`${node.y}%`}
+                    x={`${position.y}%`}
+                    y={`${position.y}%`}
                     dy="5"
                     fill="#ffbb00"
                     fontSize="12"
@@ -210,14 +229,18 @@ export const GraphCanvasBackdrop: React.FC<GraphCanvasBackdropProps> = ({
                 /* Diamond / Server IP Node */
                 <g>
                   <polygon
-                    points={`calc(${node.x}%),calc(${node.y}% - 19px) calc(${node.x}% + 19px),calc(${node.y}%) calc(${node.x}%),calc(${node.y}% + 19px) calc(${node.x}% - 19px),calc(${node.y}%)`}
+                    points={`calc(${position.y}%),calc(${position.y}% - 19px) calc(${position.y}% + 19px),calc(${position.y}%) calc(${position.y}%),calc(${position.y}% + 19px) calc(${position.y}% - 19px),calc(${position.y}%)`}
                     fill="#230536"
-                    stroke={node.properties.node_type === 'bulletproof_host' ? '#ff3366' : '#bb55ff'}
+                    stroke={
+                          node.infrastructureType === 'bulletproof_host'
+                            ? '#ff3366'
+                            : '#bb55ff'
+                          }
                     strokeWidth={isSelected ? 3 : 2}
                   />
                   <text
-                    x={`${node.x}%`}
-                    y={`${node.y}%`}
+                    x={`${position.y}%`}
+                    y={`${position.y}%`}
                     dy="5"
                     fill="#ffffff"
                     fontSize="11"
@@ -232,8 +255,8 @@ export const GraphCanvasBackdrop: React.FC<GraphCanvasBackdropProps> = ({
 
               {/* High Readability Node Label with Black Stroke Halo */}
               <text
-                x={`${node.x}%`}
-                y={`${node.y}%`}
+                x={`${position.y}%`}
+                y={`${position.y}%`}
                 dy="32"
                 textAnchor="middle"
                 style={{
