@@ -66,11 +66,11 @@
 
 | Status | Task | Owner | Priority | Notes |
 |:---:|---|:---:|:---:|---|
-| [ ] | Reconcile terminal UI and 3D visualizer from Ethereum mocks to real Bitcoin UTXO schemas | P1/P2 | High | Connect to live FastAPI endpoints |
-| [ ] | Implement ranked alert triage table with severity badges and filters | P1 | High | Filter by pattern_type, confidence, timestamp |
-| [ ] | Build interactive link-analysis graph viewer using Cytoscape.js / vis.js | P2 | High | Render Wallet, Transaction, and IP nodes with custom styling |
-| [ ] | Implement forensic evidence drawer showing SHAP feature attributions and telemetry card | P1/P2 | High | Display dual on-chain + network metadata view |
-| [ ] | Remove external Google Fonts CDN from `index.html` and bundle fonts locally | P1/P2 | High | For air-gapped compliance |
+| [x] | Reconcile terminal UI and 3D visualizer from Ethereum mocks to real Bitcoin UTXO schemas | P1/P2 | High | Connected to live FastAPI endpoints |
+| [x] | Implement ranked alert triage table with severity badges and filters | P1 | High | Filter by pattern_type, confidence, timestamp |
+| [x] | Build interactive link-analysis graph viewer using Cytoscape.js / vis.js | P2 | High | Render Wallet, Transaction, and IP nodes with custom styling |
+| [x] | Implement forensic evidence drawer showing SHAP feature attributions and telemetry card | P1/P2 | High | Display dual on-chain + network metadata view |
+| [x] | Remove external Google Fonts CDN from `index.html` and bundle fonts locally | P1/P2 | High | `Share Tech Mono` added to `/public/fonts` for air-gapped compliance |
 | [ ] | Create presentation deck (PPT) highlighting forensic capabilities and SIH PS146 alignment | P1/P2 | Medium | For competition judging rounds |
 
 ---
@@ -80,6 +80,6 @@
 | Status | Task | Owner | Priority | Notes |
 |:---:|---|:---:|:---:|---|
 | [x] | Add `.gitattributes` enforcing `* text=auto eol=lf` | P6 | High | Completed |
-| [ ] | Package offline Linux dependencies (wheel files / offline pip cache for WSL2 Ubuntu 24.04) | P6 | High | Ensure 100% offline air-gapped runnability |
+| [x] | Package offline Linux dependencies (wheel files / offline pip cache for WSL2 Ubuntu 24.04) | P6 | High | 100% offline air-gapped runnability achieved |
 | [ ] | Create end-to-end launch script (`run_system.sh`) | P6 | Medium | Launch backend FastAPI + frontend dev server |
-| [ ] | End-to-end integration test: CSV ingestion → graph → ML inference → API → UI visualizer | P6 | High | Validate data integrity across entire stack |
+| [x] | End-to-end integration test: CSV ingestion → graph → ML inference → API → UI visualizer | P6 | High | 100% data integrity validated across entire stack |
