@@ -315,8 +315,8 @@ sys.path.append(BASE_DIR)
 from hierarchical_sampler import HierarchicalSampler
 
 print("Loading Real Data Profiles...")
-macro = pd.read_csv(os.path.join(BASE_DIR, "scratch/v7_real_audit/bitcoinheist_address_profiles.csv"))
-micro = pd.read_csv(os.path.join(BASE_DIR, "scratch/v7_real_audit/orbitaal_node_profiles.csv"))
+macro = pd.read_csv(os.path.join(BASE_DIR, "real_data/BitcoinHeist/bitcoinheist_address_profiles.csv"))
+micro = pd.read_csv(os.path.join(BASE_DIR, "real_data/ORBITAAL/orbitaal_node_profiles.csv"))
 sampler = HierarchicalSampler(macro, micro)
 
 all_records = []

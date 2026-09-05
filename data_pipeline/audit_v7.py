@@ -418,8 +418,8 @@ try:
     _sys.path.insert(0, str(ROOT / "data_pipeline"))
     from hierarchical_sampler import HierarchicalSampler
 
-    macro_df = pd.read_csv(REAL_DATA / "bitcoinheist_address_profiles.csv")
-    micro_df = pd.read_csv(REAL_DATA / "orbitaal_node_profiles.csv")
+    macro_df = pd.read_csv(REAL_DATA / "BitcoinHeist" / "bitcoinheist_address_profiles.csv")
+    micro_df = pd.read_csv(REAL_DATA / "ORBITAAL" / "orbitaal_node_profiles.csv")
     sampler_k = HierarchicalSampler(macro_df, micro_df, random_state=42)
 
     N_PER_CLASS = 1000
@@ -572,9 +572,9 @@ type_map = {
 
 for gate, result in gate_results.items():
     p = result.get("pass")
-    if p is True:
+    if p == True:
         status = "PASS"
-    elif p is False:
+    elif p == False:
         status = "FAIL"
     else:
         status = "ERROR"
@@ -598,7 +598,7 @@ if "I" in gate_results:
 # Overall verdict
 hard_gates = ["A", "B", "C", "E", "G", "H", "I", "K"]
 all_hard = all(
-    gate_results.get(g, {}).get("pass") is True
+    gate_results.get(g, {}).get("pass") == True
     for g in hard_gates
     if gate_results.get(g, {}).get("pass") is not None
 )
@@ -632,7 +632,7 @@ with open(DOCS / "V7_ACCEPTANCE_AUDIT.md", "w") as fout:
     fout.write("|------|------|--------|-------|----------|\n")
     for gate, result in gate_results.items():
         p = result.get("pass")
-        status_icon = "✅ PASS" if p is True else ("❌ FAIL" if p is False else "⚠️ ERROR")
+        status_icon = "✅ PASS" if p == True else ("❌ FAIL" if p == False else "⚠️ ERROR")
         val = result.get("value", "")
         thr = result.get("threshold", "")
         if isinstance(val, float):
