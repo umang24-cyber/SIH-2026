@@ -1,14 +1,15 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { ForensicNode, ForensicLink, KernelLogEntry } from '../types/terminal';
-import { COMMAND_REGISTRY, MOCK_HEX_DUMPS } from '../data/mockForensicData';
+import { COMMAND_REGISTRY } from '../data/mockForensicData';
 import { sound } from '../audio/soundEngine';
-import { ForensicDashboard } from './dashboard/ForensicDashboard';
 import GraphView from '../graph/components/GraphView';
+import { InspectView } from './views/InspectView';
+import { TraceView } from './views/TraceView';
 
 export interface TerminalEntry {
   id: string;
   command?: string;
-  type: 'BANNER' | 'TEXT' | 'ERROR' | 'SUCCESS' | 'HELP' | 'INSPECT' | 'TRACE' | 'LOGS' | 'GRAPH' | 'STATUS';
+  type: 'BANNER' | 'TEXT' | 'ERROR' | 'SUCCESS' | 'HELP' | 'INSPECT' | 'TRACE' | 'LOGS' | 'GRAPH' | 'STATUS' | 'ALERTS' | 'TAINT' | 'DOSSIER' | 'TOR';
   content?: any;
 }
 
@@ -35,7 +36,9 @@ export const CliOutputRenderer: React.FC<CliOutputRendererProps> = ({
   const [isFinished, setIsFinished] = useState<boolean>(false);
   const soundTickRef = useRef<number>(0);
 
-  // Calculate total items to reveal
+  // For complex interactive subwindows (GRAPH, INSPECT, TRACE), display immediately
+  const isInteractive = ['GRAPH', 'INSPECT', 'TRACE', 'DOSSIER', 'TAINT', 'TOR', 'ALERTS'].includes(entry.type);
+
   let totalSteps = 1;
   if (entry.type === 'HELP') {
     totalSteps = COMMAND_REGISTRY.length + 1;
@@ -43,33 +46,22 @@ export const CliOutputRenderer: React.FC<CliOutputRendererProps> = ({
     totalSteps = 6;
   } else if (entry.type === 'LOGS') {
     totalSteps = Math.min(logs.length, 12) + 1;
-  } else if (entry.type === 'TRACE') {
-    totalSteps = 8;
-  } else if (entry.type === 'INSPECT') {
-    const hexLines = MOCK_HEX_DUMPS[entry.content?.node?.id] || [
-      '00000000  7f 45 4c 46 02 01 01 00  00 00 00 00 00 00 00 00  |.ELF............|',
-      '00000010  03 00 3e 00 01 00 00 00  a0 14 00 00 00 00 00 00  |..>.............|',
-      '00000020  40 00 00 00 00 00 00 00  78 3b 00 00 00 00 00 00  |@.......x;......|'
-    ];
-    totalSteps = 4 + hexLines.length;
   } else if (entry.type === 'ERROR' || entry.type === 'SUCCESS' || entry.type === 'TEXT') {
     const msg = entry.content?.message || '';
     totalSteps = Math.max(msg.length, 1);
-  } else if (entry.type === 'GRAPH') {
-    totalSteps = 3;
   }
 
   useEffect(() => {
-    if (isFinished) return;
+    if (isFinished || isInteractive) {
+      setIsFinished(true);
+      return;
+    }
 
-    // Initial scroll request so user's viewport is locked to output head immediately
     onScrollRequested();
 
-    // 150ms buffer delay so user clearly sees the command prompt before lines start typing
     const startDelay = setTimeout(() => {
-      // 1. Single-line character typewriter for errors/notices/text
       if (entry.type === 'ERROR' || entry.type === 'SUCCESS' || entry.type === 'TEXT') {
-        const charInterval = 22; // 22ms per char
+        const charInterval = 18;
         const timer = setInterval(() => {
           setRevealedCount(prev => {
             const next = prev + 1;
@@ -89,8 +81,7 @@ export const CliOutputRenderer: React.FC<CliOutputRendererProps> = ({
         return () => clearInterval(timer);
       }
 
-      // 2. Line-by-line typewriter stream for tables/dossier/logs/trace (75ms per line)
-      const lineInterval = entry.type === 'GRAPH' ? 140 : 75;
+      const lineInterval = 60;
       const timer = setInterval(() => {
         setRevealedCount(prev => {
           const next = prev + 1;
@@ -106,254 +97,239 @@ export const CliOutputRenderer: React.FC<CliOutputRendererProps> = ({
       }, lineInterval);
 
       return () => clearInterval(timer);
-    }, 150);
+    }, 100);
 
     return () => clearTimeout(startDelay);
-  }, [entry.type, totalSteps, isFinished, onScrollRequested]);
-
-  // Click output to instantly complete animation
-  const handleFastForward = () => {
-    setRevealedCount(totalSteps);
-    setIsFinished(true);
-    onScrollRequested();
-  };
+  }, [entry.type, totalSteps, isFinished, isInteractive, onScrollRequested]);
 
   return (
-    <div onClick={handleFastForward} style={{ cursor: isFinished ? 'inherit' : 'pointer' }}>
-      {/* 1. HELP TABLE STREAM */}
-      {entry.type === 'HELP' && (
-        <div className="output-block" style={{ color: 'var(--fg-text)' }}>
-          <div style={{ color: 'var(--fg-primary)', fontWeight: 700, marginBottom: '6px' }}>
-            BITKAUN MANUAL (1) - FORENSIC COMMAND REGISTRY
+    <div style={{ marginBottom: '16px' }}>
+      {/* 1. GRAPH VIEW */}
+      {entry.type === 'GRAPH' && (
+        <div className="output-block" style={{ border: '1px solid var(--border-mid)', padding: '6px', background: '#000804' }}>
+          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '6px', padding: '0 4px' }}>
+            <span style={{ color: '#33ff88', fontWeight: 'bold' }}>
+              &gt; BITCOIN ON-CHAIN FORENSIC GRAPH VISUALIZER {entry.content?.scenarioId ? `[SCENARIO: ${entry.content.scenarioId}]` : ''}
+            </span>
+            {onCloseEntry && (
+              <span className="cmd-tag" onClick={() => onCloseEntry(entry.id)}>
+                [Close]
+              </span>
+            )}
           </div>
-          <table className="cli-table">
+          <GraphView
+            scenarioId={entry.content?.scenarioId || 'peel_001'}
+            onClose={onCloseEntry ? () => onCloseEntry(entry.id) : undefined}
+          />
+        </div>
+      )}
+
+      {/* 2. INSPECT VIEW */}
+      {entry.type === 'INSPECT' && (
+        <div className="output-block" style={{ border: '1px solid var(--border-mid)', padding: '10px', background: 'var(--bg-card)' }}>
+          <InspectView
+            node={entry.content?.node || { id: entry.content?.id || 'Unknown', label: 'Inspected Entity', type: 'WALLET', riskScore: 50, clusterId: 'entity_0', balanceBtc: 0, txCount: 0, firstSeen: '', lastSeen: '', tags: [], flags: [] }}
+            data={entry.content?.raw}
+            onRunCommand={onRunCommand}
+          />
+        </div>
+      )}
+
+      {/* 3. MULTI-HOP TRACE STREAM */}
+      {entry.type === 'TRACE' && (
+        <div className="output-block" style={{ border: '1px solid var(--border-mid)', padding: '10px', background: 'var(--bg-card)' }}>
+          <TraceView
+            sourceId={entry.content?.source || 'Source'}
+            targetId={entry.content?.target || 'Target'}
+            traceResult={entry.content?.traceResult}
+            onRunCommand={onRunCommand}
+          />
+        </div>
+      )}
+
+      {/* 4. TAINT PROPAGATION VIEW */}
+      {entry.type === 'TAINT' && entry.content && (
+        <div className="output-block" style={{ color: 'var(--fg-text)', background: 'var(--bg-card)', padding: '12px', border: '1px solid var(--border-dim)' }}>
+          <div style={{ color: 'var(--fg-primary)', fontWeight: 700, fontSize: '16px', marginBottom: '8px' }}>
+            DIRTY COIN TAINT PROPAGATION (HAIRCUT / FIFO MODEL) :: {entry.content.seed_address}
+          </div>
+          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))', gap: '8px', marginBottom: '12px' }}>
+            <div><strong>Contaminated Wallets:</strong> <span style={{ color: '#ff3344' }}>{entry.content.total_tainted_wallets}</span></div>
+            <div><strong>Total Volume Tainted:</strong> <span style={{ color: '#33ff88' }}>{entry.content.total_tainted_volume_btc} BTC</span></div>
+            <div><strong>Distance Decay Rate:</strong> {entry.content.decay_rate}</div>
+            <div><strong>Max BFS Depth:</strong> {entry.content.max_depth} hops</div>
+          </div>
+          <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: '13px' }}>
             <thead>
-              <tr>
-                <th style={{ width: '25%' }}>Command</th>
-                <th style={{ width: '15%' }}>Alias</th>
-                <th style={{ width: '60%' }}>Description &amp; Example</th>
+              <tr style={{ background: '#00220a', color: '#33ff88', textAlign: 'left' }}>
+                <th style={{ padding: '6px', border: '1px solid #004d20' }}>Hop Distance</th>
+                <th style={{ padding: '6px', border: '1px solid #004d20' }}>Contaminated Wallet</th>
+                <th style={{ padding: '6px', border: '1px solid #004d20' }}>Taint Risk Score</th>
+                <th style={{ padding: '6px', border: '1px solid #004d20' }}>Tainted BTC Received</th>
+                <th style={{ padding: '6px', border: '1px solid #004d20' }}>Via TXID</th>
               </tr>
             </thead>
             <tbody>
-              {COMMAND_REGISTRY.slice(0, revealedCount).map((cmd) => (
-                <tr key={cmd.name} className="cli-line-fade">
-                  <td style={{ color: 'var(--fg-highlight)', fontWeight: 700 }}>
-                    <span className="cmd-tag" onClick={() => onRunCommand(cmd.name)}>
-                      {cmd.name}
-                    </span>
+              {entry.content.contaminated_wallets?.slice(0, 10).map((n: any, i: number) => (
+                <tr key={i} style={{ borderBottom: '1px solid #00220a' }}>
+                  <td style={{ padding: '6px', color: '#ffaa33' }}>Hop {n.hop_distance}</td>
+                  <td style={{ padding: '6px' }}>
+                    <span className="cmd-clickable" onClick={() => onRunCommand(`inspect ${n.address}`)}>{n.address}</span>
                   </td>
-                  <td style={{ color: 'var(--fg-muted)' }}>{cmd.aliases.join(', ')}</td>
-                  <td>
-                    <div>{cmd.summary}</div>
-                    <div style={{ color: 'var(--fg-primary)', fontSize: '15px', marginTop: '2px' }}>
-                      Try:&nbsp;
-                      <span className="cmd-tag" onClick={() => onRunCommand(cmd.examples[0])}>
-                        {cmd.examples[0]}
-                      </span>
-                    </div>
+                  <td style={{ padding: '6px', color: n.taint_score >= 0.5 ? '#ff3344' : '#33ff88' }}>{(n.taint_score * 100).toFixed(1)}%</td>
+                  <td style={{ padding: '6px' }}>{n.received_tainted_btc} BTC</td>
+                  <td style={{ padding: '6px' }}>
+                    <span className="cmd-clickable" onClick={() => onRunCommand(`inspect ${n.via_txid}`)}>{n.via_txid}</span>
                   </td>
                 </tr>
               ))}
             </tbody>
           </table>
-          {!isFinished && (
-            <div style={{ display: 'inline-flex', alignItems: 'center', marginTop: '4px' }}>
-              <span style={{ color: 'var(--fg-muted)', fontSize: '14px', marginRight: '6px' }}>[streaming stdout...]</span>
-              <span className="cli-cursor" />
+        </div>
+      )}
+
+      {/* 5. DOSSIER VIEW */}
+      {entry.type === 'DOSSIER' && entry.content && (
+        <div className="output-block" style={{ background: 'var(--bg-card)', border: '1px solid var(--border-mid)', padding: '14px' }}>
+          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '10px' }}>
+            <div style={{ color: '#ff3344', fontWeight: 'bold', fontSize: '15px' }}>
+              CONFIDENTIAL // LAW ENFORCEMENT INVESTIGATION DOSSIER
+            </div>
+            <a
+              href={`http://localhost:8000/api/dossier/${entry.content.transaction_evidence?.txid}/html`}
+              target="_blank"
+              rel="noreferrer"
+              style={{ background: '#00ff66', color: '#000', padding: '4px 12px', fontWeight: 'bold', textDecoration: 'none', borderRadius: '3px', fontSize: '13px' }}
+            >
+              🖨️ Export Section 91 CrPC PDF
+            </a>
+          </div>
+          <div style={{ fontSize: '13px', lineHeight: '1.6' }}>
+            <p><strong>Case ID:</strong> <code>{entry.content.case_metadata?.dossier_id}</code> | <strong>Threat Rating:</strong> <span style={{ color: '#ff3344', fontWeight: 'bold' }}>{entry.content.threat_assessment?.risk_rating} (Score: {entry.content.threat_assessment?.composite_risk_score})</span></p>
+            <p><strong>Target TXID:</strong> <code>{entry.content.transaction_evidence?.txid}</code> | <strong>Value:</strong> {entry.content.transaction_evidence?.btc_value} BTC</p>
+            <p><strong>Relay Telemetry:</strong> IP {entry.content.network_telemetry_attribution?.ip_address} ({entry.content.network_telemetry_attribution?.isp}) | Country: {entry.content.network_telemetry_attribution?.country} | Tor: {entry.content.network_telemetry_attribution?.is_tor_exit_node ? 'YES (High Risk)' : 'NO'}</p>
+            <p><strong>CIOH Entity Cluster:</strong> {entry.content.entity_clustering?.entity_cluster_id} ({entry.content.entity_clustering?.total_unmasked_wallets_in_cluster} co-owned wallets)</p>
+            <div style={{ marginTop: '10px', background: '#001406', padding: '10px', borderLeft: '3px solid #00ff66' }}>
+              <strong>Mandated Legal Directives:</strong>
+              <ul style={{ margin: '6px 0 0 16px', padding: 0 }}>
+                {entry.content.statutory_legal_directives?.map((d: string, idx: number) => (
+                  <li key={idx}>{d}</li>
+                ))}
+              </ul>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* 6. ALERTS FEED */}
+      {entry.type === 'ALERTS' && entry.content && (() => {
+        const alertList: any[] = Array.isArray(entry.content)
+          ? entry.content
+          : (entry.content.alerts || []);
+        return (
+          <div className="output-block" style={{ background: 'var(--bg-card)', border: '1px solid var(--border-dim)', padding: '12px' }}>
+            <div style={{ color: '#33ff88', fontWeight: 'bold', fontSize: '16px', marginBottom: '8px' }}>
+              DETECTED TYPOLOGY ALERTS &amp; SYNDICATE CANDIDATES ({alertList.length} ALERTS)
+            </div>
+            <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
+              {alertList.slice(0, 10).map((alt: any) => (
+                <div key={alt.candidate_id} style={{ border: '1px solid #004d20', padding: '8px', background: '#000c04' }}>
+                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                    <span style={{ color: alt.severity === 'CRITICAL' ? '#ff3344' : '#ffaa00', fontWeight: 'bold' }}>
+                      [{alt.severity}] {alt.predicted_pattern_type?.toUpperCase()}
+                    </span>
+                    <span style={{ color: '#33ff88' }}>Confidence: {(alt.confidence * 100).toFixed(1)}%</span>
+                  </div>
+                  <div style={{ fontSize: '13px', color: '#aaffaa', margin: '4px 0' }}>{alt.explanation}</div>
+                  <div style={{ fontSize: '12px', color: '#66aa77' }}>
+                    Primary Wallet: <span className="cmd-clickable" onClick={() => onRunCommand(`inspect ${alt.primary_wallet}`)}>{alt.primary_wallet}</span> | Scenario: <span className="cmd-clickable" onClick={() => onRunCommand(`graph ${alt.scenario_id}`)}>{alt.scenario_id}</span>
+                  </div>
+                </div>
+              ))}
+            </div>
+          </div>
+        );
+      })()}
+
+      {/* 7. TOR INTELLIGENCE PROFILER */}
+      {entry.type === 'TOR' && entry.content && (
+        <div className="output-block" style={{ background: 'var(--bg-card)', border: '1px solid var(--border-dim)', padding: '12px' }}>
+          <div style={{ color: '#33ff88', fontWeight: 'bold', fontSize: '16px', marginBottom: '8px' }}>
+            TOR &amp; OBFUSCATED INFRASTRUCTURE TELEMETRY
+          </div>
+          {entry.content.total_tor_transactions !== undefined ? (
+            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(220px, 1fr))', gap: '10px' }}>
+              <div><strong>Total Tor Transactions:</strong> <span style={{ color: '#ff3344' }}>{entry.content.total_tor_transactions}</span></div>
+              <div><strong>Unique Tor Exit Nodes:</strong> {entry.content.unique_tor_exit_nodes}</div>
+              <div><strong>Timing Entropy (H):</strong> <span style={{ color: '#33ff88' }}>{entry.content.tor_timing_entropy}</span></div>
+              <div><strong>Avg Tor Delay (Δt):</strong> {entry.content.average_tor_propagation_delay_sec}s</div>
+            </div>
+          ) : (
+            <div>
+              <p><strong>Suspect TXID:</strong> {entry.content.txid} | <strong>IP:</strong> {entry.content.ip_address} | <strong>Tor Node:</strong> {entry.content.is_tor ? 'YES' : 'NO'}</p>
+              <p><strong>Shannon Timing Entropy:</strong> {entry.content.timing_entropy} ({entry.content.entropy_interpretation})</p>
+              <p><strong>Deanonymization Status:</strong> <span style={{ color: '#33ff88' }}>{entry.content.deanonymization_confidence}</span></p>
+              <p><strong>Obfuscation Evasion Score:</strong> <span style={{ color: '#ff3344' }}>{entry.content.obfuscation_evasion_score}</span></p>
             </div>
           )}
         </div>
       )}
 
-      {/* 2. FORENSIC GRAPH HUD WORKSPACE (Embedded in CLI Stream) */}
-      {entry.type === 'GRAPH' && (
-          <div className="output-block" style={{ width: '100%' }}>
-            <ForensicDashboard
-              onClose={() => {
-                if (onCloseEntry) {
-                  onCloseEntry(entry.id);
-                }
-              }}
-              />
-            </div>
-      )}
-
-      {/* 3. INSPECT DOSSIER STREAM */}
-      {entry.type === 'INSPECT' && (
-        <div className="output-block" style={{ color: 'var(--fg-text)' }}>
-          {(() => {
-            const node = entry.content.node as ForensicNode;
-            const hexLines = MOCK_HEX_DUMPS[node.id] || [
-              '00000000  7f 45 4c 46 02 01 01 00  00 00 00 00 00 00 00 00  |.ELF............|',
-              '00000010  03 00 3e 00 01 00 00 00  a0 14 00 00 00 00 00 00  |..>.............|',
-              '00000020  40 00 00 00 00 00 00 00  78 3b 00 00 00 00 00 00  |@.......x;......|'
-            ];
-            return (
-              <div>
-                <div style={{ color: 'var(--fg-primary)', fontWeight: 700, marginBottom: '6px' }}>
-                  ENTITY DOSSIER: {node.id} ({node.label})
-                </div>
-
-                {revealedCount >= 1 && (
-                  <table className="cli-table cli-line-fade">
-                    <tbody>
-                      <tr>
-                        <td style={{ color: 'var(--fg-muted)', width: '20%' }}>Type / Role</td>
-                        <td style={{ color: 'var(--fg-white)' }}>{node.type}</td>
-                        <td style={{ color: 'var(--fg-muted)', width: '20%' }}>Risk Score</td>
-                        <td style={{ color: node.riskScore >= 80 ? 'var(--fg-danger)' : 'var(--fg-primary)', fontWeight: 'bold' }}>
-                          {node.riskScore}/100 {node.riskScore >= 80 ? '(CRITICAL)' : '(NORMAL)'}
-                        </td>
-                      </tr>
-                      {revealedCount >= 2 && (
-                        <tr className="cli-line-fade">
-                          <td style={{ color: 'var(--fg-muted)' }}>Cluster Affiliation</td>
-                          <td style={{ color: '#38bdf8' }}>{node.clusterId}</td>
-                          <td style={{ color: 'var(--fg-muted)' }}>Balance</td>
-                          <td style={{ color: 'var(--fg-primary)' }}>{node.balanceEth} ETH ({node.txCount} txs)</td>
-                        </tr>
-                      )}
-                      {revealedCount >= 3 && (
-                        <tr className="cli-line-fade">
-                          <td style={{ color: 'var(--fg-muted)' }}>AML Flags</td>
-                          <td colSpan={3} style={{ color: 'var(--fg-warn)' }}>
-                            {node.flags.join(' | ')}
-                          </td>
-                        </tr>
-                      )}
-                    </tbody>
-                  </table>
-                )}
-
-                {revealedCount >= 4 && (
-                  <div className="cli-line-fade" style={{ marginTop: '6px' }}>
-                    <div style={{ fontSize: '15px', color: 'var(--fg-muted)', marginBottom: '2px' }}>
-                      Bytecode Memory Hexdump:
-                    </div>
-                    <pre style={{ color: 'var(--fg-primary)', fontSize: '15px', background: 'var(--bg-card)', padding: '8px', border: '1px solid var(--border-dim)' }}>
-                      {hexLines.slice(0, Math.max(0, revealedCount - 3)).join('\n')}
-                    </pre>
-                  </div>
-                )}
-                {!isFinished && <span className="cli-cursor" style={{ marginLeft: '4px' }} />}
-              </div>
-            );
-          })()}
-        </div>
-      )}
-
-      {/* 4. MULTI-HOP TRACE STREAM */}
-      {entry.type === 'TRACE' && (
-        <div className="output-block" style={{ color: 'var(--fg-text)' }}>
-          <div style={{ color: 'var(--fg-primary)', fontWeight: 700, marginBottom: '6px' }}>
-            FUND ROUTE TRACE: {entry.content.src} ===&gt; {entry.content.dst}
-          </div>
-          <div style={{ background: 'var(--bg-card)', border: '1px solid var(--border-dim)', padding: '12px' }}>
-            <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
-              {revealedCount >= 1 && (
-                <div className="cli-line-fade" style={{ color: 'var(--fg-primary)' }}>
-                  [HOP 1] <span className="cmd-tag" onClick={() => onRunCommand('inspect 0x5C8821FF')}>0x5C8821FF</span> (VICTIM_TREASURY_VAULT)
-                  <span style={{ color: 'var(--fg-muted)' }}> - Source Drain</span>
-                </div>
-              )}
-              {revealedCount >= 2 && (
-                <div className="cli-line-fade" style={{ paddingLeft: '16px', color: 'var(--fg-muted)', fontSize: '15px' }}>
-                  ▼ Sent 2500.0 ETH | TX: 0x9a8f3b20c1d4... | Suspicious Peeling
-                </div>
-              )}
-              {revealedCount >= 3 && (
-                <div className="cli-line-fade" style={{ color: 'var(--fg-danger)' }}>
-                  [HOP 2] <span className="cmd-tag" onClick={() => onRunCommand('inspect 0x71C84A9E')}>0x71C84A9E</span> (PRIMARY_SUSPECT_01)
-                  <span style={{ color: 'var(--fg-danger)' }}> - Exploiter / Peeling Chain (Risk: 94/100)</span>
-                </div>
-              )}
-              {revealedCount >= 4 && (
-                <div className="cli-line-fade" style={{ paddingLeft: '16px', color: 'var(--fg-muted)', fontSize: '15px' }}>
-                  ▼ Sent 1080.0 ETH | TX: 0x1b2c3d4e5f6a... | Mixer Inflow
-                </div>
-              )}
-              {revealedCount >= 5 && (
-                <div className="cli-line-fade" style={{ color: 'var(--fg-warn)' }}>
-                  [HOP 3] <span className="cmd-tag" onClick={() => onRunCommand('inspect 0x44B12D03')}>0x44B12D03</span> (MIXER_HOP_POOL_01)
-                  <span style={{ color: 'var(--fg-warn)' }}> - Tornado Relay Tranche (Risk: 88/100)</span>
-                </div>
-              )}
-              {revealedCount >= 6 && (
-                <div className="cli-line-fade" style={{ paddingLeft: '16px', color: 'var(--fg-muted)', fontSize: '15px' }}>
-                  ▼ Sent 320.0 ETH | TX: 0x5e6f7a8b9c0d... | Fiat Exit Corridor
-                </div>
-              )}
-              {revealedCount >= 7 && (
-                <div className="cli-line-fade" style={{ color: 'var(--fg-danger)' }}>
-                  [HOP 4] <span className="cmd-tag" onClick={() => onRunCommand('inspect 0xEE3388A1')}>0xEE3388A1</span> (UNLICENSED_OTC_DESK)
-                  <span style={{ color: 'var(--fg-danger)' }}> - Destination Cashout Ring (Risk: 82/100)</span>
-                </div>
-              )}
-            </div>
-          </div>
-          {!isFinished && <span className="cli-cursor" style={{ marginLeft: '4px' }} />}
-        </div>
-      )}
-
-      {/* 5. KERNEL LOGS STREAM */}
-      {entry.type === 'LOGS' && (
-        <div className="output-block" style={{ color: 'var(--fg-text)' }}>
-          <div style={{ color: 'var(--fg-primary)', fontWeight: 700, marginBottom: '6px' }}>
-            KERNEL INTERCEPT STREAM (/var/log/bitkaun.log)
-          </div>
-          <div style={{ background: 'var(--bg-card)', border: '1px solid var(--border-dim)', padding: '10px', maxHeight: '360px', overflowY: 'auto', fontSize: '15px' }}>
-            {logs.slice(0, revealedCount).map((log) => (
-              <div key={log.id} className="cli-line-fade" style={{ display: 'flex', gap: '8px', marginBottom: '3px' }}>
-                <span style={{ color: 'var(--fg-muted)' }}>{log.uptime}</span>
-                <span style={{ color: log.level === 'CRIT' ? 'var(--fg-danger)' : log.level === 'WARN' ? 'var(--fg-warn)' : 'var(--fg-primary)' }}>
-                  [{log.level}]
-                </span>
-                <span style={{ color: 'var(--fg-white)' }}>{log.message}</span>
-              </div>
-            ))}
-          </div>
-          {!isFinished && <span className="cli-cursor" style={{ marginLeft: '4px' }} />}
-        </div>
-      )}
-
-      {/* 6. STATUS STREAM */}
+      {/* 8. STATUS STREAM */}
       {entry.type === 'STATUS' && (
-        <div className="output-block" style={{ color: 'var(--fg-text)' }}>
-          <div style={{ color: 'var(--fg-primary)', fontWeight: 700, marginBottom: '4px' }}>
-            BITKAUN SYSTEM DIAGNOSTICS
+        <div className="output-block" style={{ color: 'var(--fg-text)', background: 'var(--bg-card)', padding: '12px', border: '1px solid var(--border-dim)' }}>
+          <div style={{ color: 'var(--fg-primary)', fontWeight: 700, marginBottom: '6px', fontSize: '16px' }}>
+            BITKAUN BACKEND FORENSIC ENGINE DIAGNOSTICS
           </div>
-          <div style={{ color: 'var(--fg-muted)', fontSize: '16px' }}>
-            {revealedCount >= 1 && <div className="cli-line-fade">• OS Kernel: BitKaun-Linux 6.9.4-forensic x86_64</div>}
-            {revealedCount >= 2 && <div className="cli-line-fade">• Active Node Entities: {nodes.length} mapped</div>}
-            {revealedCount >= 3 && <div className="cli-line-fade">• Directed Edge Links: {links.length} indexed</div>}
-            {revealedCount >= 4 && <div className="cli-line-fade">• Active Session: root@bitkaun-terminal (TTY1)</div>}
-            {revealedCount >= 5 && <div className="cli-line-fade">• Anomaly Detection Pipeline: ONLINE (100% heuristic coverage)</div>}
+          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(240px, 1fr))', gap: '8px', fontSize: '14px' }}>
+            <div>• <strong>Engine Status:</strong> <span style={{ color: '#33ff88' }}>ONLINE (FastAPI 100% Offline)</span></div>
+            <div>• <strong>Transactions Indexed:</strong> {entry.content?.dataset?.loaded_transactions?.toLocaleString() || '82,078'}</div>
+            <div>• <strong>Unique Wallets:</strong> {entry.content?.dataset?.unique_wallets?.toLocaleString() || '284,401'}</div>
+            <div>• <strong>Entity Clusters Partitioned:</strong> {entry.content?.clustering?.total_clusters?.toLocaleString() || '244,363'}</div>
+            <div>• <strong>Typology Alerts Cached:</strong> {entry.content?.typologies?.total_alerts?.toLocaleString() || '23,646'}</div>
+            <div>• <strong>ML Inference Model:</strong> <span style={{ color: '#33ff88' }}>{entry.content?.ml_model?.model_type || 'XGBoost v6'}</span></div>
           </div>
-          {!isFinished && <span className="cli-cursor" style={{ marginLeft: '4px' }} />}
         </div>
       )}
 
-      {/* 7. ERROR MESSAGE TYPEWRITER */}
+      {/* 9. HELP MANUAL */}
+      {entry.type === 'HELP' && (
+        <div className="output-block" style={{ color: 'var(--fg-text)', background: 'var(--bg-card)', padding: '12px', border: '1px solid var(--border-dim)' }}>
+          <div style={{ color: 'var(--fg-primary)', fontWeight: 700, marginBottom: '8px', fontSize: '16px' }}>
+            AVAILABLE FORENSIC COMMANDS
+          </div>
+          <div style={{ display: 'flex', flexDirection: 'column', gap: '6px', fontSize: '14px' }}>
+            <div><span className="cmd-tag" onClick={() => onRunCommand('graph')}>graph [scenario_id]</span> - Open interactive 3D WebGL / 2D link-analysis graph</div>
+            <div><span className="cmd-tag" onClick={() => onRunCommand('inspect 58234917')}>inspect &lt;txid|address&gt;</span> - Inspect on-chain UTXO financial flows and network telemetry</div>
+            <div><span className="cmd-tag" onClick={() => onRunCommand('trace 12dhqUGwzF6c6eW5F7DkyXyqBmW1 1EcgU6KKS36aF55d65f5a')}>trace &lt;source&gt; &lt;target&gt;</span> - Run multi-hop shortest path velocity trace</div>
+            <div><span className="cmd-tag" onClick={() => onRunCommand('taint 12dhqUGwzF6c6eW5F7DkyXyqBmW1')}>taint &lt;seed_address&gt;</span> - Trace forward dirty coin contamination decay</div>
+            <div><span className="cmd-tag" onClick={() => onRunCommand('alerts')}>alerts</span> - View prioritized heuristic and ML typology alert candidates</div>
+            <div><span className="cmd-tag" onClick={() => onRunCommand('dossier 58234917')}>dossier &lt;txid&gt;</span> - Generate court-admissible Section 91 Cr.P.C. legal dossier</div>
+            <div><span className="cmd-tag" onClick={() => onRunCommand('tor')}>tor</span> - View global Tor network timing entropy and exit node profiler</div>
+            <div><span className="cmd-tag" onClick={() => onRunCommand('status')}>status</span> - Check forensic memory store and clustering health</div>
+            <div><span className="cmd-tag" onClick={() => onRunCommand('clear')}>clear</span> - Clear terminal buffer (Shortcut: Ctrl+L)</div>
+          </div>
+        </div>
+      )}
+
+      {/* 10. ERROR MESSAGE */}
       {entry.type === 'ERROR' && (
-        <div className="output-block output-error">
-          {entry.content?.message ? entry.content.message.slice(0, revealedCount) : ''}
-          {!isFinished && <span className="cli-cursor" />}
+        <div className="output-block output-error" style={{ color: '#ff3344', padding: '4px 0' }}>
+          {entry.content?.message || 'An error occurred.'}
         </div>
       )}
 
-      {/* 8. SUCCESS MESSAGE TYPEWRITER */}
+      {/* 11. SUCCESS MESSAGE */}
       {entry.type === 'SUCCESS' && (
-        <div className="output-block output-success">
-          {entry.content?.message ? entry.content.message.slice(0, revealedCount) : ''}
-          {!isFinished && <span className="cli-cursor" />}
+        <div className="output-block output-success" style={{ color: '#33ff88', padding: '4px 0' }}>
+          {entry.content?.message || 'Command completed successfully.'}
         </div>
       )}
 
-      {/* 9. RAW TEXT TYPEWRITER */}
+      {/* 12. TEXT MESSAGE */}
       {entry.type === 'TEXT' && (
-        <div className="output-block" style={{ color: 'var(--fg-white)' }}>
-          {entry.content?.message ? entry.content.message.slice(0, revealedCount) : ''}
-          {!isFinished && <span className="cli-cursor" />}
+        <div className="output-block" style={{ color: 'var(--fg-white)', padding: '2px 0' }}>
+          {entry.content?.message || ''}
         </div>
       )}
     </div>

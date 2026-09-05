@@ -124,5 +124,19 @@ class ClusteringService:
             associated_scenarios=sorted(list(scenarios))
         )
 
+    def get_entity_id(self, address: str) -> str:
+        """Returns the canonical entity cluster ID for an address."""
+        if not self.is_clustered:
+            self.build_clusters()
+        root = self.dsu.find(address)
+        return f"entity_{root[:12]}" if root else f"entity_{address[:12]}"
+
+    def get_cluster_wallets(self, address: str) -> List[str]:
+        """Returns all wallet addresses belonging to the same entity cluster."""
+        if not self.is_clustered:
+            self.build_clusters()
+        root = self.dsu.find(address)
+        return sorted(list(self.cluster_members.get(root, {address})))
+
 # Global Singleton Instance
 clustering_service = ClusteringService()

@@ -19,6 +19,7 @@ class TypologyDetector:
     def __init__(self):
         self.detected_alerts: List[AlertSummary] = []
         self.evidence_cache: Dict[str, EvidenceResponse] = {}
+        self.tx_typology_map: Dict[int, List[str]] = defaultdict(list)
         self.is_scanned: bool = False
 
     def scan_all_typologies(self):
@@ -52,6 +53,14 @@ class TypologyDetector:
         # Sort by confidence descending
         alerts.sort(key=lambda a: a.confidence, reverse=True)
         self.detected_alerts = alerts
+
+        # Build txid -> typologies map
+        self.tx_typology_map.clear()
+        for a in alerts:
+            for tid in a.member_txids:
+                if a.predicted_pattern_type not in self.tx_typology_map[tid]:
+                    self.tx_typology_map[tid].append(a.predicted_pattern_type)
+
         self.is_scanned = True
         logger.info(f"Typology detection completed! Total candidate alerts generated: {len(self.detected_alerts)}")
 
@@ -354,6 +363,12 @@ class TypologyDetector:
         if not self.is_scanned:
             self.scan_all_typologies()
         return self.evidence_cache.get(candidate_id)
+
+    def get_typologies_for_tx(self, txid: int) -> List[str]:
+        """Returns all detected typology patterns associated with a specific transaction."""
+        if not self.is_scanned:
+            self.scan_all_typologies()
+        return self.tx_typology_map.get(int(txid), [])
 
 # Global Singleton Instance
 typology_detector = TypologyDetector()

@@ -4,17 +4,17 @@ import { CliOutputRenderer } from './components/CliOutputRenderer';
 import { PacmanSplashScreen } from './components/PacmanSplashScreen';
 import { ScrambledAsciiLogo } from './components/ScrambledAsciiLogo';
 import { AmbientBinaryRain } from './components/AmbientBinaryRain';
+import { api } from './services/api';
 
 interface TerminalEntry {
   id: string;
   command?: string;
-  type: 'BANNER' | 'TEXT' | 'ERROR' | 'SUCCESS' | 'HELP' | 'INSPECT' | 'TRACE' | 'LOGS' | 'GRAPH' | 'STATUS';
+  type: 'BANNER' | 'TEXT' | 'ERROR' | 'SUCCESS' | 'HELP' | 'INSPECT' | 'TRACE' | 'LOGS' | 'GRAPH' | 'STATUS' | 'ALERTS' | 'TAINT' | 'DOSSIER' | 'TOR';
   content?: any;
 }
 
 export function App() {
   const [showSplash, setShowSplash] = useState<boolean>(true);
-
   const [inputVal, setInputVal] = useState<string>('');
   const [commandHistory, setCommandHistory] = useState<string[]>([]);
   const [historyIdx, setHistoryIdx] = useState<number>(-1);
@@ -24,26 +24,23 @@ export function App() {
   const scrollBottomRef = useRef<HTMLDivElement>(null);
   const terminalBodyRef = useRef<HTMLDivElement>(null);
 
-  // Instant synchronous scroll to bottom
   const scrollToBottom = () => {
     if (terminalBodyRef.current) {
       terminalBodyRef.current.scrollTop = terminalBodyRef.current.scrollHeight;
     }
   };
 
-  // Keep scroll locked to bottom on new entries
   useEffect(() => {
     scrollToBottom();
     const t = setTimeout(scrollToBottom, 30);
     return () => clearTimeout(t);
   }, [entries]);
 
-  // Focus input automatically
   useEffect(() => {
     inputRef.current?.focus();
   }, []);
 
-  const handleRunCommand = (raw: string) => {
+  const handleRunCommand = async (raw: string) => {
     const trimmed = raw.trim();
     if (!trimmed) {
       setEntries(prev => [...prev, { id: `entry-${Date.now()}`, type: 'TEXT', command: '' }]);
@@ -73,9 +70,324 @@ export function App() {
           {
             id: `entry-${Date.now()}`,
             command: trimmed,
-            type: 'GRAPH'
+            type: 'GRAPH',
+            content: { scenarioId: arg1 || 'licit_00001' }
           }
         ]);
+        break;
+
+      case 'inspect':
+      case 'i':
+        if (!arg1) {
+          sound.playErrorChirp();
+          setEntries(prev => [
+            ...prev,
+            {
+              id: `entry-${Date.now()}`,
+              command: trimmed,
+              type: 'ERROR',
+              content: { message: "Usage: inspect <txid | address> (e.g. 'inspect 58234917' or 'inspect 12dhqUGwzF6c6eW5F7DkyXyqBmW1')" }
+            }
+          ]);
+          return;
+        }
+        sound.playEnterSuccess();
+        try {
+          // Check if numeric txid or address
+          const isNumeric = /^\d+$/.test(arg1);
+          if (isNumeric) {
+            const tx = await api.getTransaction(arg1);
+            setEntries(prev => [
+              ...prev,
+              {
+                id: `entry-${Date.now()}`,
+                command: trimmed,
+                type: 'INSPECT',
+                content: {
+                  id: `TX:${arg1}`,
+                  raw: tx,
+                  node: {
+                    id: `TX:${arg1}`,
+                    label: `TX:${arg1} (Scenario: ${tx.scenario_id})`,
+                    type: 'TRANSACTION',
+                    riskScore: 65,
+                    clusterId: tx.scenario_id,
+                    balanceBtc: tx.output_amounts ? tx.output_amounts.reduce((a, b) => a + b, 0) : 0,
+                    txCount: 1,
+                    firstSeen: tx.timestamp,
+                    lastSeen: tx.timestamp,
+                    tags: [tx.script_type, tx.network?.node_type || 'standard_relay'],
+                    flags: tx.network?.node_type?.includes('tor') ? ['TOR_EXIT_NODE'] : []
+                  }
+                }
+              }
+            ]);
+          } else {
+            const entity = await api.getEntity(arg1);
+            let clusterId = 'UNCLUSTERED';
+            try {
+              const cl = await api.getEntityCluster(arg1);
+              clusterId = cl.cluster_id;
+            } catch {}
+
+            setEntries(prev => [
+              ...prev,
+              {
+                id: `entry-${Date.now()}`,
+                command: trimmed,
+                type: 'INSPECT',
+                content: {
+                  id: arg1,
+                  raw: entity,
+                  node: {
+                    id: arg1,
+                    label: entity.address,
+                    type: entity.is_licit_exchange ? 'EXCHANGE' : 'WALLET',
+                    riskScore: entity.is_licit_exchange ? 10 : 60,
+                    clusterId: clusterId,
+                    balanceBtc: entity.total_received_btc - entity.total_sent_btc,
+                    txCount: entity.tx_count,
+                    firstSeen: entity.first_seen,
+                    lastSeen: entity.last_seen,
+                    tags: entity.associated_scenarios,
+                    flags: entity.is_licit_exchange ? ['LICIT_EXCHANGE_WHITELIST'] : ['SUSPECT_P2P_WALLET'],
+                    isLicitExchange: entity.is_licit_exchange
+                  }
+                }
+              }
+            ]);
+          }
+        } catch (err: any) {
+          sound.playErrorChirp();
+          setEntries(prev => [
+            ...prev,
+            {
+              id: `entry-${Date.now()}`,
+              command: trimmed,
+              type: 'ERROR',
+              content: { message: `Inspect failed: ${err.message}` }
+            }
+          ]);
+        }
+        break;
+
+      case 'trace':
+      case 'route':
+        if (!arg1 || !arg2) {
+          sound.playErrorChirp();
+          setEntries(prev => [
+            ...prev,
+            {
+              id: `entry-${Date.now()}`,
+              command: trimmed,
+              type: 'ERROR',
+              content: { message: "Usage: trace <source_address> <target_address>" }
+            }
+          ]);
+          return;
+        }
+        sound.playEnterSuccess();
+        try {
+          const traceResult = await api.getTrace(arg1, arg2);
+          setEntries(prev => [
+            ...prev,
+            {
+              id: `entry-${Date.now()}`,
+              command: trimmed,
+              type: 'TRACE',
+              content: { source: arg1, target: arg2, traceResult }
+            }
+          ]);
+        } catch (err: any) {
+          sound.playErrorChirp();
+          setEntries(prev => [
+            ...prev,
+            {
+              id: `entry-${Date.now()}`,
+              command: trimmed,
+              type: 'ERROR',
+              content: { message: `Trace failed: ${err.message}` }
+            }
+          ]);
+        }
+        break;
+
+      case 'taint':
+        if (!arg1) {
+          sound.playErrorChirp();
+          setEntries(prev => [
+            ...prev,
+            {
+              id: `entry-${Date.now()}`,
+              command: trimmed,
+              type: 'ERROR',
+              content: { message: "Usage: taint <seed_address> (e.g. 'taint 12dhqUGwzF6c6eW5F7DkyXyqBmW1')" }
+            }
+          ]);
+          return;
+        }
+        sound.playEnterSuccess();
+        try {
+          const taintRes = await api.getTaint(arg1);
+          setEntries(prev => [
+            ...prev,
+            {
+              id: `entry-${Date.now()}`,
+              command: trimmed,
+              type: 'TAINT',
+              content: taintRes
+            }
+          ]);
+        } catch (err: any) {
+          sound.playErrorChirp();
+          setEntries(prev => [
+            ...prev,
+            {
+              id: `entry-${Date.now()}`,
+              command: trimmed,
+              type: 'ERROR',
+              content: { message: `Taint propagation failed: ${err.message}` }
+            }
+          ]);
+        }
+        break;
+
+      case 'alerts':
+      case 'alert':
+        sound.playEnterSuccess();
+        try {
+          const alertsRes = await api.getAlerts(0.5, 20);
+          setEntries(prev => [
+            ...prev,
+            {
+              id: `entry-${Date.now()}`,
+              command: trimmed,
+              type: 'ALERTS',
+              content: alertsRes
+            }
+          ]);
+        } catch (err: any) {
+          sound.playErrorChirp();
+          setEntries(prev => [
+            ...prev,
+            {
+              id: `entry-${Date.now()}`,
+              command: trimmed,
+              type: 'ERROR',
+              content: { message: `Alerts retrieval failed: ${err.message}` }
+            }
+          ]);
+        }
+        break;
+
+      case 'dossier':
+      case 'report':
+        if (!arg1) {
+          sound.playErrorChirp();
+          setEntries(prev => [
+            ...prev,
+            {
+              id: `entry-${Date.now()}`,
+              command: trimmed,
+              type: 'ERROR',
+              content: { message: "Usage: dossier <txid> (e.g. 'dossier 58234917')" }
+            }
+          ]);
+          return;
+        }
+        sound.playEnterSuccess();
+        try {
+          const dossierRes = await api.getDossier(arg1);
+          setEntries(prev => [
+            ...prev,
+            {
+              id: `entry-${Date.now()}`,
+              command: trimmed,
+              type: 'DOSSIER',
+              content: dossierRes
+            }
+          ]);
+        } catch (err: any) {
+          sound.playErrorChirp();
+          setEntries(prev => [
+            ...prev,
+            {
+              id: `entry-${Date.now()}`,
+              command: trimmed,
+              type: 'ERROR',
+              content: { message: `Dossier generation failed: ${err.message}` }
+            }
+          ]);
+        }
+        break;
+
+      case 'tor':
+        sound.playEnterSuccess();
+        try {
+          if (arg1) {
+            const torProf = await api.getTorProfiler(arg1);
+            setEntries(prev => [
+              ...prev,
+              {
+                id: `entry-${Date.now()}`,
+                command: trimmed,
+                type: 'TOR',
+                content: torProf
+              }
+            ]);
+          } else {
+            const torSum = await api.getTorSummary();
+            setEntries(prev => [
+              ...prev,
+              {
+                id: `entry-${Date.now()}`,
+                command: trimmed,
+                type: 'TOR',
+                content: torSum
+              }
+            ]);
+          }
+        } catch (err: any) {
+          sound.playErrorChirp();
+          setEntries(prev => [
+            ...prev,
+            {
+              id: `entry-${Date.now()}`,
+              command: trimmed,
+              type: 'ERROR',
+              content: { message: `Tor profiler failed: ${err.message}` }
+            }
+          ]);
+        }
+        break;
+
+      case 'status':
+      case 'sys':
+      case 'health':
+        sound.playEnterSuccess();
+        try {
+          const health = await api.getHealth();
+          setEntries(prev => [
+            ...prev,
+            {
+              id: `entry-${Date.now()}`,
+              command: trimmed,
+              type: 'STATUS',
+              content: health
+            }
+          ]);
+        } catch (err: any) {
+          sound.playErrorChirp();
+          setEntries(prev => [
+            ...prev,
+            {
+              id: `entry-${Date.now()}`,
+              command: trimmed,
+              type: 'ERROR',
+              content: { message: `Engine offline or unreachable: ${err.message}` }
+            }
+          ]);
+        }
         break;
 
       case 'clear':
@@ -167,10 +479,9 @@ export function App() {
       }
     } else if (e.key === 'Tab') {
       e.preventDefault();
-      // Auto complete
       const trimmed = inputVal.trim();
       if (!trimmed) return;
-      const allCmds = ['graph', 'help', 'clear', 'sound', 'reboot'];
+      const allCmds = ['graph', 'inspect', 'trace', 'taint', 'alerts', 'dossier', 'tor', 'status', 'help', 'clear', 'sound', 'reboot'];
       const match = allCmds.find(c => c.startsWith(trimmed.toLowerCase()));
       if (match) {
         setInputVal(match + ' ');
@@ -183,10 +494,8 @@ export function App() {
 
   return (
     <div className="terminal-window" onClick={() => inputRef.current?.focus()}>
-      {/* Subtle Ambient Matrix 0/1 Falling Dust in Background */}
       <AmbientBinaryRain />
 
-      {/* Retro Pac-Man Eating Bitcoin Splash Screen */}
       {showSplash && (
         <PacmanSplashScreen
           onComplete={() => {
@@ -196,7 +505,7 @@ export function App() {
         />
       )}
 
-      {/* Clean Window Title Bar */}
+      {/* Title Bar */}
       <div className="terminal-titlebar">
         <div className="window-dots">
           <span className="window-dot dot-red" />
@@ -204,47 +513,51 @@ export function App() {
           <span className="window-dot dot-green" />
         </div>
         <div style={{ fontWeight: 500 }}>bitkaun@investigation: ~ (bash)</div>
-        <div style={{ fontSize: '12px', color: '#555555' }}>x86_64 tty1</div>
+        <div style={{ fontSize: '12px', color: '#555555' }}>x86_64 tty1 [FASTAPI LINKED]</div>
       </div>
 
       {/* Terminal Content Buffer */}
       <div ref={terminalBodyRef} className="terminal-body">
-        {/* Permanent Welcome Header & Available Commands (Never Erased) */}
+        {/* Permanent Welcome Header & Available Commands */}
         <div className="output-block" style={{ borderBottom: '1px solid var(--border-mid)', paddingBottom: '14px', marginBottom: '8px' }}>
           <ScrambledAsciiLogo active={!showSplash} />
 
           <div style={{ color: 'var(--fg-white)', fontSize: '15px', fontWeight: 600, marginBottom: '4px' }}>
-            Welcome to BitKaun? (Version 1.0.0)
+            Welcome to BitKaun? (Version 1.0.0 · Air-Gapped Engine)
           </div>
           <div style={{ color: 'var(--fg-muted)', marginBottom: '16px', fontSize: '14px' }}>
-            Crypto Transaction Anomaly &amp; Forensics Engine.
+            Bitcoin Cross-Layer AML Forensics &amp; Dual-Stream Telemetry Correlation.
             <br />
-            Type <span className="cmd-tag" onClick={() => handleRunCommand('help')}>'help'</span> to see the list of available commands.
+            Type <span className="cmd-tag" onClick={() => handleRunCommand('help')}>'help'</span> to see all forensic commands.
           </div>
 
           <div style={{ color: 'var(--fg-primary)', fontWeight: 600, marginBottom: '6px' }}>
-            Available Commands:
+            Interactive Commands (Click to Run):
           </div>
-          <div style={{ display: 'flex', flexDirection: 'column', gap: '4px', marginBottom: '8px', color: 'var(--fg-text)' }}>
+          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(280px, 1fr))', gap: '6px', marginBottom: '8px', color: 'var(--fg-text)', fontSize: '14px' }}>
             <div>
-              <span className="cmd-tag" onClick={() => handleRunCommand('graph')}>[graph]</span> or <span className="cmd-tag" onClick={() => handleRunCommand('g')}>[g]</span>
-              <span className="cmd-desc">- Open interactive forensic link-analysis dashboard &amp; TUI subwindows</span>
+              <span className="cmd-tag" onClick={() => handleRunCommand('status')}>[status]</span>
+              <span className="cmd-desc"> - Memory engine diagnostics</span>
             </div>
             <div>
-              <span className="cmd-tag" onClick={() => handleRunCommand('help')}>[help]</span> or <span className="cmd-tag" onClick={() => handleRunCommand('man')}>[man]</span>
-              <span className="cmd-desc">- Detailed command manual and usage instructions</span>
+              <span className="cmd-tag" onClick={() => handleRunCommand('graph')}>[graph]</span>
+              <span className="cmd-desc"> - 3D/2D visual graph explorer</span>
             </div>
             <div>
-              <span className="cmd-tag" onClick={() => handleRunCommand('clear')}>[clear]</span> or <span className="cmd-tag" onClick={() => handleRunCommand('cls')}>[cls]</span>
-              <span className="cmd-desc">- Clear the terminal output buffer (Shortcut: Ctrl+L)</span>
+              <span className="cmd-tag" onClick={() => handleRunCommand('alerts')}>[alerts]</span>
+              <span className="cmd-desc"> - Typology alert feed</span>
             </div>
             <div>
-              <span className="cmd-tag" onClick={() => handleRunCommand('sound')}>[sound]</span> or <span className="cmd-tag" onClick={() => handleRunCommand('audio')}>[audio]</span>
-              <span className="cmd-desc">- Toggle procedural mechanical keyboard &amp; arcade audio (on/off)</span>
+              <span className="cmd-tag" onClick={() => handleRunCommand('tor')}>[tor]</span>
+              <span className="cmd-desc"> - Tor timing entropy profiler</span>
             </div>
             <div>
-              <span className="cmd-tag" onClick={() => handleRunCommand('reboot')}>[reboot]</span> or <span className="cmd-tag" onClick={() => handleRunCommand('splash')}>[splash]</span>
-              <span className="cmd-desc">- Replay Pac-Man Bitcoin arcade startup sequence</span>
+              <span className="cmd-tag" onClick={() => handleRunCommand('help')}>[help]</span>
+              <span className="cmd-desc"> - Detailed command manual</span>
+            </div>
+            <div>
+              <span className="cmd-tag" onClick={() => handleRunCommand('clear')}>[clear]</span>
+              <span className="cmd-desc"> - Clear screen (Ctrl+L)</span>
             </div>
           </div>
         </div>
@@ -252,7 +565,6 @@ export function App() {
         {/* Dynamic Command Outputs */}
         {entries.map(entry => (
           <div key={entry.id}>
-            {/* Command line if typed by user */}
             {entry.command !== undefined && (
               <div className="prompt-line" style={{ marginBottom: '4px' }}>
                 <span className="prompt-prefix">bitkaun@investigation</span>
@@ -261,7 +573,6 @@ export function App() {
               </div>
             )}
 
-            {/* Animated CLI Output Stream */}
             <CliOutputRenderer
               entry={entry}
               onRunCommand={handleRunCommand}

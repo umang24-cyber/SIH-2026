@@ -21,6 +21,9 @@ from backend.app.api.routes_taint import router as taint_router
 from backend.app.api.routes_alerts import router as alerts_router
 from backend.app.api.routes_search import router as search_router
 from backend.app.api.routes_stats import router as stats_router
+from backend.app.api.routes_stream import router as stream_router
+from backend.app.api.routes_intel import router as intel_router
+from backend.app.api.routes_dossier import router as dossier_router
 
 # Configure logging
 logging.basicConfig(
@@ -76,6 +79,9 @@ app.include_router(taint_router)
 app.include_router(alerts_router)
 app.include_router(search_router)
 app.include_router(stats_router)
+app.include_router(stream_router)
+app.include_router(intel_router)
+app.include_router(dossier_router)
 
 @app.get("/")
 def root():
