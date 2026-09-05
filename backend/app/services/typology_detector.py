@@ -1,10 +1,34 @@
 """
 Algorithmic Typology Detection Engine for Bitcoin Forensic Graph Analytics.
+
+DESIGN (post Task-2 fix):
+  This module is responsible ONLY for structural candidate discovery.
+  It identifies subgraphs that match rough topological shapes (peeling chain
+  sequences, fan-out/fan-in overlap, near-equal-output clusters, suspicious
+  payment aggregations).
+
+  For each candidate it calls ml_service.score_candidate() which returns:
+    - binary is_illicit probability (binary XGBoost model)
+    - typology class + calibrated confidence (typology XGBoost model)
+    - SHAP attributions for BOTH models
+    - natural-language typology explanation from actual SHAP features
+
+  The final alert shown on the dashboard uses:
+    - typology label  = ML model argmax class  (NOT the detector's shape guess)
+    - confidence      = ML model's calibrated typology probability
+    - explanation     = ML model SHAP-derived natural-language string
+    - is_ml_driven    = True (always, for every alert this module emits)
+
+  Hardcoded confidence constants (conf = 0.88, etc.) have been completely
+  removed from this module.  If the ML model returns is_illicit=False for a
+  structural candidate, that candidate is DROPPED rather than forced into an
+  alert with a made-up confidence score.
+
 Implements structural heuristics for:
-1. Peeling Chains (1->2 out change address reuse traversal)
-2. Layering (Fan-out N -> Fan-in N reconvergence)
-3. CoinJoin Mixing (N->N equal-denomination anonymization)
-4. Ransomware Payment Aggregation
+  1. Peeling Chains  (1→2 out asymmetric carry-address traversal)
+  2. Layering        (Fan-out → Fan-in reconvergence)
+  3. CoinJoin Mixing (N→N equal-denomination anonymization)
+  4. Ransomware      (Short suspicious-infrastructure payment aggregation)
 """
 import logging
 import math
@@ -16,6 +40,17 @@ from backend.app.services.data_service import data_service
 
 logger = logging.getLogger(__name__)
 
+
+def _severity_from_confidence(conf: float) -> str:
+    if conf >= 0.85:
+        return "CRITICAL"
+    if conf >= 0.70:
+        return "HIGH"
+    if conf >= 0.55:
+        return "MEDIUM"
+    return "LOW"
+
+
 class TypologyDetector:
     def __init__(self):
         self.detected_alerts: List[AlertSummary] = []
@@ -25,44 +60,103 @@ class TypologyDetector:
         self.is_scanned: bool = False
 
     def scan_all_typologies(self):
-        """Run scenario-level heuristic detectors and cache their alerts.
-
-        Each detector emits at most one alert per scenario. These heuristic
-        alerts are independent of the ML typology classifier.
+        """
+        Run structural candidate detectors, then score every candidate with the
+        ML models.  Only candidates where binary model predicts is_illicit=True
+        emit alerts.  All label/confidence values come from the ML models.
         """
         if not data_service.is_ready:
             data_service.initialize()
-            
-        logger.info("Running algorithmic typology detection heuristics across all scenarios...")
+
+        # Import here to avoid circular imports at module load
+        from backend.app.services.ml_service import ml_service
+
+        logger.info("Running structural candidate discovery across all scenarios...")
         self.evidence_cache.clear()
         self._attribution_attempted.clear()
         alerts = []
-        
-        # 1. Detect Peeling Chains
-        peel_alerts = self._detect_peeling_chains()
-        alerts.extend(peel_alerts)
-        logger.info(f"Detected {len(peel_alerts)} peeling chain candidate structures.")
 
-        # 2. Detect Layering (Fan-Out -> Fan-In Reconvergence)
-        layer_alerts = self._detect_layering()
-        alerts.extend(layer_alerts)
-        logger.info(f"Detected {len(layer_alerts)} layering candidate structures.")
+        # 1. Discover Peeling Chain candidates
+        peel_candidates = self._discover_peeling_chain_candidates()
+        logger.info(f"Discovered {len(peel_candidates)} peeling chain structural candidates.")
 
-        # 3. Detect Mixing / CoinJoin Pools
-        mix_alerts = self._detect_mixing()
-        alerts.extend(mix_alerts)
-        logger.info(f"Detected {len(mix_alerts)} CoinJoin mixing candidate structures.")
+        # 2. Discover Layering candidates
+        layer_candidates = self._discover_layering_candidates()
+        logger.info(f"Discovered {len(layer_candidates)} layering structural candidates.")
 
-        # 4. Detect Ransomware Payment Aggregations
-        ransom_alerts = self._detect_ransomware_patterns()
-        alerts.extend(ransom_alerts)
-        logger.info(f"Detected {len(ransom_alerts)} ransomware aggregation candidate structures.")
+        # 3. Discover Mixing / CoinJoin candidates
+        mix_candidates = self._discover_mixing_candidates()
+        logger.info(f"Discovered {len(mix_candidates)} mixing structural candidates.")
 
-        # Sort by confidence descending
+        # 4. Discover Ransomware payment aggregation candidates
+        ransom_candidates = self._discover_ransomware_candidates()
+        logger.info(f"Discovered {len(ransom_candidates)} ransomware structural candidates.")
+
+        all_candidates = peel_candidates + layer_candidates + mix_candidates + ransom_candidates
+
+        # 5. Score every candidate with the ML models
+        logger.info(f"Scoring {len(all_candidates)} total candidates with ML models...")
+        ml_alerts_count = 0
+        dropped_count = 0
+
+        for cand in all_candidates:
+            tx_records = cand["tx_records"]
+            cand_id = cand["candidate_id"]
+
+            try:
+                ml_result = ml_service.score_candidate(tx_records, candidate_id=cand_id)
+            except Exception:
+                logger.exception("ML scoring failed for candidate %s — skipping.", cand_id)
+                dropped_count += 1
+                continue
+
+            if not ml_result.get("is_illicit", False):
+                # Structural shape matched, but ML says licit — do not emit an alert.
+                dropped_count += 1
+                continue
+
+            # ML model drives all final alert fields
+            ml_typology    = ml_result["typology"]
+            ml_confidence  = ml_result["confidence"]
+            ml_risk_score  = ml_result["risk_score"]
+            ml_explanation = ml_result.get("typology_explanation", "")
+            binary_shap    = ml_result.get("binary_shap", [])
+            typology_shap  = ml_result.get("typology_shap", [])
+
+            severity = _severity_from_confidence(ml_confidence)
+
+            alert = AlertSummary(
+                candidate_id=cand_id,
+                scenario_id=cand["scenario_id"],
+                predicted_pattern_type=ml_typology,
+                confidence=round(ml_confidence, 4),
+                severity=severity,
+                explanation=ml_explanation,
+                primary_wallet=cand["primary_wallet"],
+                member_txids=cand["member_txids"],
+                member_wallets=cand["member_wallets"][:10],
+                detected_at=cand["detected_at"],
+                is_ml_driven=True,
+                risk_score=round(ml_risk_score, 4),
+            )
+            alerts.append(alert)
+            ml_alerts_count += 1
+
+            # Cache evidence immediately with SHAP already computed
+            self._cache_evidence(
+                alert=alert,
+                transactions=tx_records,
+                heuristic_type=cand["structural_type"],
+                binary_shap=binary_shap,
+                typology_shap=typology_shap,
+                typology_explanation=ml_explanation,
+            )
+
+        # Sort by confidence descending (ML model confidence, not a hardcoded constant)
         alerts.sort(key=lambda a: a.confidence, reverse=True)
         self.detected_alerts = alerts
 
-        # Build txid -> typologies map
+        # Build txid → typologies map
         self.tx_typology_map.clear()
         for a in alerts:
             for tid in a.member_txids:
@@ -70,32 +164,38 @@ class TypologyDetector:
                     self.tx_typology_map[tid].append(a.predicted_pattern_type)
 
         self.is_scanned = True
-        logger.info(f"Typology detection completed! Total candidate alerts generated: {len(self.detected_alerts)}")
+        logger.info(
+            "Typology detection complete. ML-driven alerts: %d. Dropped (not illicit per ML): %d.",
+            ml_alerts_count,
+            dropped_count,
+        )
+
+    # ------------------------------------------------------------------
+    # Static helper
+    # ------------------------------------------------------------------
 
     @staticmethod
     def _timestamp(value: Any) -> datetime:
-        """Normalize loader timestamps for ordering and time-window checks."""
         if isinstance(value, datetime):
             return value
         return datetime.fromisoformat(str(value).replace("Z", "+00:00"))
 
-    def _detect_peeling_chains(self) -> List[AlertSummary]:
-        """
-        Detect one scenario-level linear peeling chain at most.
+    # ------------------------------------------------------------------
+    # Structural candidate discovery — NO label assignment, NO confidence
+    # ------------------------------------------------------------------
 
-        A peel transaction has one or two inputs and either one V7 linear
-        output or two asymmetric outputs. The carried output must be reused as
-        an input by the next peel transaction in chronological order. The
-        linear form is supported because the V7 generator emits the change
-        path as a one-output hop.
+    def _discover_peeling_chain_candidates(self) -> List[Dict[str, Any]]:
         """
-        alerts = []
+        Identify scenarios that contain a chronological asymmetric carry-address
+        chain with at least 5 hops.  Returns candidate dicts, NOT alert objects.
+        """
+        candidates = []
         for sc_id, txids in data_service.scenario_tx_map.items():
             txs = sorted(
                 [data_service.txid_map[t] for t in txids if t in data_service.txid_map],
                 key=lambda t: self._timestamp(t["timestamp"]),
             )
-            candidates = []
+            shape_candidates = []
             for tx in txs:
                 if len(tx["input_addresses"]) not in (1, 2) or len(tx["output_addresses"]) not in (1, 2):
                     continue
@@ -104,18 +204,18 @@ class TypologyDetector:
                     continue
                 if len(amounts) == 2 and max(amounts) / min(amounts) < 2.0:
                     continue
-                candidates.append(tx)
+                shape_candidates.append(tx)
 
-            if len(candidates) < 3:
+            if len(shape_candidates) < 3:
                 continue
 
             input_to_tx = {}
-            for tx in candidates:
+            for tx in shape_candidates:
                 for addr in tx["input_addresses"]:
                     input_to_tx.setdefault(addr, []).append(tx)
 
             best_chain = []
-            for start_tx in candidates:
+            for start_tx in shape_candidates:
                 chain = [start_tx]
                 current = start_tx
                 while True:
@@ -138,56 +238,42 @@ class TypologyDetector:
             if len(best_chain) < 5:
                 continue
             if not all(
-                max(best_chain[index + 1]["output_amounts"])
-                < max(best_chain[index]["output_amounts"])
-                for index in range(len(best_chain) - 1)
+                max(best_chain[i + 1]["output_amounts"]) < max(best_chain[i]["output_amounts"])
+                for i in range(len(best_chain) - 1)
             ):
                 continue
+
             chain = best_chain
             member_txids = [t["txid"] for t in chain]
             member_wallets = list({addr for t in chain for addr in t["input_addresses"] + t["output_addresses"]})
-            has_suspicious_infra = any(
-                t.get("node_type") in ["tor_exit_node", "vpn_proxy", "bulletproof_host"] for t in chain
-            )
-            conf = min(0.98, 0.70 + len(chain) * 0.05 + (0.10 if has_suspicious_infra else 0.0))
-            alert = AlertSummary(
-                candidate_id=f"cand_peel_{sc_id}_{chain[0]['txid']}",
-                scenario_id=sc_id,
-                predicted_pattern_type="peeling_chain",
-                confidence=round(conf, 3),
-                severity="CRITICAL" if conf >= 0.85 else "HIGH",
-                explanation=(
-                    f"Chronological asymmetric peeling chain with carry-address reuse across {len(chain)} hops. "
-                    f"Origin infrastructure: {chain[0].get('node_type', 'unknown')} ({chain[0].get('asn', '')})."
-                ),
-                primary_wallet=chain[0]["input_addresses"][0],
-                member_txids=member_txids,
-                member_wallets=member_wallets[:10],
-                detected_at=str(chain[0]["timestamp"]),
-            )
-            alerts.append(alert)
-            self._cache_evidence(alert, chain, heuristic_type="peeling_chain")
-        return alerts
 
-    def _detect_layering(self) -> List[AlertSummary]:
+            candidates.append({
+                "candidate_id": f"cand_peel_{sc_id}_{chain[0]['txid']}",
+                "scenario_id": sc_id,
+                "structural_type": "peeling_chain",
+                "primary_wallet": chain[0]["input_addresses"][0],
+                "member_txids": member_txids,
+                "member_wallets": member_wallets,
+                "detected_at": str(chain[0]["timestamp"]),
+                "tx_records": chain,
+            })
+        return candidates
+
+    def _discover_layering_candidates(self) -> List[Dict[str, Any]]:
         """
-        Detect one scenario-level fan-out/fan-in layering candidate at most.
-        Direct recipient overlap, chronological order, and a bounded time
-        window are required; scenario size alone is not evidence of layering.
+        Identify fan-out → fan-in reconvergence structures with ≥60% address overlap,
+        chronologically ordered within 72 hours.
         """
-        alerts = []
+        candidates = []
         for sc_id, txids in data_service.scenario_tx_map.items():
             txs = [data_service.txid_map[t] for t in txids if t in data_service.txid_map]
-            
-            # Find fan-out transactions (1-to-many)
             fan_outs = [t for t in txs if len(t["input_addresses"]) <= 2 and len(t["output_addresses"]) >= 3]
-            # Find fan-in transactions (many-to-1)
-            fan_ins = [t for t in txs if len(t["input_addresses"]) >= 3 and len(t["output_addresses"]) <= 2]
-            
-            scenario_alerted = False
+            fan_ins  = [t for t in txs if len(t["input_addresses"]) >= 3 and len(t["output_addresses"]) <= 2]
+
+            scenario_found = False
             if fan_outs and fan_ins:
                 for fo in fan_outs:
-                    if scenario_alerted:
+                    if scenario_found:
                         break
                     fo_outputs = set(fo["output_addresses"])
                     for fi in fan_ins:
@@ -204,55 +290,44 @@ class TypologyDetector:
                             and (fi_time - fo_time).total_seconds() <= 72 * 3600
                         ):
                             member_txids = list({fo["txid"], fi["txid"]})
-                            member_wallets = list(set(fo["input_addresses"] + fo["output_addresses"] + fi["input_addresses"] + fi["output_addresses"]))
-                            primary_wallet = fo["input_addresses"][0]
-                            
-                            conf = 0.88
-                            cand_id = f"cand_layer_{sc_id}_{fo['txid']}"
-                            alert = AlertSummary(
-                                candidate_id=cand_id,
-                                scenario_id=sc_id,
-                                predicted_pattern_type="layering",
-                                confidence=round(conf, 3),
-                                severity="HIGH",
-                                explanation=(
-                                    f"Layering structure: Fan-out from {len(fo['output_addresses'])} outputs followed by "
-                                    f"fan-in reconvergence into consolidation wallet {fi['output_addresses'][0]}."
-                                ),
-                                primary_wallet=primary_wallet,
-                                member_txids=member_txids,
-                                member_wallets=member_wallets[:10],
-                                detected_at=str(fo["timestamp"])
-                            )
-                            alerts.append(alert)
-                            self._cache_evidence(alert, [fo, fi], heuristic_type="layering")
-                            scenario_alerted = True
+                            member_wallets = list(set(
+                                fo["input_addresses"] + fo["output_addresses"] +
+                                fi["input_addresses"] + fi["output_addresses"]
+                            ))
+                            candidates.append({
+                                "candidate_id": f"cand_layer_{sc_id}_{fo['txid']}",
+                                "scenario_id": sc_id,
+                                "structural_type": "layering",
+                                "primary_wallet": fo["input_addresses"][0],
+                                "member_txids": member_txids,
+                                "member_wallets": member_wallets,
+                                "detected_at": str(fo["timestamp"]),
+                                "tx_records": [fo, fi],
+                            })
+                            scenario_found = True
                             break
-        return alerts
+        return candidates
 
-    def _detect_mixing(self) -> List[AlertSummary]:
+    def _discover_mixing_candidates(self) -> List[Dict[str, Any]]:
         """
-        Detect one scenario-level CoinJoin-like candidate at most.
-
-        The candidate requires multi-party topology and a scale-independent
-        near-equal output denomination test. Duplicate output values alone are
-        not sufficient evidence.
+        Identify transactions with N≥3 equal-count inputs and outputs whose output
+        amounts have coefficient-of-variation ≤ 0.10 (near-equal denominations).
         """
-        alerts = []
+        candidates = []
         for sc_id, txids in data_service.scenario_tx_map.items():
             txs = [data_service.txid_map[t] for t in txids if t in data_service.txid_map]
             best_tx = None
             best_cv = None
             for tx in txs:
-                num_in = len(tx["input_addresses"])
+                num_in  = len(tx["input_addresses"])
                 num_out = len(tx["output_addresses"])
                 if num_in < 3 or num_out < 3 or num_in != num_out:
                     continue
-                out_amts = [float(value) for value in tx.get("output_amounts", [])]
+                out_amts = [float(v) for v in tx.get("output_amounts", [])]
                 mean_amt = sum(out_amts) / len(out_amts) if out_amts else 0.0
                 if mean_amt <= 0:
                     continue
-                variance = sum((value - mean_amt) ** 2 for value in out_amts) / len(out_amts)
+                variance = sum((v - mean_amt) ** 2 for v in out_amts) / len(out_amts)
                 cv = variance ** 0.5 / mean_amt
                 if cv <= 0.10 and (best_cv is None or cv < best_cv):
                     best_tx = tx
@@ -260,39 +335,24 @@ class TypologyDetector:
 
             if best_tx is not None:
                 tx = best_tx
-                num_in = len(tx["input_addresses"])
-                num_out = len(tx["output_addresses"])
-                out_amts = [float(value) for value in tx["output_amounts"]]
-                mean_amt = sum(out_amts) / len(out_amts)
-                conf = 0.82
-                cand_id = f"cand_mix_{sc_id}_{tx['txid']}"
-                alert = AlertSummary(
-                    candidate_id=cand_id,
-                    scenario_id=sc_id,
-                    predicted_pattern_type="mixing",
-                    confidence=conf,
-                    severity="HIGH",
-                    explanation=(
-                        f"CoinJoin-like multi-party transaction: {num_in} inputs -> {num_out} outputs "
-                        f"with near-equal denominations (output CV {best_cv:.3f}, avg {mean_amt:.4f} BTC)."
-                    ),
-                    primary_wallet=tx["input_addresses"][0],
-                    member_txids=[tx["txid"]],
-                    member_wallets=list(set(tx["input_addresses"] + tx["output_addresses"]))[:10],
-                    detected_at=str(tx["timestamp"])
-                )
-                alerts.append(alert)
-                self._cache_evidence(alert, [tx], heuristic_type="mixing")
-        return alerts
+                candidates.append({
+                    "candidate_id": f"cand_mix_{sc_id}_{tx['txid']}",
+                    "scenario_id": sc_id,
+                    "structural_type": "mixing",
+                    "primary_wallet": tx["input_addresses"][0],
+                    "member_txids": [tx["txid"]],
+                    "member_wallets": list(set(tx["input_addresses"] + tx["output_addresses"])),
+                    "detected_at": str(tx["timestamp"]),
+                    "tx_records": [tx],
+                })
+        return candidates
 
-    def _detect_ransomware_patterns(self) -> List[AlertSummary]:
+    def _discover_ransomware_candidates(self) -> List[Dict[str, Any]]:
         """
-        Detect one scenario-level suspicious payment aggregation at most.
-
-        Infrastructure is supporting evidence only. A candidate also needs a
-        shared transaction flow and fan-in/aggregation structure in the data.
+        Identify short scenarios (≤50 txns) with ≥2 high-risk relay transactions,
+        a genuine two-party fan-in consolidation step, and no fan-out.
         """
-        alerts = []
+        candidates = []
         for sc_id, txids in data_service.scenario_tx_map.items():
             txs = sorted(
                 [data_service.txid_map[t] for t in txids if t in data_service.txid_map],
@@ -308,9 +368,6 @@ class TypologyDetector:
             if len(threat_txs) < 2 or len(txs) < 3:
                 continue
 
-            # Ransomware payment aggregation in this dataset is a short,
-            # high-risk flow with a genuine two-party consolidation step. A
-            # generic shared address or suspicious relay alone is not enough.
             fan_in_txs = [
                 t for t in txs
                 if len(t.get("input_addresses", [])) == 2
@@ -324,12 +381,8 @@ class TypologyDetector:
             )
             has_fan_out = any(len(t.get("output_addresses", [])) >= 3 for t in txs)
             suspicious_ratio = len(threat_txs) / len(txs)
-            if (
-                not fan_in_txs
-                or not has_aggregation_flow
-                or has_fan_out
-                or suspicious_ratio < 0.25
-            ):
+
+            if not fan_in_txs or not has_aggregation_flow or has_fan_out or suspicious_ratio < 0.25:
                 continue
 
             tx0 = threat_txs[0]
@@ -337,29 +390,31 @@ class TypologyDetector:
             member_wallets = list({
                 addr for t in txs for addr in t.get("input_addresses", []) + t.get("output_addresses", [])
             })
-            conf = min(0.92, 0.72 + 0.04 * len(threat_txs))
-            alert = AlertSummary(
-                candidate_id=f"cand_ransom_{sc_id}_{tx0['txid']}",
-                scenario_id=sc_id,
-                predicted_pattern_type="ransomware",
-                confidence=round(conf, 3),
-                severity="HIGH",
-                explanation=(
-                    f"Suspicious payment aggregation: {len(threat_txs)} high-risk relay transactions "
-                    f"participate in a short shared flow with two-party fan-in evidence ({tx0.get('relay_ip', '')}, "
-                    f"{tx0.get('asn', '')})."
-                ),
-                primary_wallet=tx0["input_addresses"][0],
-                member_txids=member_txids[:50],
-                member_wallets=member_wallets[:10],
-                detected_at=str(tx0["timestamp"])
-            )
-            alerts.append(alert)
-            self._cache_evidence(alert, txs[: min(len(txs), 10)], heuristic_type="ransomware")
-        return alerts
+            candidates.append({
+                "candidate_id": f"cand_ransom_{sc_id}_{tx0['txid']}",
+                "scenario_id": sc_id,
+                "structural_type": "ransomware",
+                "primary_wallet": tx0["input_addresses"][0],
+                "member_txids": member_txids[:50],
+                "member_wallets": member_wallets,
+                "detected_at": str(tx0["timestamp"]),
+                "tx_records": txs[:min(len(txs), 10)],
+            })
+        return candidates
 
-    def _cache_evidence(self, alert: AlertSummary, transactions: List[Dict[str, Any]], heuristic_type: str):
-        """Cache heuristic evidence and optional model-derived attribution."""
+    # ------------------------------------------------------------------
+    # Evidence caching — now populated at scan time with pre-computed SHAP
+    # ------------------------------------------------------------------
+
+    def _cache_evidence(
+        self,
+        alert: AlertSummary,
+        transactions: List[Dict[str, Any]],
+        heuristic_type: str,
+        binary_shap: List[Dict[str, Any]],
+        typology_shap: List[Dict[str, Any]],
+        typology_explanation: str,
+    ):
         tx_records = []
         for tx in transactions:
             tx_records.append({
@@ -378,12 +433,12 @@ class TypologyDetector:
                 "country_code": str(tx.get("country_code", "")),
                 "asn": str(tx.get("asn", "")),
                 "user_agent": str(tx.get("user_agent", "/Satoshi:22.0.0/")),
-                "propagation_delta_ms": float(tx.get("propagation_delta_ms", 0.0))
+                "propagation_delta_ms": float(tx.get("propagation_delta_ms", 0.0)),
             })
 
         infra_types = [t.get("node_type", "residential") for t in tx_records]
-        infra_dist = {k: infra_types.count(k) for k in set(infra_types)}
-        
+        infra_dist  = {k: infra_types.count(k) for k in set(infra_types)}
+
         evidence = EvidenceResponse(
             candidate_id=alert.candidate_id,
             scenario_id=alert.scenario_id,
@@ -393,30 +448,39 @@ class TypologyDetector:
                 "heuristic_name": f"{heuristic_type}_traversal",
                 "chain_length": len(alert.member_txids),
                 "reconvergence_detected": heuristic_type == "layering",
-                "primary_destination": alert.primary_wallet
+                "primary_destination": alert.primary_wallet,
             },
-            # Populated on demand by get_evidence(). Keeping detector startup
-            # heuristic-only avoids running one XGBoost explanation per alert.
-            ml_feature_attributions=[],
+            # Binary SHAP from the ML model (pre-computed at scan time)
+            ml_feature_attributions=[
+                FeatureAttribution(**item) for item in binary_shap
+            ],
+            # Typology SHAP from the ML model (pre-computed at scan time)
+            typology_shap_attributions=[
+                FeatureAttribution(**item) for item in typology_shap
+            ],
+            typology_explanation=typology_explanation,
             telemetry_summary={
-                "origin_ips": list({t["relay_ip"] for t in tx_records if t["relay_ip"]}),
-                "origin_asns": list({t["asn"] for t in tx_records if t["asn"]}),
-                "countries": list({t["country_code"] for t in tx_records if t["country_code"]}),
-                "infrastructure_distribution": infra_dist
+                "origin_ips":  list({t["relay_ip"]  for t in tx_records if t["relay_ip"]}),
+                "origin_asns": list({t["asn"]        for t in tx_records if t["asn"]}),
+                "countries":   list({t["country_code"] for t in tx_records if t["country_code"]}),
+                "infrastructure_distribution": infra_dist,
             },
-            transactions=tx_records
+            transactions=tx_records,
         )
         self.evidence_cache[alert.candidate_id] = evidence
+
+    # ------------------------------------------------------------------
+    # Public API
+    # ------------------------------------------------------------------
 
     def get_alerts(
         self,
         min_confidence: float = 0.50,
         pattern_type: Optional[str] = None,
-        limit: int = 50
+        limit: int = 50,
     ) -> List[AlertSummary]:
         if not self.is_scanned:
             self.scan_all_typologies()
-            
         filtered = [
             a for a in self.detected_alerts
             if a.confidence >= min_confidence
@@ -425,31 +489,19 @@ class TypologyDetector:
         return filtered[:limit]
 
     def get_evidence(self, candidate_id: str) -> Optional[EvidenceResponse]:
+        """
+        Return cached evidence.  Binary and typology SHAP are pre-computed at
+        scan time and are always present — no lazy re-invocation needed.
+        """
         if not self.is_scanned:
             self.scan_all_typologies()
-        evidence = self.evidence_cache.get(candidate_id)
-        if evidence is None or candidate_id in self._attribution_attempted:
-            return evidence
-
-        self._attribution_attempted.add(candidate_id)
-        try:
-            from backend.app.services.ml_service import ml_service
-
-            evidence.ml_feature_attributions = [
-                FeatureAttribution(**item)
-                for item in ml_service.explain_features(evidence.transactions)
-            ]
-        except Exception:
-            # Heuristic evidence remains useful when optional ML attribution
-            # cannot be produced, but no fabricated SHAP values are returned.
-            logger.exception("Could not compute ML feature attribution for %s", candidate_id)
-        return evidence
+        return self.evidence_cache.get(candidate_id)
 
     def get_typologies_for_tx(self, txid: int) -> List[str]:
-        """Returns all detected typology patterns associated with a specific transaction."""
         if not self.is_scanned:
             self.scan_all_typologies()
         return self.tx_typology_map.get(int(txid), [])
+
 
 # Global Singleton Instance
 typology_detector = TypologyDetector()

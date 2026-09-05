@@ -143,6 +143,11 @@ class AlertSummary(BaseModel):
     member_txids: List[int]
     member_wallets: List[str]
     detected_at: str
+    is_ml_driven: bool = Field(
+        default=True,
+        description="True when label/confidence come from the ML model, not a hardcoded heuristic."
+    )
+    risk_score: float = Field(default=0.0, description="Binary model P(illicit) score from 0–1.")
 
 class AlertListResponse(BaseModel):
     total_alerts: int
@@ -160,6 +165,11 @@ class EvidenceResponse(BaseModel):
     predicted_pattern_type: str
     confidence: float
     typology_heuristic_match: Dict[str, Any]
+    # Binary model SHAP attributions (kept for backwards compatibility)
     ml_feature_attributions: List[FeatureAttribution]
+    # Typology model SHAP attributions for the predicted class
+    typology_shap_attributions: List[FeatureAttribution] = Field(default_factory=list)
+    # Human-readable explanation generated from typology SHAP
+    typology_explanation: str = ""
     telemetry_summary: Dict[str, Any]
     transactions: List[Dict[str, Any]]

@@ -4,6 +4,10 @@ ML model loading, V7 feature extraction, inference, and explanations.
 The persisted V7 manifest is the single source of truth for model paths and
 feature order. This module imports feature modules only for reusable functions;
 their CLI pipelines are guarded and never run here.
+
+Explainability covers BOTH models:
+  - explain_binary_features(): binary is_illicit model (XGBoost SHAP contribs)
+  - explain_typology_features(): typology multiclass model (TreeExplainer per-class)
 """
 
 import importlib
@@ -11,7 +15,7 @@ import json
 import logging
 import sys
 from pathlib import Path
-from typing import Any, Dict, List
+from typing import Any, Dict, List, Optional
 
 import numpy as np
 import pandas as pd
@@ -41,6 +45,76 @@ FORBIDDEN_FEATURES = {
     "scenario_id",
     "is_licit_exchange",
 }
+
+# Natural-language templates for typology SHAP explanations.
+# Keyed by typology class name → list of (feature_name, direction, phrase) triples.
+# If the actual top SHAP features for a prediction match an entry, the phrase is used;
+# otherwise a generic fallback is constructed from raw feature names.
+_TYPOLOGY_FEATURE_PHRASES: Dict[str, Dict[str, str]] = {
+    "peeling_chain": {
+        "max_chain_length": "long sequential hop chain",
+        "amount_decay_slope": "declining output amounts across hops",
+        "address_reuse_ratio": "high carry-address reuse",
+        "change_output_ratio": "frequent 1-to-2 change outputs",
+        "io_count_ratio": "low input-to-output ratio",
+        "mean_num_outputs": "predominantly 1–2 outputs per hop",
+        "graph_density": "sparse linear graph topology",
+    },
+    "layering": {
+        "max_in_degree": "high fan-in degree at consolidation node",
+        "max_out_degree": "high fan-out degree at dispersion node",
+        "avg_clustering": "clustering from co-participation",
+        "unique_output_addrs": "large number of unique output addresses",
+        "mean_num_outputs": "high output arity per transaction",
+        "degree_assortativity": "assortative mixing between high-degree nodes",
+    },
+    "mixing": {
+        "output_amount_gini": "near-equal output denomination (low Gini)",
+        "denomination_entropy": "low denomination entropy",
+        "io_count_ratio": "balanced N-to-N input/output count",
+        "unique_input_addrs": "many distinct co-spending parties",
+        "round_number_ratio": "high round-number output amounts",
+        "avg_clustering": "multi-party co-spending clustering",
+    },
+    "ransomware": {
+        "suspicious_infra_ratio": "high proportion of suspicious relay infrastructure",
+        "num_txns": "short concentrated payment burst",
+        "burstiness_B": "high inter-transaction burstiness",
+        "inter_tx_delta_min": "extremely short inter-transaction gaps",
+        "unique_asn_count": "concentrated relay ASN origin",
+        "prop_delta_mean": "anomalous propagation delay from high-risk relay",
+        "unique_ip_count": "few relay IPs (concentrated origin)",
+    },
+}
+
+
+def _make_typology_explanation(
+    typology: str,
+    confidence: float,
+    top_shap: List[Dict[str, Any]],
+) -> str:
+    """
+    Generate a human-readable typology explanation from actual top SHAP features.
+    Uses phrase templates where available, raw feature names as fallback.
+    """
+    phrases = _TYPOLOGY_FEATURE_PHRASES.get(typology, {})
+    evidence_parts = []
+    for item in top_shap[:3]:
+        fname = item["feature_name"]
+        direction = item["direction"]
+        phrase = phrases.get(fname)
+        if phrase:
+            qualifier = "elevated" if direction == "RISK_INCREASING" else "reduced"
+            evidence_parts.append(f"{qualifier} {phrase}")
+        else:
+            qualifier = "↑" if direction == "RISK_INCREASING" else "↓"
+            evidence_parts.append(f"{qualifier}{fname}={item['value']:.3g}")
+
+    evidence_str = "; ".join(evidence_parts) if evidence_parts else "feature pattern match"
+    return (
+        f"Flagged as likely {typology} (confidence {confidence*100:.1f}%): "
+        f"{evidence_str}."
+    )
 
 
 class MLService:
@@ -168,6 +242,12 @@ class MLService:
         )
 
     def _feature_dict(self, scenario_txs: List[Dict[str, Any]]) -> Dict[str, float]:
+        """
+        Compute features from raw transaction records using the EXACT same
+        compute_scenario_features + compute_graph_features functions used at
+        training time (imported from ml.02_feature_engineering and
+        ml.02b_graph_features). This guarantees zero train/serve skew.
+        """
         if not scenario_txs:
             raise ValueError("At least one transaction is required for feature extraction")
 
@@ -197,8 +277,11 @@ class MLService:
         values = self._feature_dict(scenario_txs)
         return np.asarray([list(values.values())], dtype=np.float32)
 
-    def explain_features(self, scenario_txs: List[Dict[str, Any]], top_n: int = 5) -> List[Dict[str, Any]]:
-        """Return actual XGBoost prediction contributions for the binary model."""
+    def explain_binary_features(self, scenario_txs: List[Dict[str, Any]], top_n: int = 5) -> List[Dict[str, Any]]:
+        """
+        Return XGBoost prediction contributions (SHAP) for the BINARY is_illicit model.
+        Uses the native XGBoost pred_contribs which is TreeSHAP-equivalent.
+        """
         if not self.is_loaded:
             self.load_model()
         features = self._feature_dict(scenario_txs)
@@ -228,6 +311,63 @@ class MLService:
             for name, value, contribution in ranked
         ]
 
+    # Kept for backwards compatibility – delegates to the renamed method.
+    def explain_features(self, scenario_txs: List[Dict[str, Any]], top_n: int = 5) -> List[Dict[str, Any]]:
+        return self.explain_binary_features(scenario_txs, top_n=top_n)
+
+    def explain_typology_features(
+        self,
+        scenario_txs: List[Dict[str, Any]],
+        predicted_class_index: int,
+        top_n: int = 5,
+    ) -> List[Dict[str, Any]]:
+        """
+        Return XGBoost SHAP contributions for the TYPOLOGY multiclass model,
+        specific to the predicted class (the class the model assigned).
+
+        XGBoost's pred_contribs for multi:softprob returns a matrix of shape
+        (1, n_classes * (n_features + 1)) where contributions for class k occupy
+        columns [k*(n_features+1) : (k+1)*(n_features+1)].
+        """
+        if not self.is_loaded:
+            self.load_model()
+        features = self._feature_dict(scenario_txs)
+        matrix = np.asarray([list(features.values())], dtype=np.float32)
+        import xgboost as xgb
+
+        # pred_contribs=True on a multiclass booster returns shape
+        # (n_samples, n_classes, n_features+1)
+        contributions = self.typology_model.get_booster().predict(
+            xgb.DMatrix(matrix), pred_contribs=True
+        )
+        # contributions shape: (1, n_classes, n_features+1)
+        contribs_flat = np.asarray(contributions)
+        if contribs_flat.ndim == 3:
+            # Expected: (1, n_classes, n_features+1)
+            class_contribs = contribs_flat[0, predicted_class_index, :-1]
+        elif contribs_flat.ndim == 2:
+            # Some XGBoost versions flatten: (1, n_classes*(n_features+1))
+            n_feats = len(self.feature_names)
+            start = predicted_class_index * (n_feats + 1)
+            class_contribs = contribs_flat[0, start : start + n_feats]
+        else:
+            raise RuntimeError(f"Unexpected SHAP contributions shape: {contribs_flat.shape}")
+
+        ranked = sorted(
+            zip(self.feature_names, matrix[0], class_contribs),
+            key=lambda item: abs(float(item[2])),
+            reverse=True,
+        )[:top_n]
+        return [
+            {
+                "feature_name": name,
+                "value": float(value),
+                "shap_value": float(contribution),
+                "direction": "RISK_INCREASING" if contribution >= 0 else "RISK_DECREASING",
+            }
+            for name, value, contribution in ranked
+        ]
+
     def _decode_typology(self, class_index: int) -> str:
         if not self.typology_classes:
             raise RuntimeError("Typology classes are not loaded")
@@ -236,7 +376,11 @@ class MLService:
         return self.typology_classes[class_index]
 
     def predict_risk(self, target: Any) -> Dict[str, Any]:
-        """Predict binary risk and, when illicit, decode the typology safely."""
+        """
+        Predict binary risk and, when illicit, decode the typology safely.
+        Returns calibrated probabilities for both binary and typology models.
+        Confidence = max class probability from the typology model (not binary distance).
+        """
         if not self.is_loaded:
             self.load_model()
 
@@ -260,6 +404,8 @@ class MLService:
                     "model_used": "unknown",
                     "scenario_id": None,
                     "typology": "normal",
+                    "typology_confidence": 0.0,
+                    "typology_class_index": -1,
                 }
             scenario_id = tx_record.get("scenario_id")
             if scenario_id:
@@ -280,6 +426,8 @@ class MLService:
                 "model_used": "unknown",
                 "scenario_id": scenario_id,
                 "typology": "normal",
+                "typology_confidence": 0.0,
+                "typology_class_index": -1,
             }
 
         try:
@@ -294,6 +442,8 @@ class MLService:
                 "model_used": "binary_error",
                 "scenario_id": scenario_id,
                 "typology": "unknown",
+                "typology_confidence": 0.0,
+                "typology_class_index": -1,
                 "error": str(exc),
             }
 
@@ -301,16 +451,26 @@ class MLService:
         result: Dict[str, Any] = {
             "risk_score": round(score, 4),
             "is_illicit": is_illicit,
+            # Binary confidence: distance from 0.5 threshold, normalized to [0,1]
             "confidence": round(abs(score - 0.5) * 2, 4),
             "model_used": "xgboost_v7",
             "scenario_id": scenario_id,
             "typology": "normal" if not is_illicit else "unknown",
+            "typology_confidence": 0.0,
+            "typology_class_index": -1,
         }
 
         if is_illicit:
             try:
-                class_index = int(self.typology_model.predict(features)[0])
+                typ_proba = self.typology_model.predict_proba(features)[0]
+                class_index = int(np.argmax(typ_proba))
+                typ_confidence = float(typ_proba[class_index])
                 result["typology"] = self._decode_typology(class_index)
+                # Override confidence with the typology model's calibrated probability
+                # (more meaningful than binary distance for the alert ranking score)
+                result["confidence"] = round(typ_confidence, 4)
+                result["typology_confidence"] = round(typ_confidence, 4)
+                result["typology_class_index"] = class_index
             except Exception as exc:
                 # Typology failure must not erase a valid binary result.
                 logger.exception("Typology V7 inference/decoding failed")
@@ -318,6 +478,83 @@ class MLService:
                 result["typology_error"] = str(exc)
 
         return result
+
+    def score_candidate(
+        self,
+        scenario_txs: List[Dict[str, Any]],
+        candidate_id: Optional[str] = None,
+    ) -> Dict[str, Any]:
+        """
+        Full ML scoring for a candidate subgraph (list of tx dicts).
+        Returns binary risk + typology label + confidence + SHAP explanations
+        for BOTH models.  Used by typology_detector to produce ML-driven alerts.
+        """
+        if not self.is_loaded:
+            self.load_model()
+
+        try:
+            features = self.extract_features(scenario_txs)
+            bin_proba = self.model.predict_proba(features)[0]
+            risk_score = float(bin_proba[1])
+            is_illicit = bool(risk_score >= 0.5)
+        except Exception as exc:
+            logger.exception("Binary inference failed for candidate %s", candidate_id)
+            return {
+                "risk_score": 0.0,
+                "is_illicit": False,
+                "confidence": 0.0,
+                "typology": "unknown",
+                "typology_confidence": 0.0,
+                "typology_class_index": -1,
+                "binary_shap": [],
+                "typology_shap": [],
+                "typology_explanation": "ML inference failed.",
+                "error": str(exc),
+            }
+
+        typology = "normal"
+        typ_confidence = 0.0
+        typ_class_idx = -1
+        typ_shap: List[Dict[str, Any]] = []
+        typ_explanation = ""
+
+        if is_illicit:
+            try:
+                typ_proba = self.typology_model.predict_proba(features)[0]
+                typ_class_idx = int(np.argmax(typ_proba))
+                typ_confidence = float(typ_proba[typ_class_idx])
+                typology = self._decode_typology(typ_class_idx)
+
+                # Typology SHAP for the predicted class
+                typ_shap = self.explain_typology_features(
+                    scenario_txs, predicted_class_index=typ_class_idx, top_n=5
+                )
+                typ_explanation = _make_typology_explanation(typology, typ_confidence, typ_shap)
+            except Exception as exc:
+                logger.exception("Typology inference/SHAP failed for candidate %s", candidate_id)
+                typ_explanation = "Typology scoring failed."
+
+        # Binary SHAP
+        bin_shap: List[Dict[str, Any]] = []
+        try:
+            bin_shap = self.explain_binary_features(scenario_txs, top_n=5)
+        except Exception:
+            logger.exception("Binary SHAP failed for candidate %s", candidate_id)
+
+        # Final confidence: typology model probability when illicit, binary distance otherwise
+        final_confidence = round(typ_confidence if is_illicit else abs(risk_score - 0.5) * 2, 4)
+
+        return {
+            "risk_score": round(risk_score, 4),
+            "is_illicit": is_illicit,
+            "confidence": final_confidence,
+            "typology": typology,
+            "typology_confidence": round(typ_confidence, 4),
+            "typology_class_index": typ_class_idx,
+            "binary_shap": bin_shap,
+            "typology_shap": typ_shap,
+            "typology_explanation": typ_explanation,
+        }
 
 
 ml_service = MLService()
