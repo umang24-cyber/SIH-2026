@@ -1,23 +1,23 @@
 {
   "binary_fp": [
-    "normal_00010",
-    "normal_00029",
-    "normal_00031",
-    "normal_00037",
-    "normal_00043"
+    "normal_00012",
+    "normal_00152",
+    "normal_00284",
+    "normal_00366",
+    "normal_00532"
   ],
   "binary_fn": [
-    "layering_04868",
-    "layering_04882",
-    "layering_04900",
-    "layering_04905",
-    "layering_04910"
+    "peeling_chain_04823",
+    "peeling_chain_04833",
+    "ransomware_03257",
+    "ransomware_03720",
+    "ransomware_04334"
   ],
   "typology_errs": [
-    "layering_04868",
-    "layering_04882",
-    "layering_04900",
-    "layering_04919",
-    "layering_04952"
+    "layering_04941",
+    "layering_04983",
+    "layering_05005",
+    "layering_05037",
+    "layering_05058"
   ]
 }

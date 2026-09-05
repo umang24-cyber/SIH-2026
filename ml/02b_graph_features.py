@@ -91,9 +91,10 @@ def compute_graph_features(grp: pd.DataFrame) -> dict:
 
     # max_chain_length — longest simple path length
     # Use dag_longest_path_length if DAG, else BFS fallback with depth limit 15.
+    # B3 FIX: Pass weight=None to dag_longest_path_length so it counts hops, not amounts.
     if nx.is_directed_acyclic_graph(G):
         try:
-            max_chain_length = nx.dag_longest_path_length(G)
+            max_chain_length = nx.dag_longest_path_length(G, weight=None)
         except Exception:
             max_chain_length = 1
     else:
@@ -114,6 +115,9 @@ def compute_graph_features(grp: pd.DataFrame) -> dict:
                             visited.add(nxt)
                             queue.append((nxt, depth + 1))
         max_chain_length = max_depth
+        
+    # Divide by 2 because bipartite graph has 2 edges per transaction (addr->tx->addr)
+    max_chain_length = max_chain_length // 2
 
     # avg_clustering — on address-only one-mode projection (NOT the raw bipartite graph).
     # IMPORTANT: avg_clustering on any bipartite graph's undirected form is ALWAYS 0.0
