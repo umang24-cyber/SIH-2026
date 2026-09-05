@@ -182,7 +182,15 @@ def compute_scenario_features(grp: pd.DataFrame) -> dict:
     feats["unique_input_addrs"]  = len(all_in_addrs)
     feats["unique_output_addrs"] = len(all_out_addrs)
 
-    # address_reuse_ratio: fraction of output addresses that also appear as inputs
+    # fanout_ratio: unique output addresses per transaction (structural breadth).
+    # fanin_ratio:  unique input addresses per transaction (structural depth).
+    # NOTE: These are NOT redundant with mean_num_outputs / mean_num_inputs.
+    #   mean_num_outputs = per-transaction arity (counting duplicates within a txn).
+    #   fanout_ratio     = unique output wallets spread per transaction (scenario-level density).
+    # Example where they diverge: peeling_chain has high mean_num_outputs per txn (outputs
+    # to change+main chain) but LOW fanout_ratio (same wallet reused across chain hops).
+    feats["fanout_ratio"] = len(all_out_addrs) / n if n > 0 else 0.0
+    feats["fanin_ratio"]  = len(all_in_addrs)  / n if n > 0 else 0.0
     overlap = all_in_addrs & all_out_addrs
     feats["address_reuse_ratio"] = len(overlap) / len(all_out_addrs) if all_out_addrs else 0.0
 
@@ -210,9 +218,6 @@ def compute_scenario_features(grp: pd.DataFrame) -> dict:
                     break
         change_flags.append(txn_change_count / len(out_amts))
     feats["change_output_ratio"] = float(np.mean(change_flags))
-
-    # fanout_ratio removed due to mathematical redundancy with mean_num_outputs
-    # fanin_ratio removed due to mathematical redundancy with mean_num_inputs
 
     script_counts = grp["script_type"].value_counts()
     feats["script_type_entropy"] = shannon_entropy(script_counts.values)

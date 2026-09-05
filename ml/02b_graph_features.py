@@ -115,9 +115,27 @@ def compute_graph_features(grp: pd.DataFrame) -> dict:
                             queue.append((nxt, depth + 1))
         max_chain_length = max_depth
 
-    # avg_clustering — on undirected projection of the full graph
-    G_undirected = G.to_undirected()
-    avg_clustering = nx.average_clustering(G_undirected)
+    # avg_clustering — on address-only one-mode projection (NOT the raw bipartite graph).
+    # IMPORTANT: avg_clustering on any bipartite graph's undirected form is ALWAYS 0.0
+    # because triangles cannot exist in a bipartite graph (addr and tx nodes are disjoint
+    # sets, so no addr-addr-addr triangle can close). The one-mode projection connects
+    # address nodes that share at least one transaction, which CAN form triangles.
+    # B2 FIX: compute clustering on the address-to-address co-occurrence graph.
+    G_addr_proj = nx.Graph()
+    G_addr_proj.add_nodes_from(addr_nodes)
+    for tx_node in [n for n in G.nodes() if n.startswith("tx_")]:
+        coparticipants = (
+            [p for p in G.predecessors(tx_node) if p.startswith("addr_")] +
+            [s for s in G.successors(tx_node)   if s.startswith("addr_")]
+        )
+        for i in range(len(coparticipants)):
+            for j in range(i + 1, len(coparticipants)):
+                G_addr_proj.add_edge(coparticipants[i], coparticipants[j])
+    avg_clustering = (
+        nx.average_clustering(G_addr_proj)
+        if G_addr_proj.number_of_nodes() > 0
+        else 0.0
+    )
 
     # max_in_degree, max_out_degree — address nodes only (filter out tx_ nodes)
     addr_in_degrees  = [G.in_degree(n)  for n in addr_nodes if G.has_node(n)]

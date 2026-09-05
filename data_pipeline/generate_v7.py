@@ -1,9 +1,16 @@
 """
-generate_v5.py
+generate_v7.py
 ==============
-SIH 2026 — Bitcoin AML Dataset v5.0 Generation Pipeline
+SIH 2026 — Bitcoin AML Dataset v7.0 Generation Pipeline
 
-V5 Key Improvements over V4 (targeted at specific downstream feature shortcuts):
+V7 Key Improvements over V6:
+  1. HierarchicalSampler: BitcoinHeist macro + ORBITAAL micro profiles drive scenario sizing.
+  2. Typology-specific sc_size multipliers (B1 fix): prevents num_txns collapse to a
+     single point mass by applying per-typology floor/cap before the global limit.
+  3. Ransomware fan_in input count (B5 fix): fan_in primitive uses 1-2 inputs for ransomware
+     (victim-payment semantics: 1 victim → 1 attacker), not 3-8 (structural consolidation).
+
+V5/V6 Key Improvements (inherited, for reference):
   1. HARMONIZED input/output count distributions:
      - All typologies + licit share a BROAD overlapping pool of n_inputs/n_outputs
        distributions, with per-typology weights that create real but subtle
@@ -383,7 +390,14 @@ def generate_probabilistic_scenario(sc_id, pattern_type, target_tx_count, base_t
                 active_wallets.append((w, a))
                 
         elif prim == "fan_in":
-            n_in = random.randint(3, 8)
+            # B5 FIX: ransomware fan_in uses 1-2 inputs (victim-payment semantics:
+            # one victim address → one attacker wallet). Structural typologies use
+            # 3-8 inputs (true consolidation). This corrects the anomalous
+            # io_count_ratio for ransomware (was median=3.6, should be ~1.0).
+            if pattern_type == "ransomware":
+                n_in = random.randint(1, 2)
+            else:
+                n_in = random.randint(3, 8)
             in_addrs = []
             in_amts = []
             for _ in range(n_in):
@@ -472,9 +486,26 @@ for pat_type, num_scenarios in SCENARIO_COUNTS.items():
             t_year = random.randint(2013, 2018)
             prof = sampler.sample(scenario_type="background", target_year=t_year)
             
-        sc_size = max(5, int(prof["macro"]["total_count"]))
-        # Adjust size if it's too big to avoid OOM and long loops
-        sc_size = min(sc_size, 200)
+        # B1 FIX: typology-specific sc_size multipliers.
+        # BitcoinHeist total_count median = 1 for BOTH background and ransomware.
+        # Without this fix, max(5, 1) = 5 for ALL typologies → num_txns collapses
+        # to identical distributions (97.5% licit/illicit overlap diagnosed in audit).
+        # Multipliers and floors reflect real behavioral differences per typology:
+        #   peeling_chain: long chains → 1.5x, floor=10
+        #   layering:      moderate depth → 1.2x, floor=8
+        #   mixing:        round-trip cycles → floor=15 (must have enough for rounds)
+        #   ransomware:    short, concentrated → 0.5x, cap=50
+        #   normal:        unchanged baseline
+        _TYPOLOGY_SC_SIZE = {
+            "peeling_chain": (1.5, 10, 300),
+            "layering":      (1.2, 8,  300),
+            "mixing":        (1.0, 15, 300),
+            "ransomware":    (0.5, 3,  50),
+            "normal":        (1.0, 5,  200),
+        }
+        _raw_count = max(1, int(prof["macro"]["total_count"]))
+        _mult, _floor, _cap = _TYPOLOGY_SC_SIZE.get(pat_type, (1.0, 5, 200))
+        sc_size = max(_floor, min(int(_raw_count * _mult), _cap))
         
         target_dur_hrs = max(2.0, float(prof["macro"]["active_days"]) * 24.0)
         
