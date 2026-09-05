@@ -209,3 +209,50 @@ The pipeline generates three deliverables in [`output/`](file:///c:/Users/HP/One
 ```powershell
 .\graph_engine\.venv\Scripts\python -m graph_engine.main --no-validate
 ```
+
+---
+
+## 10. Frontend Visualizer Integration & Scale Architecture (BitKaun CLI)
+
+To present the Graph Engine's output to non-technical users and competition judges, an end-to-end integration was completed with **BitKaun**—a retro-forensic CLI terminal & 3D visualizer built with React, Vite, and Three.js.
+
+### 10.1. Data Extraction & Realism Layer (`scripts/build_visualizer_data.py`)
+* Created an automated Python extractor script to process `output/graph_export.json` (**459,975 nodes**, **527,143 edges**) and `output/validation_report.json`.
+* Extracted **68 curated showcase nodes** representing key graph entities (high-risk Bitcoin wallets, relay IPs, and detected candidate structures like `peel_0564`, `layer_1054`, and `mix_0755`).
+* Generated `src/data/forensicData.ts`, replacing legacy Ethereum mock data with real Bitcoin metrics (`balanceBtc`, `txid`, `UTXO`, `Peeling Hop`).
+* Purged all legacy EVM terminology (`ETH`, `Gwei`, `Gas`, `Smart Contract`) across UI types, terminal commands (`inspect`, `trace`, `dmesg`, `status`), and view modes.
+
+### 10.2. GraphView3D Web Worker & GPU Point-Cloud Engine
+To render the massive **459,975 nodes** and **527,143 edges** in 3D without crashing the browser, a Web Worker + WebGL point-cloud rendering pipeline was implemented:
+
+1. **Off-Main-Thread Web Worker (`src/workers/graphLoader.worker.ts`):**
+   * Asynchronously fetches `/data/graph_export.json` (232 MB static asset in `public/data/`).
+   * Computes 3D Fibonacci-sphere spatial coordinates for all 459k nodes off the UI thread, placing detected candidate typologies into distinct 3D zones:
+     * **Peeling Chains:** Negative X axis ($X = -180$).
+     * **Layering Networks:** Positive X axis ($X = +180$).
+     * **Mixing Clusters:** Lower Y axis ($Y = -160$).
+     * **Benign Background Origin:** Central sphere ($R = 80\text{--}140\text{ units}$).
+   * Color-encodes node types: Peeling (red), Layering (amber), Mixing (blue), Benign (dark green), Transactions (slate), IPs (gold).
+   * Transfers layout buffers (`positions`, `colors`, `edgePositions`, `nodeTypes`) to the main thread via **zero-copy ArrayBuffer transferables**.
+
+2. **GPU Point-Cloud Renderer (`src/components/views/GraphView3D.tsx`):**
+   * Replaced heavy per-node DOM/Mesh objects with a single `THREE.Points` object (459k vertices) and a single `THREE.LineSegments` sample (~80k edges).
+   * Implemented vertex raycasting (`raycaster.params.Points.threshold = 3.5`) for fast hover detection.
+   * **Detail-on-Demand:** High-detail wireframes and label canvas sprites are rendered dynamically only when a node or structure is clicked.
+   * **Interactive HUD:** Displays real-time node/edge counters, candidate badges, node hover cards, and interactive typology filter buttons (`[ALL] [PEEL] [LAYER] [MIX]`).
+
+### 10.3. Offline Hardening & Build Verification
+* **100% Offline Operation:** Removed external Google Font CDN references (`fonts.googleapis.com`) in favor of system monospace font stacks. Replaced external audio files with procedural Web Audio API sound synthesis.
+* **Environment Setup:** Installed Node.js LTS (`v24.19.0`) and `npm` (`v11.17.0`) via `winget`. Installed 78 NPM dependencies.
+* **Build Verification:** Tested and verified the complete production build (`npm run build`), passing `tsc` type checking and `vite build` with **0 errors**.
+
+### 10.4. Running the Frontend Visualizer
+```powershell
+# 1. Start Vite development server
+npm run dev
+
+# 2. Access Visualizer
+# Open http://localhost:5173 in your browser
+# Type 'graph' in the BitKaun terminal to load the 3D point cloud
+```
+

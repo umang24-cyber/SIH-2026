@@ -2,9 +2,10 @@ import React, { useState, useEffect, useRef } from 'react';
 import { ForensicNode, ForensicLink, KernelLogEntry } from '../types/terminal';
 import { COMMAND_REGISTRY } from '../data/mockForensicData';
 import { sound } from '../audio/soundEngine';
-import GraphView from '../graph/components/GraphView';
 import { InspectView } from './views/InspectView';
 import { TraceView } from './views/TraceView';
+import { GraphView3D } from './views/GraphView3D';
+import { INITIAL_NODES, INITIAL_LINKS } from '../data/forensicData';
 
 export interface TerminalEntry {
   id: string;
@@ -117,9 +118,11 @@ export const CliOutputRenderer: React.FC<CliOutputRendererProps> = ({
               </span>
             )}
           </div>
-          <GraphView
-            scenarioId={entry.content?.scenarioId || 'peel_001'}
-            onClose={onCloseEntry ? () => onCloseEntry(entry.id) : undefined}
+          <GraphView3D
+            nodes={INITIAL_NODES}
+            links={INITIAL_LINKS}
+            onSelectNode={(id) => onRunCommand(`inspect ${id}`)}
+            onRunCommand={onRunCommand}
           />
         </div>
       )}

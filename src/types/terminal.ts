@@ -3,10 +3,10 @@ export type ViewMode = 'BANNER' | 'GRAPH' | 'INSPECT' | 'LOGS' | 'HELP' | 'TRACE
 export interface ForensicNode {
   id: string;
   label: string;
-  type: 'WALLET' | 'MIXER' | 'EXCHANGE' | 'TRANSACTION' | 'SUSPECT' | 'IP';
+  type: 'WALLET' | 'MIXER' | 'EXCHANGE' | 'TRANSACTION' | 'SUSPECT' | 'IP' | 'SMART_CONTRACT' | 'MERCHANT' | 'PEELING_CHAIN' | 'LAYERING_HUB';
   riskScore: number; // 0 - 100
   clusterId: string;
-  balanceBtc: number;
+  balanceBtc?: number;
   balanceEth?: number; // legacy alias fallback
   txCount: number;
   firstSeen: string;
@@ -17,6 +17,10 @@ export interface ForensicNode {
   isLicitExchange?: boolean;
   address?: string;
   txid?: number;
+  candidateId?: string;
+  candidateType?: string;
+  asn?: string;
+  relayIp?: string;
   x?: number;
   y?: number;
   z?: number;
@@ -28,13 +32,14 @@ export interface ForensicNode {
 export interface ForensicLink {
   source: string;
   target: string;
-  txid: number | string;
+  txid?: number | string;
   txHash?: string; // legacy alias fallback
-  amountBtc: number;
+  amountBtc?: number;
   amountEth?: number; // legacy alias fallback
   timestamp: string;
   isSuspicious: boolean;
   hopIndex?: number;
+  candidateId?: string;
 }
 
 export interface KernelLogEntry {

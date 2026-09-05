@@ -15,8 +15,9 @@ from backend.app.core.config import BASE_DIR
 import sys
 if str(BASE_DIR) not in sys.path:
     sys.path.insert(0, str(BASE_DIR))
-from ml.02_feature_engineering import compute_scenario_features
-from ml.02b_graph_features import compute_graph_features
+import importlib
+compute_scenario_features = importlib.import_module("ml.02_feature_engineering").compute_scenario_features
+compute_graph_features = importlib.import_module("ml.02b_graph_features").compute_graph_features
 
 logger = logging.getLogger(__name__)
 
