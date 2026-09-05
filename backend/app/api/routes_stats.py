@@ -1,12 +1,15 @@
 """
 Scenario Cluster Explorer, Forensic Statistics & Benchmark Evaluation Routes.
 """
+import json
+
 from fastapi import APIRouter, Query, HTTPException, Response
 from typing import List, Dict, Any, Optional
 from collections import Counter
 from backend.app.services.data_service import data_service
 from backend.app.services.typology_detector import typology_detector
 from backend.app.services.scenario_service import scenario_service
+from backend.app.core.config import BASE_DIR
 
 router = APIRouter(tags=["Analytics"])
 
@@ -73,7 +76,7 @@ def get_scenario_profile(scenario_id: str):
 @router.get("/stats/telemetry")
 def get_telemetry_stats():
     """
-    Returns global network telemetry aggregations across all 82,078 transactions:
+    Returns global network telemetry aggregations across the loaded V7 dataset:
     - Distribution of origin node infrastructure
     - Top origin Autonomous Systems (ASNs)
     - Average propagation latency by infrastructure type
@@ -121,46 +124,30 @@ def get_telemetry_stats():
 @router.get("/eval/benchmark")
 def get_evaluation_benchmark():
     """
-    Offline Evaluation Benchmark Endpoint for Demo / Presentation:
-    Calculates quantitative detection metrics (Precision, Recall, F1-Score)
-    for heuristic and ML detection across laundering typologies.
+    Return the current V7 candidate benchmark metadata and stored model metrics.
+
+    Heuristic alert counts are runtime observations; precision/recall metrics
+    come only from the canonical V7 manifest and are not inferred here.
     """
-    # Compute confusion matrix metrics across 82,078 transactions
-    total_tx = len(data_service.txid_map)
-    total_alerts = len(typology_detector.detected_alerts)
+    manifest_path = BASE_DIR / "ml" / "manifests" / "MANIFEST_v7_candidate.json"
+    if not manifest_path.exists():
+        raise HTTPException(status_code=503, detail=f"V7 manifest not found: {manifest_path}")
+    try:
+        with manifest_path.open("r") as handle:
+            manifest = json.load(handle)
+    except Exception as exc:
+        raise HTTPException(status_code=503, detail=f"Could not read V7 manifest: {exc}") from exc
 
     return {
-        "dataset_version": "v2.0 (82,078 transactions)",
-        "evaluation_scope": "Offline Air-Gapped Validation Benchmark",
-        "candidate_alerts_flagged": total_alerts,
-        "performance_metrics": {
-            "peeling_chain": {
-                "precision": 0.962,
-                "recall": 0.941,
-                "f1_score": 0.951,
-                "detected_chains": 70
-            },
-            "layering": {
-                "precision": 0.918,
-                "recall": 0.935,
-                "f1_score": 0.926,
-                "detected_structures": 19996
-            },
-            "mixing_coinjoin": {
-                "precision": 0.984,
-                "recall": 0.978,
-                "f1_score": 0.981,
-                "detected_rounds": 2401
-            },
-            "ransomware": {
-                "precision": 0.905,
-                "recall": 0.892,
-                "f1_score": 0.898,
-                "detected_campaigns": 1179
-            }
-        },
-        "overall_macro_f1": 0.939,
-        "average_inference_latency_ms": 0.42
+        "dataset_version": manifest.get("dataset_version", "v7_candidate"),
+        "evaluation_scope": "Offline Air-Gapped V7 Candidate Benchmark",
+        "dataset_transactions": len(data_service.txid_map),
+        "dataset_scenarios": len(data_service.scenario_tx_map),
+        "feature_count": manifest.get("feature_count"),
+        "candidate_alerts_flagged": len(typology_detector.detected_alerts),
+        "model_metrics": manifest.get("evaluation_metrics", {}),
+        "calibration": manifest.get("calibration", {}),
+        "metric_timestamp": manifest.get("timestamp"),
     }
 
 @router.get("/alerts/{candidate_id}/export")

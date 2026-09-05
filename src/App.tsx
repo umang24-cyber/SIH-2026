@@ -71,7 +71,7 @@ export function App() {
             id: `entry-${Date.now()}`,
             command: trimmed,
             type: 'GRAPH',
-            content: { scenarioId: arg1 || 'licit_00001' }
+            content: { scenarioId: arg1 || 'normal_00001' }
           }
         ]);
         break;

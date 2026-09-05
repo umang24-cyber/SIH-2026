@@ -222,8 +222,8 @@ export const COMMAND_REGISTRY: CommandDescriptor[] = [
 
 export const INITIAL_LOGS: KernelLogEntry[] = [
   { id: '1', timestamp: '2026-09-05 13:50:00', uptime: '00:00:01', level: 'SYS', source: 'KERNEL', message: 'BitKaun Forensics Engine Initialized (WSL2/Linux 100% Offline).' },
-  { id: '2', timestamp: '2026-09-05 13:50:02', uptime: '00:00:03', level: 'INFO', source: 'INGEST', message: 'Indexed 82,078 blockchain transactions & 284,401 wallets in memory.' },
-  { id: '3', timestamp: '2026-09-05 13:50:04', uptime: '00:00:05', level: 'INFO', source: 'CLUSTERING', message: 'CIOH DSU Engine partitioned 244,363 entity clusters.' },
-  { id: '4', timestamp: '2026-09-05 13:50:06', uptime: '00:00:07', level: 'WARN', source: 'TYPOLOGY', message: 'Detected 23,646 high-confidence typology candidates.' },
+  { id: '2', timestamp: '2026-09-05 13:50:02', uptime: '00:00:03', level: 'INFO', source: 'INGEST', message: 'Indexed 294,693 blockchain transactions & 984,076 wallets in memory.' },
+  { id: '3', timestamp: '2026-09-05 13:50:04', uptime: '00:00:05', level: 'INFO', source: 'CLUSTERING', message: 'CIOH DSU Engine partitioned 634,214 entity clusters.' },
+  { id: '4', timestamp: '2026-09-05 13:50:06', uptime: '00:00:07', level: 'WARN', source: 'TYPOLOGY', message: 'Detected 1,282 scenario-level typology candidates.' },
   { id: '5', timestamp: '2026-09-05 13:50:08', uptime: '00:00:09', level: 'CRIT', source: 'TOR_INTEL', message: 'High-risk Tor Exit Node burst detected on IP 38.148.127.142.' }
 ];

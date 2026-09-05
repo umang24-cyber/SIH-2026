@@ -191,14 +191,20 @@ def process_split(bc_path: Path, split_name: str):
     return result
 
 
-train_graph = process_split(DATA / "train_blockchain.csv", "train")
-test_graph  = process_split(DATA / "test_blockchain.csv",  "test")
+def run_pipeline():
+    """Build and persist graph features for the train and test splits."""
+    train_graph = process_split(DATA / "train_blockchain.csv", "train")
+    test_graph  = process_split(DATA / "test_blockchain.csv", "test")
 
-train_path = DATA / "scenario_graph_features_train.csv"
-test_path  = DATA / "scenario_graph_features_test.csv"
-train_graph.to_csv(train_path, index=False)
-test_graph.to_csv(test_path,  index=False)
+    train_path = DATA / "scenario_graph_features_train.csv"
+    test_path  = DATA / "scenario_graph_features_test.csv"
+    train_graph.to_csv(train_path, index=False)
+    test_graph.to_csv(test_path, index=False)
 
-print(f"\nSaved: {train_path}  ({len(train_graph):,} rows)")
-print(f"Saved: {test_path}   ({len(test_graph):,} rows)")
-sep("DONE — 02b_graph_features.py")
+    print(f"\nSaved: {train_path}  ({len(train_graph):,} rows)")
+    print(f"Saved: {test_path}   ({len(test_graph):,} rows)")
+    sep("DONE — 02b_graph_features.py")
+
+
+if __name__ == "__main__":
+    run_pipeline()

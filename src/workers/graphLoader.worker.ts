@@ -1,8 +1,8 @@
 /**
  * graphLoader.worker.ts
  * ─────────────────────
- * Web Worker: fetches /data/graph_export.json, computes deterministic 3D
- * positions (cluster-sphere packing), builds typed Float32Arrays, and sends
+ * Web Worker: fetches a scenario from the live graph API, computes deterministic
+ * 3D positions (cluster-sphere packing), builds typed Float32Arrays, and sends
  * them back via zero-copy postMessage transferables.
  *
  * The main thread receives:
@@ -148,30 +148,63 @@ function deterministicPos(
   return [x, y, z];
 }
 
-// ─── Worker entry point ───────────────────────────────────────────────────────
-self.onmessage = async () => {
-  try {
-    // 1. Fetch graph_export.json
-    postMessage({ type: 'PROGRESS', pct: 2, message: 'Fetching graph_export.json …' });
+function normaliseApiNode(node: any): NodeRecord {
+  const type = String(node.type || '').toLowerCase();
+  const properties = node.properties || {};
+  if (type === 'transaction') {
+    const txid = properties.txid ?? String(node.id).replace(/^tx_/, '');
+    return {
+      id: `tx:${txid}`,
+      node_type: 'transaction',
+      candidate_ids: [],
+      txid: Number(txid),
+      timestamp: properties.timestamp,
+      fee_btc: Number(properties.fee_btc ?? 0),
+      total_input_btc: Number(properties.total_input_btc ?? 0),
+      total_output_btc: Number(properties.total_output_btc ?? 0),
+    };
+  }
+  if (type === 'ip') {
+    const ip = String(properties.relay_ip ?? String(node.id).replace(/^ip_/, ''));
+    return { id: `ip:${ip}`, node_type: 'ip', candidate_ids: [], relay_ip: ip, asn: properties.asn, isp: properties.isp };
+  }
+  const address = String(properties.address ?? node.id);
+  return { id: `w:${address}`, node_type: 'wallet', candidate_ids: [], address };
+}
 
-    const resp = await fetch('/data/graph_export.json');
+// ─── Worker entry point ───────────────────────────────────────────────────────
+self.onmessage = async (event: MessageEvent) => {
+  try {
+    const scenarioId = event.data?.scenarioId as string | undefined;
+    if (!scenarioId) throw new Error('A scenario ID is required for the live graph view');
+
+    // 1. Fetch a scenario graph from the live FastAPI backend.
+    postMessage({ type: 'PROGRESS', pct: 2, message: `Fetching live graph: ${scenarioId} …` });
+
+    const resp = await fetch(`/graph/${encodeURIComponent(scenarioId)}`);
     if (!resp.ok) throw new Error(`HTTP ${resp.status}: ${resp.statusText}`);
 
-    postMessage({ type: 'PROGRESS', pct: 15, message: 'Parsing 232 MB JSON …' });
-
-    const raw = await resp.text();
-
-    postMessage({ type: 'PROGRESS', pct: 35, message: 'Deserialising graph structure …' });
-
-    const data = JSON.parse(raw) as {
-      nodes: NodeRecord[];
-      edges: EdgeRecord[];
-      candidates: CandidateRecord[];
+    postMessage({ type: 'PROGRESS', pct: 20, message: 'Deserialising live graph structure …' });
+    const apiData = await resp.json() as {
+      nodes: Array<{ id: string; type: string; properties?: Record<string, any> }>;
+      edges: Array<{ source: string; target: string; type: string; properties?: Record<string, any> }>;
     };
-
-    const nodes = data.nodes;
-    const edges = data.edges;
-    const candidates = data.candidates;
+    const rawNodes = apiData.nodes || [];
+    const rawEdges = apiData.edges || [];
+    const nodeIdMap = new Map<string, string>();
+    const nodes = rawNodes.map(node => {
+      const normalised = normaliseApiNode(node);
+      nodeIdMap.set(node.id, normalised.id);
+      return normalised;
+    });
+    const edges: EdgeRecord[] = rawEdges.map(edge => ({
+      source: nodeIdMap.get(edge.source) ?? edge.source,
+      target: nodeIdMap.get(edge.target) ?? edge.target,
+      edge_type: edge.type,
+      amount_btc: Number(edge.properties?.amount_btc ?? 0),
+      candidate_ids: [],
+    }));
+    const candidates: CandidateRecord[] = [];
 
     postMessage({ type: 'PROGRESS', pct: 50, message: `Building position buffers (${nodes.length.toLocaleString()} nodes) …` });
 

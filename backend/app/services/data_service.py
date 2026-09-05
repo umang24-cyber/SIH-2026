@@ -1,6 +1,6 @@
 """
 In-Memory Data Service for Sub-Millisecond Forensic Queries.
-Loads 82,078 transactions once at server startup and builds address & scenario indexes.
+Loads 294,693 transactions once at server startup and builds address & scenario indexes.
 """
 import time
 import logging
@@ -25,6 +25,8 @@ class DataService:
 
     def initialize(self):
         """Loads master dataset and builds reverse indexes for instant lookups."""
+        if self.is_ready:
+            return
         logger.info("Initializing in-memory forensic data store...")
         t0 = time.time()
         self.df = load_master_dataset()

@@ -32,7 +32,6 @@ from scipy.stats import linregress
 ROOT = Path(__file__).resolve().parent.parent
 DATA = ROOT / "data" / "processed"
 OUT  = ROOT / "ml" / "outputs"
-OUT.mkdir(parents=True, exist_ok=True)
 
 ARRAY_COLS = ["input_addresses", "output_addresses", "input_amounts", "output_amounts"]
 
@@ -314,172 +313,139 @@ def process_split(bc_path: Path, net_path: Path, split_name: str):
 
 
 # ---------------------------------------------------------------------------
-# Main
+# CLI pipeline
 # ---------------------------------------------------------------------------
 
-sep("LOADING & PROCESSING TRAIN SPLIT")
-train_df = process_split(
-    DATA / "train_blockchain.csv",
-    DATA / "train_network.csv",
-    "train"
-)
+def run_pipeline():
+    """Build and validate the persisted feature artifacts."""
+    OUT.mkdir(parents=True, exist_ok=True)
+    sep("LOADING & PROCESSING TRAIN SPLIT")
+    train_df = process_split(
+        DATA / "train_blockchain.csv",
+        DATA / "train_network.csv",
+        "train"
+    )
 
-sep("LOADING & PROCESSING TEST SPLIT")
-test_df = process_split(
-    DATA / "test_blockchain.csv",
-    DATA / "test_network.csv",
-    "test"
-)
+    sep("LOADING & PROCESSING TEST SPLIT")
+    test_df = process_split(
+        DATA / "test_blockchain.csv",
+        DATA / "test_network.csv",
+        "test"
+    )
 
-# ---------------------------------------------------------------------------
-# Encode script_type_mode — fit on train only, apply to test
-# ---------------------------------------------------------------------------
-sep("ENCODING script_type_mode (train-only fit)")
+    sep("ENCODING script_type_mode (train-only fit)")
+    all_train_types = train_df["_script_type_mode_raw"].unique().tolist()
+    all_test_types  = test_df["_script_type_mode_raw"].unique().tolist()
+    all_types = sorted(set(all_train_types) | set(all_test_types))
 
-all_train_types = train_df["_script_type_mode_raw"].unique().tolist()
-# Add any types seen in test but not train (rare edge case)
-all_test_types  = test_df["_script_type_mode_raw"].unique().tolist()
-all_types = sorted(set(all_train_types) | set(all_test_types))
+    encoder = {t: i for i, t in enumerate(all_types)}
+    print(f"  Script type encoding: {encoder}")
+    train_df["script_type_mode"] = train_df["_script_type_mode_raw"].map(encoder)
+    test_df["script_type_mode"]  = test_df["_script_type_mode_raw"].map(encoder)
 
-encoder = {t: i for i, t in enumerate(all_types)}
-print(f"  Script type encoding: {encoder}")
+    enc_path = DATA / "script_type_encoder.json"
+    with open(enc_path, "w") as f:
+        json.dump(encoder, f, indent=2)
+    print(f"  Encoder saved: {enc_path}")
 
-train_df["script_type_mode"] = train_df["_script_type_mode_raw"].map(encoder)
-test_df["script_type_mode"]  = test_df["_script_type_mode_raw"].map(encoder)
+    label_cols = ["scenario_id", "_is_illicit", "_pattern_type", "_script_type_mode_raw"]
+    feature_cols = [c for c in train_df.columns if c not in label_cols]
+    print(f"\n  Feature columns ({len(feature_cols)}): {feature_cols}")
 
-# Save encoder
-enc_path = DATA / "script_type_encoder.json"
-with open(enc_path, "w") as f:
-    json.dump(encoder, f, indent=2)
-print(f"  Encoder saved: {enc_path}")
+    train_features = train_df[["scenario_id"] + [c for c in feature_cols if c != "scenario_id"]]
+    test_features  = test_df[["scenario_id"]  + [c for c in feature_cols if c != "scenario_id"]]
+    train_labels = train_df[["scenario_id", "_is_illicit", "_pattern_type"]].rename(
+        columns={"_is_illicit": "is_illicit", "_pattern_type": "pattern_type"}
+    )
+    test_labels  = test_df[["scenario_id", "_is_illicit", "_pattern_type"]].rename(
+        columns={"_is_illicit": "is_illicit", "_pattern_type": "pattern_type"}
+    )
 
-# ---------------------------------------------------------------------------
-# Separate features from labels
-# ---------------------------------------------------------------------------
-LABEL_COLS   = ["scenario_id", "_is_illicit", "_pattern_type", "_script_type_mode_raw"]
-FEATURE_COLS = [c for c in train_df.columns if c not in LABEL_COLS]
+    paths = {
+        "scenario_features_train": (DATA / "scenario_features_train.csv", train_features),
+        "scenario_features_test":  (DATA / "scenario_features_test.csv",  test_features),
+        "scenario_labels_train":   (DATA / "scenario_labels_train.csv",   train_labels),
+        "scenario_labels_test":    (DATA / "scenario_labels_test.csv",    test_labels),
+    }
+    for name, (path, df_out) in paths.items():
+        df_out.to_csv(path, index=False)
+        print(f"  Saved: {path}  ({len(df_out):,} rows)")
 
-print(f"\n  Feature columns ({len(FEATURE_COLS)}): {FEATURE_COLS}")
+    sep("VALIDATION GATE")
+    issues = []
+    train_unique_sc = pd.read_csv(DATA / "train_blockchain.csv")["scenario_id"].nunique()
+    test_unique_sc  = pd.read_csv(DATA / "test_blockchain.csv")["scenario_id"].nunique()
 
-# Features files (NO labels)
-train_features = train_df[["scenario_id"] + [c for c in FEATURE_COLS if c != "scenario_id"]]
-test_features  = test_df[["scenario_id"]  + [c for c in FEATURE_COLS if c != "scenario_id"]]
-
-# Labels files
-train_labels = train_df[["scenario_id", "_is_illicit", "_pattern_type"]].rename(
-    columns={"_is_illicit": "is_illicit", "_pattern_type": "pattern_type"}
-)
-test_labels  = test_df[["scenario_id", "_is_illicit", "_pattern_type"]].rename(
-    columns={"_is_illicit": "is_illicit", "_pattern_type": "pattern_type"}
-)
-
-# Save
-paths = {
-    "scenario_features_train": (DATA / "scenario_features_train.csv", train_features),
-    "scenario_features_test":  (DATA / "scenario_features_test.csv",  test_features),
-    "scenario_labels_train":   (DATA / "scenario_labels_train.csv",   train_labels),
-    "scenario_labels_test":    (DATA / "scenario_labels_test.csv",    test_labels),
-}
-for name, (path, df_out) in paths.items():
-    df_out.to_csv(path, index=False)
-    print(f"  Saved: {path}  ({len(df_out):,} rows)")
-
-# ---------------------------------------------------------------------------
-# VALIDATION GATE
-# ---------------------------------------------------------------------------
-sep("VALIDATION GATE")
-
-issues = []
-
-# ---- Check 1: row counts match unique scenario counts
-train_unique_sc = pd.read_csv(DATA / "train_blockchain.csv")["scenario_id"].nunique()
-test_unique_sc  = pd.read_csv(DATA / "test_blockchain.csv")["scenario_id"].nunique()
-
-if len(train_features) == train_unique_sc:
-    print(f"[PASS] scenario_features_train.csv has {len(train_features):,} rows == {train_unique_sc:,} unique train scenarios")
-else:
-    msg = f"[FAIL] scenario_features_train.csv has {len(train_features)} rows but {train_unique_sc} unique scenarios"
-    print(msg); issues.append(msg)
-
-if len(test_features) == test_unique_sc:
-    print(f"[PASS] scenario_features_test.csv  has {len(test_features):,} rows == {test_unique_sc:,} unique test scenarios")
-else:
-    msg = f"[FAIL] scenario_features_test.csv has {len(test_features)} rows but {test_unique_sc} unique scenarios"
-    print(msg); issues.append(msg)
-
-# ---- Check 2: Zero NaN (except documented edge cases)
-for split_label, feat_df in [("train", train_features), ("test", test_features)]:
-    nan_counts = feat_df.isnull().sum()
-    nan_cols   = nan_counts[nan_counts > 0]
-    if len(nan_cols) == 0:
-        print(f"[PASS] Zero NaN in {split_label} feature matrix")
+    if len(train_features) == train_unique_sc:
+        print(f"[PASS] scenario_features_train.csv has {len(train_features):,} rows == {train_unique_sc:,} unique train scenarios")
     else:
-        msg = f"[FAIL] NaN found in {split_label} features: {dict(nan_cols)}"
+        msg = f"[FAIL] scenario_features_train.csv has {len(train_features)} rows but {train_unique_sc} unique scenarios"
+        print(msg); issues.append(msg)
+    if len(test_features) == test_unique_sc:
+        print(f"[PASS] scenario_features_test.csv  has {len(test_features):,} rows == {test_unique_sc:,} unique test scenarios")
+    else:
+        msg = f"[FAIL] scenario_features_test.csv has {len(test_features)} rows but {test_unique_sc} unique scenarios"
         print(msg); issues.append(msg)
 
-# ---- Check 3: Labels NOT in features files
-forbidden = ["is_illicit", "pattern_type"]
-for split_label, feat_df in [("train", train_features), ("test", test_features)]:
-    leaked = [c for c in forbidden if c in feat_df.columns]
-    if not leaked:
-        print(f"[PASS] Labels not present in {split_label} features file")
+    for split_label, feat_df in [("train", train_features), ("test", test_features)]:
+        nan_cols = feat_df.isnull().sum()
+        nan_cols = nan_cols[nan_cols > 0]
+        if len(nan_cols) == 0:
+            print(f"[PASS] Zero NaN in {split_label} feature matrix")
+        else:
+            msg = f"[FAIL] NaN found in {split_label} features: {dict(nan_cols)}"
+            print(msg); issues.append(msg)
+
+    for split_label, feat_df in [("train", train_features), ("test", test_features)]:
+        leaked = [c for c in ["is_illicit", "pattern_type"] if c in feat_df.columns]
+        if not leaked:
+            print(f"[PASS] Labels not present in {split_label} features file")
+        else:
+            msg = f"[FAIL] Label columns found in {split_label} features: {leaked}"
+            print(msg); issues.append(msg)
+
+    print("\n--- Pearson |r| vs is_illicit (leakage check) ---")
+    high_corr_threshold = 0.9
+    for split_label, feat_df, lbl_df in [("train", train_features, train_labels), ("test", test_features, test_labels)]:
+        merged_tmp = feat_df.merge(lbl_df[["scenario_id", "is_illicit"]], on="scenario_id")
+        numeric_feats = [c for c in merged_tmp.select_dtypes(include=[np.number]).columns if c != "is_illicit"]
+        corrs = merged_tmp[numeric_feats].corrwith(merged_tmp["is_illicit"]).abs().sort_values(ascending=False)
+        high = corrs[corrs > high_corr_threshold]
+        if len(high) > 0:
+            print(f"\n  *** [{split_label}] HIGH CORRELATION ALERT — possible leakage: ***")
+            for feat, r in high.items():
+                print(f"       {feat}: |r|={r:.4f}")
+            issues.append(f"[WARN] {split_label}: features with |r|>{high_corr_threshold} vs is_illicit: {high.to_dict()}")
+        else:
+            print(f"  [{split_label}] No feature has |r| > {high_corr_threshold} with is_illicit.")
+        print(f"  [{split_label}] Top-10 correlations:")
+        for feat, r in corrs.head(10).items():
+            print(f"    {feat:<35} |r| = {r:.4f}")
+
+    print("\n--- Hard-negative exchange wallet spot check ---")
+    train_feats_lbl = train_features.merge(train_labels, on="scenario_id")
+    exchanges = train_feats_lbl[
+        (train_feats_lbl["is_illicit"] == 0) &
+        (train_feats_lbl["pattern_type"] == "normal") &
+        (train_feats_lbl["num_txns"] >= 50)
+    ].nlargest(5, "num_txns")[["scenario_id", "num_txns", "mean_num_outputs", "is_illicit"]]
+    if len(exchanges) > 0:
+        print(f"  [PASS] Found {len(train_feats_lbl[(train_feats_lbl['is_illicit']==0) & (train_feats_lbl['num_txns']>=50)])} high-txn licit scenarios. Sample (top 5):")
+        print(exchanges.to_string(index=False))
     else:
-        msg = f"[FAIL] Label columns found in {split_label} features: {leaked}"
+        msg = "[FAIL] No high-txn licit scenarios found — hard-negative check failed"
         print(msg); issues.append(msg)
 
-# ---- Check 4: Pearson correlation vs is_illicit (joined in-memory only, NOT saved)
-print("\n--- Pearson |r| vs is_illicit (leakage check) ---")
-HIGH_CORR_THRESHOLD = 0.9
-for split_label, feat_df, lbl_df in [
-    ("train", train_features, train_labels),
-    ("test",  test_features,  test_labels),
-]:
-    merged_tmp = feat_df.merge(lbl_df[["scenario_id", "is_illicit"]], on="scenario_id")
-    num_feats = merged_tmp.select_dtypes(include=[np.number]).columns.tolist()
-    num_feats = [c for c in num_feats if c != "is_illicit"]
-    corrs = merged_tmp[num_feats].corrwith(merged_tmp["is_illicit"]).abs().sort_values(ascending=False)
-    high = corrs[corrs > HIGH_CORR_THRESHOLD]
-    if len(high) > 0:
-        print(f"\n  *** [{split_label}] HIGH CORRELATION ALERT — possible leakage: ***")
-        for feat, r in high.items():
-            print(f"       {feat}: |r|={r:.4f}")
-        issues.append(f"[WARN] {split_label}: features with |r|>{HIGH_CORR_THRESHOLD} vs is_illicit: {high.to_dict()}")
+    sep("VALIDATION GATE SUMMARY")
+    if not issues:
+        print("  ALL CHECKS PASSED. Safe to proceed to Day 2.")
     else:
-        print(f"  [{split_label}] No feature has |r| > {HIGH_CORR_THRESHOLD} with is_illicit.")
-    print(f"  [{split_label}] Top-10 correlations:")
-    for feat, r in corrs.head(10).items():
-        print(f"    {feat:<35} |r| = {r:.4f}")
+        print(f"  {len(issues)} issue(s) found — DO NOT proceed to Day 2 until resolved:")
+        for iss in issues:
+            print(f"    - {iss}")
+    sep("DONE — 02_feature_engineering.py")
+    print(f"  Outputs: {DATA}")
 
-# ---- Check 5: Hard-negative exchange scenarios spot check
-print("\n--- Hard-negative exchange wallet spot check ---")
-train_feats_lbl = train_features.merge(train_labels, on="scenario_id")
-# High-txn licit scenarios
-exchanges = train_feats_lbl[
-    (train_feats_lbl["is_illicit"] == 0) &
-    (train_feats_lbl["pattern_type"] == "normal") &
-    (train_feats_lbl["num_txns"] >= 50)
-].nlargest(5, "num_txns")[["scenario_id", "num_txns", "mean_num_outputs", "is_illicit"]]
-if len(exchanges) > 0:
-    print(f"  [PASS] Found {len(train_feats_lbl[(train_feats_lbl['is_illicit']==0) & (train_feats_lbl['num_txns']>=50)])} "
-          f"high-txn licit scenarios. Sample (top 5):")
-    print(exchanges.to_string(index=False))
-else:
-    msg = "[FAIL] No high-txn licit scenarios found — hard-negative check failed"
-    print(msg); issues.append(msg)
 
-# ---- Final summary
-sep("VALIDATION GATE SUMMARY")
-if not issues:
-    print("  ALL CHECKS PASSED. Safe to proceed to Day 2.")
-else:
-    print(f"  {len(issues)} issue(s) found — DO NOT proceed to Day 2 until resolved:")
-    for iss in issues:
-        print(f"    - {iss}")
-
-sep("DONE — 02_feature_engineering.py")
-print(f"  Outputs: {DATA}")
-print(f"    scenario_features_train.csv")
-print(f"    scenario_features_test.csv")
-print(f"    scenario_labels_train.csv")
-print(f"    scenario_labels_test.csv")
-print(f"    script_type_encoder.json")
+if __name__ == "__main__":
+    run_pipeline()

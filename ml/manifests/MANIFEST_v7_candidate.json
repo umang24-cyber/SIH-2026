@@ -52,8 +52,8 @@
     "degree_assortativity",
     "edge_to_node_ratio"
   ],
-  "binary_model": "binary_model_v7_candidate.xgb",
-  "typology_model": "typology_model_v7_candidate.xgb",
+  "binary_model": "binary_model_v7_candidate.ubj",
+  "typology_model": "typology_model_v7_candidate.ubj",
   "random_seed": 42,
   "evaluation_metrics": {
     "binary": {

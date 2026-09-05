@@ -49,6 +49,8 @@ class ClusteringService:
 
     def build_clusters(self):
         """Scans all multi-input transactions and clusters co-spending addresses."""
+        if self.is_clustered:
+            return
         if not data_service.is_ready:
             data_service.initialize()
 

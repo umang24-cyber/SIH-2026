@@ -5,7 +5,6 @@ import { sound } from '../audio/soundEngine';
 import { InspectView } from './views/InspectView';
 import { TraceView } from './views/TraceView';
 import { GraphView3D } from './views/GraphView3D';
-import { INITIAL_NODES, INITIAL_LINKS } from '../data/forensicData';
 
 export interface TerminalEntry {
   id: string;
@@ -119,8 +118,9 @@ export const CliOutputRenderer: React.FC<CliOutputRendererProps> = ({
             )}
           </div>
           <GraphView3D
-            nodes={INITIAL_NODES}
-            links={INITIAL_LINKS}
+            nodes={nodes}
+            links={links}
+            scenarioId={entry.content?.scenarioId || 'normal_00001'}
             onSelectNode={(id) => onRunCommand(`inspect ${id}`)}
             onRunCommand={onRunCommand}
           />
@@ -286,11 +286,11 @@ export const CliOutputRenderer: React.FC<CliOutputRendererProps> = ({
           </div>
           <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(240px, 1fr))', gap: '8px', fontSize: '14px' }}>
             <div>• <strong>Engine Status:</strong> <span style={{ color: '#33ff88' }}>ONLINE (FastAPI 100% Offline)</span></div>
-            <div>• <strong>Transactions Indexed:</strong> {entry.content?.dataset?.loaded_transactions?.toLocaleString() || '82,078'}</div>
-            <div>• <strong>Unique Wallets:</strong> {entry.content?.dataset?.unique_wallets?.toLocaleString() || '284,401'}</div>
-            <div>• <strong>Entity Clusters Partitioned:</strong> {entry.content?.clustering?.total_clusters?.toLocaleString() || '244,363'}</div>
-            <div>• <strong>Typology Alerts Cached:</strong> {entry.content?.typologies?.total_alerts?.toLocaleString() || '23,646'}</div>
-            <div>• <strong>ML Inference Model:</strong> <span style={{ color: '#33ff88' }}>{entry.content?.ml_model?.model_type || 'XGBoost v6'}</span></div>
+            <div>• <strong>Transactions Indexed:</strong> {entry.content?.dataset?.loaded_transactions?.toLocaleString() || 'UNAVAILABLE'}</div>
+            <div>• <strong>Unique Wallets:</strong> {entry.content?.dataset?.unique_wallets?.toLocaleString() || 'UNAVAILABLE'}</div>
+            <div>• <strong>Entity Clusters Partitioned:</strong> {entry.content?.clustering?.total_clusters?.toLocaleString() || 'UNAVAILABLE'}</div>
+            <div>• <strong>Typology Alerts Cached:</strong> {entry.content?.typologies?.total_alerts?.toLocaleString() || 'UNAVAILABLE'}</div>
+            <div>• <strong>ML Inference Model:</strong> <span style={{ color: '#33ff88' }}>{entry.content?.ml_model?.model_type || 'XGBoost V7 candidate'}</span></div>
           </div>
         </div>
       )}

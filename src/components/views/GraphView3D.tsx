@@ -18,10 +18,12 @@ import type { GraphPayload } from '../../workers/graphLoader.worker';
 
 // ─── Props ────────────────────────────────────────────────────────────────────
 interface GraphView3DProps {
-  /** Curated 68-node showcase data from forensicData.ts (used for inspect commands) */
+  /** Curated node metadata used for inspect commands and hover details. */
   nodes: ForensicNode[];
-  /** Passed from App.tsx for API compatibility; actual edges come from the Web Worker */
+  /** Retained for compatibility with the terminal data model. */
   links: unknown[];
+  /** Scenario fetched from the live backend graph endpoint. */
+  scenarioId: string;
   highlightedNodeId?: string | null;
   onSelectNode: (nodeId: string) => void;
   onRunCommand: (cmd: string) => void;
@@ -101,6 +103,7 @@ function makeDetailGroup(
 export const GraphView3D: React.FC<GraphView3DProps> = ({
   nodes: showcaseNodes,
   links: _showcaseLinks,
+  scenarioId,
   highlightedNodeId,
   onSelectNode,
   onRunCommand,
@@ -148,10 +151,10 @@ export const GraphView3D: React.FC<GraphView3DProps> = ({
     };
 
     // Kick off
-    worker.postMessage('start');
+    worker.postMessage({ type: 'start', scenarioId });
 
     return () => worker.terminate();
-  }, []);
+  }, [scenarioId]);
 
   // ─── 2. Build / rebuild Three.js scene once data arrives ─────────────────
   useEffect(() => {
@@ -171,9 +174,19 @@ export const GraphView3D: React.FC<GraphView3DProps> = ({
     const camera = new THREE.PerspectiveCamera(55, width / height, 0.5, 2000);
     camera.position.set(0, 0, 450);
 
-    const renderer = new THREE.WebGLRenderer({ antialias: true });
+    let renderer: THREE.WebGLRenderer;
+    try {
+      renderer = new THREE.WebGLRenderer({ antialias: true });
+    } catch (error) {
+      const message = error instanceof Error ? error.message : String(error);
+      setLoadState({ status: 'error', message: `WebGL renderer unavailable: ${message}` });
+      return;
+    }
     renderer.setSize(width, height);
     renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
+    renderer.domElement.style.display = 'block';
+    renderer.domElement.style.width = '100%';
+    renderer.domElement.style.height = '100%';
     container.appendChild(renderer.domElement);
     rendererRef.current = renderer;
 
@@ -411,12 +424,12 @@ export const GraphView3D: React.FC<GraphView3DProps> = ({
   }, []);
 
   return (
-    <div style={{ position: 'relative', width: '100%', height: '100%', minHeight: '460px' }}>
+    <div style={{ position: 'relative', width: '100%', height: '520px', minHeight: '520px' }}>
 
       {/* ── WebGL Canvas */}
       <div
         ref={containerRef}
-        style={{ width: '100%', height: '100%', position: 'absolute', top: 0, left: 0 }}
+        style={{ width: '100%', height: '100%', position: 'absolute', top: 0, left: 0, zIndex: 0 }}
       />
 
       {/* ── Loading Overlay */}
@@ -428,7 +441,7 @@ export const GraphView3D: React.FC<GraphView3DProps> = ({
           fontFamily: 'monospace',
         }}>
           <div style={{ color: '#00ff66', fontSize: '14px', marginBottom: '14px', fontWeight: 600 }}>
-            GRAPH ENGINE INITIALISING …
+            LIVE GRAPH ENGINE INITIALISING …
           </div>
           <div style={{
             width: '340px', height: '8px', background: '#111',
@@ -444,7 +457,7 @@ export const GraphView3D: React.FC<GraphView3DProps> = ({
             {loadState.message}
           </div>
           <div style={{ color: '#333', fontSize: '11px', marginTop: '16px' }}>
-            459,975 nodes · 527,143 edges · 3,531 candidates
+            Fetching scenario graph from the FastAPI backend …
           </div>
         </div>
       )}
@@ -463,7 +476,7 @@ export const GraphView3D: React.FC<GraphView3DProps> = ({
             {loadState.message}
           </div>
           <div style={{ color: '#444', fontSize: '11px', marginTop: '12px' }}>
-            Ensure /data/graph_export.json is accessible. Run `npm run dev` from project root.
+            Ensure the backend is running and scenario <code>{scenarioId}</code> exists.
           </div>
         </div>
       )}
@@ -476,7 +489,7 @@ export const GraphView3D: React.FC<GraphView3DProps> = ({
           padding: '10px 14px', fontSize: '13px', zIndex: 5, fontFamily: 'monospace',
         }}>
           <div style={{ color: '#33ff88', fontWeight: 'bold', marginBottom: '3px' }}>
-            3D BITCOIN AML TOPOLOGY :: V6 FROZEN
+            3D BITCOIN AML TOPOLOGY :: LIVE V7 SCENARIO
           </div>
           <div style={{ color: '#00ff66', fontSize: '12px' }}>
             NODES: {payload!.nodeCount.toLocaleString()} &nbsp;|&nbsp;

@@ -39,7 +39,7 @@ def ece_score(y_true, y_prob, n_bins=10):
     return float(ece)
 
 print("==================================================")
-print("1. LOADING V6 FROZEN DATA")
+print("1. LOADING V7 CANDIDATE DATA")
 print("==================================================")
 feats_tr = pd.read_csv(DATA / "scenario_features_full_train.csv")
 feats_te = pd.read_csv(DATA / "scenario_features_full_test.csv")
@@ -94,7 +94,7 @@ bin_model = XGBClassifier(
     early_stopping_rounds=50, tree_method="hist", random_state=42, verbosity=0
 )
 bin_model.fit(X_proper, y_proper, eval_set=[(X_eval, y_eval)], verbose=False)
-bin_model.save_model(MDLS / "binary_model_v7_candidate.xgb")
+bin_model.save_model(MDLS / "binary_model_v7_candidate.ubj")
 
 y_te_prob = bin_model.predict_proba(X_te)[:,1]
 y_te_pred = bin_model.predict(X_te)
@@ -138,7 +138,7 @@ typ_model = XGBClassifier(
     eval_metric="mlogloss", tree_method="hist", random_state=42, verbosity=0
 )
 typ_model.fit(X_typ_tr, y_typ_tr, sample_weight=sample_weights)
-typ_model.save_model(MDLS / "typology_model_v7_candidate.xgb")
+typ_model.save_model(MDLS / "typology_model_v7_candidate.ubj")
 
 y_typ_pred = typ_model.predict(X_typ_te)
 y_typ_prob = typ_model.predict_proba(X_typ_te)
@@ -215,8 +215,8 @@ manifest = {
     "test_scenarios": len(test_all),
     "feature_count": len(feature_cols),
     "feature_names": feature_cols,
-    "binary_model": "binary_model_v7_candidate.xgb",
-    "typology_model": "typology_model_v7_candidate.xgb",
+    "binary_model": "binary_model_v7_candidate.ubj",
+    "typology_model": "typology_model_v7_candidate.ubj",
     "random_seed": 42,
     "evaluation_metrics": {
         "binary": bin_metrics,

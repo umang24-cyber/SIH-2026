@@ -23,7 +23,7 @@ def load_master_dataset(
     parses JSON array fields, and validates data integrity.
     
     Returns:
-        pd.DataFrame: Merged and parsed DataFrame containing all 82,078 transactions.
+        pd.DataFrame: Merged and parsed DataFrame containing all 294,693 transactions.
     """
     if not blockchain_path.exists():
         raise FileNotFoundError(f"Blockchain ledger file not found at: {blockchain_path}")
