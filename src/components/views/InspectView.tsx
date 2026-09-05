@@ -1,33 +1,27 @@
 import React from 'react';
 import { ForensicNode } from '../../types/terminal';
-import { MOCK_HEX_DUMPS } from '../../data/mockForensicData';
 
 interface InspectViewProps {
   node: ForensicNode;
+  data?: any;
   onRunCommand: (cmd: string) => void;
 }
 
-export const InspectView: React.FC<InspectViewProps> = ({ node, onRunCommand }) => {
-  const hexLines = MOCK_HEX_DUMPS[node.id] || [
-    '00000000  7f 45 4c 46 02 01 01 00  00 00 00 00 00 00 00 00  |.ELF............|',
-    '00000010  03 00 3e 00 01 00 00 00  a0 14 00 00 00 00 00 00  |..>.............|',
-    '00000020  40 00 00 00 00 00 00 00  78 3b 00 00 00 00 00 00  |@.......x;......|',
-    '00000030  00 00 00 00 40 00 38 00  09 00 40 00 1f 00 1e 00  |....@.8...@.....|',
-    '00000040  06 00 00 00 04 00 00 00  40 00 00 00 00 00 00 00  |........@.......|',
-    `00000050  ${node.id.slice(2, 4)} ${node.id.slice(4, 6)} ${node.id.slice(6, 8)} ${node.id.slice(8, 10)} 00 00 00 00  00 00 00 00 00 00 00 00  |..TARGET.DOSS...|`
-  ];
-
+export const InspectView: React.FC<InspectViewProps> = ({ node, data, onRunCommand }) => {
   const getRiskBadge = (score: number) => {
-    if (score >= 80) return <span className="badge badge-risk-high">CRITICAL RISK ({score}/100)</span>;
+    if (score >= 80) return <span className="badge badge-risk-high">CRITICAL THREAT ({score}/100)</span>;
     if (score >= 50) return <span className="badge badge-risk-med">ELEVATED RISK ({score}/100)</span>;
     return <span className="badge badge-risk-low">LOW RISK ({score}/100)</span>;
   };
 
+  const isTx = node.type === 'TRANSACTION' || !!data?.txid;
+  const isEntity = !isTx;
+
   return (
-    <div style={{ maxWidth: '1100px', margin: '0 auto' }}>
+    <div style={{ maxWidth: '1100px', margin: '0 auto', fontSize: '14px' }}>
       <div style={{ borderBottom: '1px solid #00ff66', paddingBottom: '6px', marginBottom: '14px', display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap' }}>
         <h2 style={{ fontSize: '18px', color: '#33ff88' }}>
-          &gt; FORENSIC DOSSIER &amp; HEX INSPECTOR :: {node.id}
+          &gt; FORENSIC INSPECTOR :: {node.id}
         </h2>
         <div>{getRiskBadge(node.riskScore)}</div>
       </div>
@@ -36,71 +30,87 @@ export const InspectView: React.FC<InspectViewProps> = ({ node, onRunCommand }) 
       <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(320px, 1fr))', gap: '12px', marginBottom: '16px' }}>
         <div style={{ border: '1px solid #007a33', padding: '10px', background: '#000c04' }}>
           <div style={{ color: '#33ff88', fontWeight: 'bold', marginBottom: '6px', borderBottom: '1px dashed #004d20', paddingBottom: '4px' }}>
-            ENTITY CLASSIFICATION
+            ON-CHAIN IDENTITY &amp; CLUSTERING
           </div>
-          <p><strong>ENTITY ID:</strong> <span style={{ color: '#33ff88' }}>{node.id}</span></p>
-          <p><strong>ALIAS / LABEL:</strong> {node.label}</p>
+          <p><strong>TARGET IDENTIFIER:</strong> <span style={{ color: '#33ff88' }}>{node.id}</span></p>
           <p><strong>ENTITY TYPE:</strong> <span style={{ color: '#00ff66' }}>{node.type}</span></p>
-          <p><strong>AFFILIATION:</strong> {node.ownerAlias || 'UNMAPPED / ANONYMOUS'}</p>
-          <p><strong>CLUSTER ID:</strong> <span style={{ color: '#33ff88' }}>{node.clusterId}</span></p>
+          <p><strong>CIOH CLUSTER ID:</strong> <span style={{ color: '#33ff88' }}>{node.clusterId || 'UNCLUSTERED'}</span></p>
+          {node.isLicitExchange !== undefined && (
+            <p><strong>EXCHANGE STATUS:</strong> <span style={{ color: node.isLicitExchange ? '#33ff88' : '#ffaa33' }}>{node.isLicitExchange ? 'KNOWN LICIT EXCHANGE' : 'PRIVATE/SUSPECT WALLET'}</span></p>
+          )}
         </div>
 
         <div style={{ border: '1px solid #007a33', padding: '10px', background: '#000c04' }}>
           <div style={{ color: '#33ff88', fontWeight: 'bold', marginBottom: '6px', borderBottom: '1px dashed #004d20', paddingBottom: '4px' }}>
-            LEDGER &amp; TELEMETRY
+            LEDGER FINANCIAL METRICS
           </div>
-          <p><strong>CURRENT BALANCE:</strong> <span style={{ color: '#33ff88' }}>{node.balanceEth.toLocaleString()} ETH</span></p>
-          <p><strong>TX LIFETIME COUNT:</strong> {node.txCount.toLocaleString()} transactions</p>
-          <p><strong>FIRST SEEN:</strong> {node.firstSeen}</p>
-          <p><strong>LAST OBSERVED:</strong> {node.lastSeen}</p>
+          <p><strong>BALANCE / VOLUME:</strong> <span style={{ color: '#33ff88' }}>{(node.balanceBtc || node.balanceEth || 0).toLocaleString()} BTC</span></p>
+          <p><strong>TX LIFETIME COUNT:</strong> {(node.txCount || 0).toLocaleString()} transactions</p>
+          <p><strong>FIRST SEEN:</strong> {node.firstSeen || 'N/A'}</p>
+          <p><strong>LAST OBSERVED:</strong> {node.lastSeen || 'N/A'}</p>
         </div>
       </div>
 
-      {/* Forensic Flags */}
-      <div style={{ border: '1px solid #007a33', padding: '10px', background: '#000c04', marginBottom: '16px' }}>
-        <div style={{ color: '#33ff88', fontWeight: 'bold', marginBottom: '6px' }}>
-          DETECTED HEURISTIC FLAGS &amp; AML INDICATORS
+      {/* Network Telemetry Breakdown if Transaction */}
+      {data?.network && (
+        <div style={{ border: '1px solid #007a33', padding: '10px', background: '#000c04', marginBottom: '16px' }}>
+          <div style={{ color: '#33ff88', fontWeight: 'bold', marginBottom: '6px' }}>
+            P2P NETWORK TELEMETRY &amp; ORIGIN ATTRIBUTION
+          </div>
+          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(220px, 1fr))', gap: '8px' }}>
+            <div><strong>RELAY IP:</strong> <code>{data.network.relay_ip || '0.0.0.0'}</code></div>
+            <div><strong>JURISDICTION:</strong> {data.network.country_code || 'US'}</div>
+            <div><strong>ASN:</strong> {data.network.asn || 'Unknown'}</div>
+            <div><strong>ISP:</strong> {data.network.isp || 'Unknown'}</div>
+            <div><strong>NODE TYPE:</strong> <span style={{ color: data.network.node_type?.includes('tor') ? '#ff3344' : '#33ff88' }}>{data.network.node_type}</span></div>
+            <div><strong>PROPAGATION Δt:</strong> {data.network.propagation_delta_ms} ms</div>
+          </div>
         </div>
-        <div style={{ display: 'flex', gap: '8px', flexWrap: 'wrap' }}>
-          {node.flags.map(f => (
-            <span key={f} style={{ background: '#00220a', border: '1px solid #00ff66', padding: '2px 8px', fontSize: '13px', color: '#33ff88' }}>
-              ⚠ {f}
-            </span>
-          ))}
-          {node.tags.map(t => (
-            <span key={t} style={{ background: '#001406', border: '1px solid #007a33', padding: '2px 8px', fontSize: '13px', color: '#00ff66' }}>
-              #{t}
-            </span>
-          ))}
-        </div>
-      </div>
+      )}
 
-      {/* Raw Memory Hexdump */}
-      <div style={{ border: '1px solid #007a33', padding: '10px', background: '#000502', marginBottom: '16px' }}>
-        <div style={{ color: '#33ff88', fontWeight: 'bold', marginBottom: '6px', display: 'flex', justifyContent: 'space-between' }}>
-          <span>RAW MEMORY / BYTECODE HEXDUMP (/proc/holmes/entity/{node.id})</span>
-          <span style={{ fontSize: '13px', color: '#007a33' }}>OFFSET: 0x00000000 - 0x00000080</span>
+      {/* Multi-I/O UTXO Breakdown if Transaction */}
+      {data?.input_addresses && (
+        <div style={{ border: '1px solid #007a33', padding: '10px', background: '#000c04', marginBottom: '16px' }}>
+          <div style={{ color: '#33ff88', fontWeight: 'bold', marginBottom: '6px' }}>
+            UTXO FINANCIAL DECOMPOSITION ({data.input_addresses.length} Inputs → {data.output_addresses?.length || 0} Outputs | Fee: {data.fee_btc} BTC)
+          </div>
+          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '12px' }}>
+            <div>
+              <div style={{ color: '#33ff88', fontSize: '13px', marginBottom: '4px' }}>INPUTS:</div>
+              {data.input_addresses.slice(0, 5).map((addr: string, idx: number) => (
+                <div key={idx} style={{ fontSize: '12px', color: '#aaffaa' }}>
+                  • <span className="cmd-clickable" onClick={() => onRunCommand(`inspect ${addr}`)}>{addr}</span>: {data.input_amounts?.[idx]} BTC
+                </div>
+              ))}
+            </div>
+            <div>
+              <div style={{ color: '#33ff88', fontSize: '13px', marginBottom: '4px' }}>OUTPUTS:</div>
+              {data.output_addresses?.slice(0, 5).map((addr: string, idx: number) => (
+                <div key={idx} style={{ fontSize: '12px', color: '#aaffaa' }}>
+                  • <span className="cmd-clickable" onClick={() => onRunCommand(`inspect ${addr}`)}>{addr}</span>: {data.output_amounts?.[idx]} BTC
+                </div>
+              ))}
+            </div>
+          </div>
         </div>
-        <pre style={{ fontFamily: 'var(--font-code)', fontSize: '13px', color: '#00ff66', overflowX: 'auto', lineHeight: 1.4 }}>
-          {hexLines.join('\n')}
-        </pre>
-      </div>
+      )}
 
       {/* Quick Navigation Commands */}
-      <div style={{ display: 'flex', gap: '12px', flexWrap: 'wrap', fontSize: '15px' }}>
+      <div style={{ display: 'flex', gap: '12px', flexWrap: 'wrap', fontSize: '14px', marginTop: '14px' }}>
         <span style={{ color: '#007a33' }}>Available Actions:</span>
         <span className="cmd-clickable" onClick={() => onRunCommand('graph')}>
           [Switch to 3D Graph]
         </span>
-        <span className="cmd-clickable" onClick={() => onRunCommand(`trace ${node.id} 0xEE3388A1`)}>
-          [Trace to Cashout OTC: 0xEE3388A1]
-        </span>
-        <span className="cmd-clickable" onClick={() => onRunCommand('dmesg')}>
-          [View Kernel Logs]
-        </span>
-        <span className="cmd-clickable" onClick={() => onRunCommand('home')}>
-          [Return Home]
-        </span>
+        {isEntity && (
+          <span className="cmd-clickable" onClick={() => onRunCommand(`taint ${node.id}`)}>
+            [Trace Taint from this Wallet]
+          </span>
+        )}
+        {isTx && (
+          <span className="cmd-clickable" onClick={() => onRunCommand(`dossier ${node.id}`)}>
+            [Generate Section 91 CrPC Dossier]
+          </span>
+        )}
       </div>
     </div>
   );
