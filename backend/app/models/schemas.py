@@ -129,6 +129,36 @@ class TaintResponse(BaseModel):
     contaminated_wallets: List[TaintNode]
 
 # ==========================================
+# 5b. Anomaly Detection Schema (Isolation Forest)
+#     Separate from all XGBoost outputs.
+# ==========================================
+
+class AnomalyScoreResponse(BaseModel):
+    """
+    Isolation Forest Anomaly/Unusualness Score.
+    NOT a probability. NOT combined with risk_score or typology_confidence.
+    Score 0 = indistinguishable from normal licit activity.
+    Score 100 = maximally anomalous relative to licit reference distribution.
+    """
+    scenario_id: str
+    anomaly_score: float = Field(
+        description="0–100 Anomaly/Unusualness Score. Higher = more anomalous."
+    )
+    anomaly_label: str = Field(
+        description="HIGH (>=70), MEDIUM (>=40), or LOW (<40)."
+    )
+    anomaly_raw_if_score: float = Field(
+        description="Raw IsolationForest score_samples() output before normalization."
+    )
+    anomaly_high_threshold: float = Field(
+        default=70.0,
+        description="Threshold above which anomaly_label is HIGH."
+    )
+    anomaly_interpretation: str = Field(
+        description="Human-readable explanation of what this score represents."
+    )
+
+# ==========================================
 # 6. Alert & Explainable Evidence Schemas
 # ==========================================
 
