@@ -97,7 +97,7 @@ export const AlertsSubwindow: React.FC<AlertsSubwindowProps> = ({
                     {alert.severity} • {alert.predicted_pattern_type.toUpperCase()}
                   </span>
                   <span style={{ color: '#00ff66', fontWeight: 800, fontSize: '13px' }}>
-                    {(alert.confidence * 100).toFixed(1)}% CONF
+                    BIN {(alert.binary_confidence * 100).toFixed(1)}% · TYPO {(alert.typology_confidence * 100).toFixed(1)}%
                   </span>
                 </div>
 

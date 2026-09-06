@@ -55,11 +55,11 @@ export const InspectView: React.FC<InspectViewProps> = ({ node, data, onRunComma
       {data?.network && (
         <div style={{ border: '1px solid #007a33', padding: '10px', background: '#000c04', marginBottom: '16px' }}>
           <div style={{ color: '#33ff88', fontWeight: 'bold', marginBottom: '6px' }}>
-            P2P NETWORK TELEMETRY &amp; ORIGIN ATTRIBUTION
+            RECORDED P2P NETWORK TELEMETRY
           </div>
           <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(220px, 1fr))', gap: '8px' }}>
-            <div><strong>RELAY IP:</strong> <code>{data.network.relay_ip || '0.0.0.0'}</code></div>
-            <div><strong>JURISDICTION:</strong> {data.network.country_code || 'US'}</div>
+            <div><strong>OBSERVED RELAY IP:</strong> <code>{data.network.relay_ip || '0.0.0.0'}</code></div>
+            <div><strong>RECORDED COUNTRY CODE:</strong> {data.network.country_code || 'US'}</div>
             <div><strong>ASN:</strong> {data.network.asn || 'Unknown'}</div>
             <div><strong>ISP:</strong> {data.network.isp || 'Unknown'}</div>
             <div><strong>NODE TYPE:</strong> <span style={{ color: data.network.node_type?.includes('tor') ? '#ff3344' : '#33ff88' }}>{data.network.node_type}</span></div>
@@ -108,7 +108,7 @@ export const InspectView: React.FC<InspectViewProps> = ({ node, data, onRunComma
         )}
         {isTx && (
           <span className="cmd-clickable" onClick={() => onRunCommand(`dossier ${node.id}`)}>
-            [Generate Section 91 CrPC Dossier]
+            [Generate Investigation Summary]
           </span>
         )}
       </div>

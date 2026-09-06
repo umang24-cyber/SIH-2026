@@ -487,7 +487,9 @@ class MLService:
         result: Dict[str, Any] = {
             "risk_score": round(score, 4),
             "is_illicit": is_illicit,
-            "binary_confidence": round(score if is_illicit else 1.0 - score, 4),
+            # Canonical meaning: binary XGBoost P(illicit). risk_score is
+            # intentionally the same quantity; it is not a second formula.
+            "binary_confidence": round(score, 4),
             "model_used": "xgboost_v7",
             "scenario_id": scenario_id,
             "typology": "normal" if not is_illicit else "unknown",
@@ -584,7 +586,8 @@ class MLService:
         except Exception:
             logger.exception("Binary SHAP failed for candidate %s", candidate_id)
 
-        binary_confidence = round(risk_score if is_illicit else 1.0 - risk_score, 4)
+        # Canonical meaning: binary XGBoost P(illicit), for both classes.
+        binary_confidence = round(risk_score, 4)
         if is_illicit and typ_confidence < TYPOLOGY_CONFIDENCE_THRESHOLD:
             typ_explanation = _make_generic_illicit_explanation(binary_confidence, bin_shap)
 

@@ -51,8 +51,8 @@ export const COMMAND_REGISTRY: CommandDescriptor[] = [
     name: 'dossier',
     aliases: ['report'],
     usage: 'dossier <txid>',
-    summary: 'Generate court-admissible Section 91 Cr.P.C. Law Enforcement dossier.',
-    description: 'Exports formal legal investigation report with VASP asset freeze directives.',
+    summary: 'Generate a system-generated investigative summary for authorized review.',
+    description: 'Exports a synthetic demonstration report with review-oriented recommendations.',
     category: 'FORENSICS',
     examples: ['dossier 322596997']
   },

@@ -113,7 +113,7 @@ export const TelemetrySubwindow: React.FC<TelemetrySubwindowProps> = ({
 
     <div className="telemetry-row">
   <span className="telemetry-label">
-    Risk Score:
+    Scenario ML Risk Score:
   </span>
 
   <span
@@ -130,10 +130,15 @@ export const TelemetrySubwindow: React.FC<TelemetrySubwindowProps> = ({
     }}
   >
     {adaptedNode?.type === "WALLET"
-      ? adaptedNode.riskScore?.toFixed(2) ?? "N/A"
-      : "N/A"}
+      ? adaptedNode.riskScore?.toFixed(2) ?? "N/A — unavailable"
+      : "N/A — unavailable"}
   </span>
 </div>
+
+    <div className="telemetry-row">
+      <span className="telemetry-label">Node-level ML score:</span>
+      <span className="telemetry-value">NOT COMPUTED</span>
+    </div>
 
     <div className="telemetry-row">
       <span className="telemetry-label">
@@ -221,13 +226,13 @@ export const TelemetrySubwindow: React.FC<TelemetrySubwindowProps> = ({
           </div>
         )}
 
-        {/* LAYER 2: P2P NETWORK BROADCAST METADATA */}
+        {/* LAYER 2: RECORDED P2P NETWORK TELEMETRY */}
         <div className="telemetry-section-title" style={{ marginTop: '16px' }}>
-          LAYER 2: P2P NETWORK BROADCAST TELEMETRY
+          LAYER 2: RECORDED P2P NETWORK TELEMETRY
         </div>
 
         <div className="telemetry-row">
-          <span className="telemetry-label">Origin Relay IP:</span>
+          <span className="telemetry-label">Observed Relay IP:</span>
           <span className="telemetry-value" style={{ color: '#00ff66' }}>
             {targetNode.properties.relay_ip || scenario.telemetry.origin_ips[0]}
           </span>
@@ -245,9 +250,9 @@ export const TelemetrySubwindow: React.FC<TelemetrySubwindowProps> = ({
           </span>
         </div>
         <div className="telemetry-row">
-          <span className="telemetry-label">Country Jurisdiction:</span>
+          <span className="telemetry-label">Recorded Country Code:</span>
           <span className="telemetry-value">
-            [{targetNode.properties.country_code || scenario.telemetry.countries[0]}] Route Confirmed
+            [{targetNode.properties.country_code || scenario.telemetry.countries[0]}] Recorded telemetry field
           </span>
         </div>
         <div className="telemetry-row">

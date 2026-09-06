@@ -38,7 +38,7 @@ CREATE INDEX IF NOT EXISTS idx_tx_node_type ON forensic_transactions(node_type);
 CREATE INDEX IF NOT EXISTS idx_tx_relay_ip ON forensic_transactions(relay_ip);
 CREATE INDEX IF NOT EXISTS idx_tx_custom ON forensic_transactions(is_custom_ingested);
 
--- 2. Law Enforcement Agency (LEA) Dossiers Table
+-- 2. Investigation summaries table
 CREATE TABLE IF NOT EXISTS lea_dossiers (
     dossier_id TEXT PRIMARY KEY,
     txid INTEGER NOT NULL,
@@ -46,7 +46,7 @@ CREATE TABLE IF NOT EXISTS lea_dossiers (
     target_entity TEXT NOT NULL,
     case_status TEXT DEFAULT 'ACTIVE_INVESTIGATION',
     risk_level TEXT DEFAULT 'HIGH',
-    content_json TEXT NOT NULL,         -- Full structured Section 91 CrPC dossier JSON
+    content_json TEXT NOT NULL,         -- Full structured investigative summary JSON
     created_at TEXT DEFAULT (datetime('now')),
     FOREIGN KEY(txid) REFERENCES forensic_transactions(txid) ON DELETE CASCADE
 );

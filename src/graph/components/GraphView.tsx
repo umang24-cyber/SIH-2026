@@ -2,7 +2,7 @@ import React, { useState, useEffect } from "react";
 import GraphEngine from "./GraphEngine";
 import type { GraphMode, GraphData } from "../../types/graph";
 import NodeDetails from "./NodeDetails";
-import { api } from "../../services/api";
+import { api, type IngestScenarioAnalysis } from "../../services/api";
 import { CliSpinner } from "../../components/CliSpinner";
 
 interface GraphViewProps {
@@ -21,6 +21,7 @@ export default function GraphView({
   const [graphData, setGraphData] = useState<GraphData>({ nodes: [], edges: [] });
   const [isLoading, setIsLoading] = useState<boolean>(true);
   const [errorMsg, setErrorMsg] = useState<string | null>(null);
+  const [mlAnalysis, setMlAnalysis] = useState<IngestScenarioAnalysis | null>(null);
 
   // Suggested scenarios available in the ledger
   const quickScenarios = ["normal_00002", "ransomware_03287", "peeling_chain_04651", "mixing_05246", "normal_02462"];
@@ -29,32 +30,51 @@ export default function GraphView({
     setIsLoading(true);
     setErrorMsg(null);
     setSelectedNodeId(null);
+    setMlAnalysis(null);
 
-    api.getGraph(scId)
-      .then((res) => {
+    const unavailableAnalysis: IngestScenarioAnalysis = {
+      scenario_id: scId,
+      transaction_count: 0,
+      analysis_status: "UNAVAILABLE",
+      analysis_message: "ML analysis could not be retrieved for this scenario.",
+      feature_count: 46,
+      score_scope: "SCENARIO",
+      sample_size_warning: null,
+      typology_explanation: "",
+      anomaly_message: "",
+      top_shap_attributions: [],
+      typology_shap_attributions: [],
+    };
+
+    Promise.all([
+      api.getGraph(scId),
+      api.getIngestScenarioAnalysis(scId).catch(() => unavailableAnalysis),
+    ])
+      .then(([res, analysis]) => {
         if (res && res.nodes && res.nodes.length > 0) {
-          const isIllicitScenario = !scId.toLowerCase().startsWith("licit");
+          setMlAnalysis(analysis);
+          const hasModelRisk = analysis.analysis_status === "AVAILABLE"
+            && Number.isFinite(Number(analysis.risk_score));
+          const modelRisk = hasModelRisk ? Number(analysis.risk_score) : undefined;
 
-          // Map backend nodes into typed GraphNodes with accurate risk scores
-          const nodes: GraphData['nodes'] = res.nodes.map((n: any, idx: number) => {
+          // Use the cached scenario-level backend result.  No scenario-name
+          // or typology heuristic is allowed to stand in for ML output.
+          const nodes: GraphData['nodes'] = res.nodes.map((n: any) => {
             const rawType = (n.type ? n.type.toUpperCase() : "WALLET");
             const props = n.properties || {};
-
-            // Determine trust/risk score (0.0 to 1.0)
-            let risk = 0.2;
-            if (props.is_licit_exchange) {
-              risk = 0.05; // High trust (Green)
-            } else if (isIllicitScenario) {
-              if (scId.includes("ransom")) {
-                risk = 0.92; // High threat (Red)
-              } else if (scId.includes("peel") || scId.includes("mix")) {
-                risk = 0.78; // High threat / peeling (Red)
-              } else {
-                risk = 0.62; // Elevated warning (Orange)
-              }
-            } else {
-              risk = 0.15; // Low risk (Green)
-            }
+            const risk = modelRisk;
+            const mlFields = {
+              riskScore: risk,
+              mlAnalysisStatus: analysis.analysis_status,
+              mlAnalysisMessage: [analysis.analysis_message, analysis.sample_size_warning].filter(Boolean).join(" "),
+              scoreScope: "SCENARIO" as const,
+              isIllicit: analysis.is_illicit ?? undefined,
+              binaryConfidence: analysis.binary_confidence ?? undefined,
+              typologyConfidence: analysis.typology_confidence ?? undefined,
+              predictedTypology: analysis.predicted_typology ?? undefined,
+              anomalyScore: analysis.anomaly_score ?? undefined,
+              anomalyLabel: analysis.anomaly_label ?? undefined,
+            };
 
             if (rawType === "TRANSACTION") {
               return {
@@ -65,8 +85,8 @@ export default function GraphView({
                 amountBtc: props.amount_btc,
                 feeBtc: props.fee_btc,
                 timestamp: props.timestamp,
-                riskScore: risk,
                 clusterId: props.cluster_id,
+                ...mlFields,
               };
             } else if (rawType === "IP") {
               return {
@@ -77,8 +97,8 @@ export default function GraphView({
                 asn: props.asn,
                 country: props.country_code,
                 isp: props.isp,
-                riskScore: risk,
                 clusterId: props.cluster_id,
+                ...mlFields,
               };
             } else {
               return {
@@ -86,8 +106,8 @@ export default function GraphView({
                 type: "WALLET" as const,
                 label: n.label || props.address || n.id,
                 address: props.address || n.id,
-                riskScore: risk,
                 clusterId: props.cluster_id,
+                ...mlFields,
               };
             }
           });
@@ -218,6 +238,20 @@ export default function GraphView({
 
         {/* Action Controls */}
         <div style={{ display: "flex", gap: "8px", alignItems: "center" }}>
+          {mlAnalysis && (
+            <span
+              style={{
+                color: mlAnalysis.analysis_status === "AVAILABLE" ? "#33ff88" : "#ffaa33",
+                fontSize: "12px",
+                fontFamily: "monospace",
+              }}
+            >
+              ML: SCENARIO {mlAnalysis.analysis_status}
+              {mlAnalysis.analysis_status === "AVAILABLE" && mlAnalysis.risk_score !== null && mlAnalysis.risk_score !== undefined
+                ? ` · RISK ${(mlAnalysis.risk_score * 100).toFixed(2)}%`
+                : ""}
+            </span>
+          )}
           <span style={{ color: "#00aa44", fontSize: "12px", fontFamily: "monospace" }}>
             {graphData.nodes.length} Nodes · {graphData.edges.length} Edges
           </span>

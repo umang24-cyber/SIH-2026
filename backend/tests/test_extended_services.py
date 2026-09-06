@@ -79,24 +79,25 @@ class TestExtendedServices(unittest.TestCase):
         self.assertIsInstance(summary["top_tor_exit_countries"], list)
 
     def test_04_dossier_service_json_and_html(self):
-        """Verify Section 91 CrPC dossier generation for sample transaction."""
+        """Verify system-generated investigation summary output."""
         sample_txid = next(iter(data_service.txid_map.keys()))
         
         # JSON Dossier
         dossier = dossier_service.generate_dossier(sample_txid)
         self.assertIn("case_metadata", dossier)
-        self.assertIn("statutory_legal_directives", dossier)
+        self.assertIn("recommended_investigative_actions", dossier)
         self.assertIn("transaction_evidence", dossier)
-        self.assertIn("network_telemetry_attribution", dossier)
+        self.assertIn("network_telemetry_observation", dossier)
         self.assertIn("threat_assessment", dossier)
-        self.assertGreaterEqual(len(dossier["statutory_legal_directives"]), 3)
-        self.assertIn("Section 91", dossier["case_metadata"]["statutory_mandates"][0])
+        self.assertGreaterEqual(len(dossier["recommended_investigative_actions"]), 3)
+        self.assertEqual(dossier["case_metadata"]["data_status"], "Synthetic / Demonstration Dataset")
+        self.assertEqual(dossier["case_metadata"]["model_status"], "V7 Frozen Synthetic Benchmark")
 
         # HTML Dossier
         html_doc = dossier_service.generate_html_dossier(sample_txid)
         self.assertIn("<!DOCTYPE html>", html_doc)
-        self.assertIn("CONFIDENTIAL // LAW ENFORCEMENT INTELLIGENCE", html_doc)
-        self.assertIn("Section 91 Cr.P.C.", html_doc)
+        self.assertIn("CONFIDENTIAL // SYSTEM-GENERATED DEMONSTRATION", html_doc)
+        self.assertIn("System-generated recommendations", html_doc)
         self.assertIn(str(sample_txid), html_doc)
 
     def test_05_api_stream_endpoints(self):
@@ -140,7 +141,7 @@ class TestExtendedServices(unittest.TestCase):
         res_html = self.client.get(f"/api/dossier/{sample_txid}/html")
         self.assertEqual(res_html.status_code, 200)
         self.assertIn("text/html", res_html.headers["content-type"])
-        self.assertIn("LAW ENFORCEMENT INTELLIGENCE", res_html.text)
+        self.assertIn("SYSTEM-GENERATED DEMONSTRATION", res_html.text)
 
 if __name__ == "__main__":
     unittest.main()

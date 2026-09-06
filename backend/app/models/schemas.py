@@ -17,6 +17,10 @@ class HealthResponse(BaseModel):
     unique_scenarios: int
     unique_wallets: int
     uptime_seconds: float
+    alert_count: int = 0
+    cluster_count: int = 0
+    illicit_transaction_ratio: Optional[float] = None
+    illicit_ratio_note: str = "Scenario-level ML; transaction-level illicit ratio unavailable."
 
 # ==========================================
 # 2. Entity / Wallet & Clustering Schemas
@@ -180,7 +184,7 @@ class AlertSummary(BaseModel):
     scenario_id: str
     predicted_pattern_type: str
     binary_confidence: float = Field(
-        description="Binary XGBoost probability for the predicted is_illicit class."
+        description="Binary XGBoost probability P(illicit). This equals risk_score."
     )
     typology_confidence: float = Field(
         description="Top-class probability from the typology XGBoost model."
@@ -212,7 +216,7 @@ class EvidenceResponse(BaseModel):
     scenario_id: str
     predicted_pattern_type: str
     binary_confidence: float = Field(
-        description="Binary XGBoost probability for the predicted is_illicit class."
+        description="Binary XGBoost probability P(illicit). This equals risk_score."
     )
     typology_confidence: float = Field(
         description="Top-class probability from the typology XGBoost model."
@@ -261,12 +265,40 @@ class IngestResultResponse(BaseModel):
     risk_score: float
     is_illicit: bool
     binary_confidence: float
-    predicted_typology: str
-    typology_confidence: float
+    predicted_typology: Optional[str] = None
+    typology_confidence: Optional[float] = None
     anomaly_score: Optional[float] = None
     anomaly_label: Optional[str] = None
     top_shap_attributions: List[FeatureAttribution] = Field(default_factory=list)
     dossier_available: bool = True
+
+
+class IngestScenarioAnalysis(BaseModel):
+    """Scenario-level ML result produced after a batch upload."""
+    scenario_id: str
+    transaction_count: int
+    analysis_status: str = Field(
+        description="AVAILABLE when production ML inference completed, otherwise UNAVAILABLE."
+    )
+    analysis_message: str = ""
+    feature_count: int = 46
+    score_scope: str = Field(
+        default="SCENARIO",
+        description="All ML scores and SHAP values describe the complete scenario, not an individual node."
+    )
+    sample_size_warning: Optional[str] = None
+    risk_score: Optional[float] = None
+    is_illicit: Optional[bool] = None
+    binary_confidence: Optional[float] = None
+    predicted_typology: Optional[str] = None
+    typology_confidence: Optional[float] = None
+    typology_explanation: str = ""
+    anomaly_score: Optional[float] = None
+    anomaly_label: Optional[str] = None
+    anomaly_message: str = ""
+    top_shap_attributions: List[FeatureAttribution] = Field(default_factory=list)
+    typology_shap_attributions: List[FeatureAttribution] = Field(default_factory=list)
+
 
 class IngestBatchResponse(BaseModel):
     status: str = "SUCCESS"
@@ -275,3 +307,4 @@ class IngestBatchResponse(BaseModel):
     unique_wallets_added: int
     sample_txids: List[int]
     message: str
+    scenario_results: List[IngestScenarioAnalysis] = Field(default_factory=list)

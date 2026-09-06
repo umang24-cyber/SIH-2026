@@ -50,7 +50,7 @@ src/
 
 | Component | API Route | Key Rendered Fields | Interactivity |
 |---|---|---|---|
-| **Alert Inbox** | `GET /alerts` | `candidate_id`, `predicted_pattern_type`, `confidence`, `severity`, `primary_wallet`, `detected_at` | Row click triggers graph focus and opens Evidence Drawer. Filter by minimum confidence score. |
+| **Alert Inbox** | `GET /alerts` | `candidate_id`, `predicted_pattern_type`, `binary_confidence` (P(illicit)), `typology_confidence`, `severity`, `primary_wallet`, `detected_at` | Row click triggers graph focus and opens Evidence Drawer. Filter uses typology confidence. |
 | **Link-Analysis Graph** | `GET /graph/{scenario_id}` | Nodes (`Wallet`, `Transaction`, `IP`), Edges (`SENT`, `RECEIVED`, `BROADCAST`), `amount_btc`, `relay_timestamp` | Interactive physics/layout layout; drag, zoom, node highlight on click, hover tooltips. |
 | **Evidence Dossier** | `GET /alerts/{id}/evidence` | `typology_heuristic_match`, `ml_feature_attributions` (SHAP), `telemetry_summary`, transactions list | Visual SHAP feature bars (Red for risk-increasing, Green for risk-decreasing); exportable forensic case file. |
 | **Entity Inspector** | `GET /entity/{address}` | `is_licit_exchange`, `total_received_btc`, `total_sent_btc`, `tx_count` | Displays exchange badge and transaction history list for inspected address. |

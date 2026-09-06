@@ -92,14 +92,15 @@ app.include_router(dossier_router)
 app.include_router(anomaly_router)
 app.include_router(ingest_router)
 
+from fastapi.staticfiles import StaticFiles
+from fastapi.responses import FileResponse
+
+app.mount("/assets", StaticFiles(directory="/home/param/SIH-2026/dist/assets"), name="assets")
+app.mount("/fonts", StaticFiles(directory="/home/param/SIH-2026/dist/fonts"), name="fonts")
+
 @app.get("/")
 def root():
-    return {
-        "message": f"Welcome to {settings.APP_NAME}",
-        "version": settings.APP_VERSION,
-        "docs_url": "/docs",
-        "health_check": "/health"
-    }
+    return FileResponse("/home/param/SIH-2026/dist/index.html")
 
 if __name__ == "__main__":
     import uvicorn

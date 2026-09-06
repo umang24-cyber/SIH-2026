@@ -183,7 +183,7 @@ class DBService:
     # DOSSIERS CRUD
     # -------------------------------------------------------------------------
     def save_dossier(self, dossier: Dict[str, Any]) -> None:
-        """Saves or updates a structured LEA CrPC Section 91 Dossier."""
+        """Saves or updates a structured investigative summary."""
         self.ensure_initialized()
         meta = dossier.get("case_metadata", {})
         dossier_id = str(meta.get("dossier_id", f"LEA-STR-{dossier.get('txid', 'UNKNOWN')}"))

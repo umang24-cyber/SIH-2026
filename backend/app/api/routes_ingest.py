@@ -4,6 +4,8 @@ Supports CSV, JSON, and XML payload ingestion on the fly without server restart.
 """
 import json
 import logging
+import math
+from collections import defaultdict
 from typing import List, Dict, Any, Optional, Union
 from fastapi import APIRouter, HTTPException, UploadFile, File, Query, Body
 
@@ -11,6 +13,7 @@ from backend.app.models.schemas import (
     IngestTransactionRequest,
     IngestResultResponse,
     IngestBatchResponse,
+    IngestScenarioAnalysis,
     FeatureAttribution,
 )
 from backend.app.services.data_service import data_service
@@ -26,6 +29,15 @@ from backend.app.ingestion.parser import (
 logger = logging.getLogger(__name__)
 
 router = APIRouter(prefix="/api/ingest", tags=["Live Ingestion & Correlation Engine"])
+
+# Frozen training feature artifacts contain no scenario with fewer than three
+# transactions. This is a disclosure threshold, not a scoring gate.
+MIN_TRAINING_SCENARIO_TX_COUNT = 3
+
+# Scenario-level ML results from custom uploads.  The graph view reads this
+# cache so it can display real model risk when available and an explicit
+# unavailable state otherwise.
+scenario_ml_analysis: Dict[str, IngestScenarioAnalysis] = {}
 
 # Pre-packaged authentic test samples for 1-click demonstration
 SAMPLE_TEMPLATES = {
@@ -118,6 +130,100 @@ SAMPLE_TEMPLATES = {
 }
 
 
+def _analyze_uploaded_scenario(
+    scenario_id: str,
+    scenario_txs: List[Dict[str, Any]],
+) -> IngestScenarioAnalysis:
+    """Run the existing scenario-level V7 and Isolation Forest paths."""
+    base = {
+        "scenario_id": scenario_id,
+        "transaction_count": len(scenario_txs),
+        "feature_count": 46,
+        "sample_size_warning": (
+            "Custom sample / distribution-shifted input — small sample size may reduce prediction reliability."
+            if len(scenario_txs) < MIN_TRAINING_SCENARIO_TX_COUNT
+            else None
+        ),
+    }
+
+    try:
+        # This is the production serving feature path.  The explicit finite
+        # check prevents invalid model input from being presented as a score.
+        feature_dict = ml_service._feature_dict(scenario_txs)
+        invalid_features = [
+            name for name, value in feature_dict.items()
+            if not math.isfinite(float(value))
+        ]
+        if invalid_features:
+            return IngestScenarioAnalysis(
+                **base,
+                analysis_status="UNAVAILABLE",
+                analysis_message=(
+                    "Production feature extraction produced invalid values for: "
+                    + ", ".join(invalid_features)
+                ),
+            )
+
+        ml_result = ml_service.score_candidate(
+            scenario_txs,
+            candidate_id=scenario_id,
+        )
+        if ml_result.get("error"):
+            return IngestScenarioAnalysis(
+                **base,
+                analysis_status="UNAVAILABLE",
+                analysis_message=f"ML analysis failed: {ml_result['error']}",
+            )
+
+        anomaly_score = None
+        anomaly_label = None
+        anomaly_message = ""
+        try:
+            anomaly_result = anomaly_service.score_scenario(scenario_txs)
+            anomaly_score = anomaly_result.get("anomaly_score")
+            anomaly_label = anomaly_result.get("anomaly_label")
+        except Exception as exc:
+            logger.warning(
+                "Could not compute anomaly score for uploaded scenario %s: %s",
+                scenario_id,
+                exc,
+            )
+            anomaly_message = f"Anomaly analysis unavailable: {exc}"
+
+        return IngestScenarioAnalysis(
+            **base,
+            analysis_status="AVAILABLE",
+            analysis_message=(
+                "Scored by the existing V7 binary and typology XGBoost models "
+                "using the manifest-aligned 46-feature scenario vector."
+            ),
+            risk_score=ml_result.get("risk_score"),
+            is_illicit=ml_result.get("is_illicit"),
+            binary_confidence=ml_result.get("binary_confidence"),
+            predicted_typology=ml_result.get("typology"),
+            typology_confidence=ml_result.get("typology_confidence"),
+            typology_explanation=ml_result.get("typology_explanation", ""),
+            anomaly_score=anomaly_score,
+            anomaly_label=anomaly_label,
+            anomaly_message=anomaly_message,
+            top_shap_attributions=[
+                FeatureAttribution(**item)
+                for item in ml_result.get("binary_shap", [])
+            ],
+            typology_shap_attributions=[
+                FeatureAttribution(**item)
+                for item in ml_result.get("typology_shap", [])
+            ],
+        )
+    except Exception as exc:
+        logger.exception("Uploaded scenario ML analysis failed for %s", scenario_id)
+        return IngestScenarioAnalysis(
+            **base,
+            analysis_status="UNAVAILABLE",
+            analysis_message=f"ML analysis unavailable: {exc}",
+        )
+
+
 @router.get("/sample")
 def get_ingest_sample(
     typology: Optional[str] = Query("ransomware", description="Sample type: ransomware, peeling_chain, mixing, licit")
@@ -182,8 +288,8 @@ def ingest_single_transaction(payload: Dict[str, Any] = Body(...)):
         risk_score=round(risk_score, 4),
         is_illicit=is_illicit,
         binary_confidence=round(binary_conf, 4),
-        predicted_typology=typology,
-        typology_confidence=round(typ_conf, 4),
+        predicted_typology=typology if is_illicit else None,
+        typology_confidence=round(typ_conf, 4) if is_illicit else None,
         anomaly_score=anomaly_score,
         anomaly_label=anomaly_label,
         top_shap_attributions=top_shap,
@@ -232,6 +338,16 @@ async def ingest_file_upload(file: UploadFile = File(...)):
     indexed_count = data_service.add_transactions_batch(records)
     wallets_after = len(data_service.unique_wallets)
 
+    grouped_records: Dict[str, List[Dict[str, Any]]] = defaultdict(list)
+    for record in records:
+        grouped_records[str(record["scenario_id"])].append(record)
+
+    scenario_results = []
+    for scenario_id, scenario_txs in grouped_records.items():
+        analysis = _analyze_uploaded_scenario(scenario_id, scenario_txs)
+        scenario_ml_analysis[scenario_id] = analysis
+        scenario_results.append(analysis)
+
     seen_scenarios = set()
     scenario_ids = []
     for r in records:
@@ -255,5 +371,30 @@ async def ingest_file_upload(file: UploadFile = File(...)):
         scenario_ids=scenario_ids[:10],
         unique_wallets_added=max(0, wallets_after - wallets_before),
         sample_txids=sample_txids,
+        scenario_results=scenario_results,
         message=f"Successfully ingested {indexed_count} transactions across {len(scenario_ids)} scenario clusters from '{file.filename}'."
     )
+
+
+@router.get("/scenario/{scenario_id}/analysis", response_model=IngestScenarioAnalysis)
+def get_uploaded_scenario_analysis(scenario_id: str):
+    """Return cached or on-demand scenario ML analysis."""
+    cached = scenario_ml_analysis.get(scenario_id)
+    if cached:
+        return cached
+
+    txids = data_service.get_scenario_txids(scenario_id)
+    if not txids:
+        raise HTTPException(status_code=404, detail=f"Scenario '{scenario_id}' not found.")
+
+    scenario_txs = [
+        data_service.txid_map[txid]
+        for txid in txids
+        if txid in data_service.txid_map
+    ]
+    if not scenario_txs:
+        raise HTTPException(status_code=404, detail=f"Scenario '{scenario_id}' has no indexed transactions.")
+
+    analysis = _analyze_uploaded_scenario(scenario_id, scenario_txs)
+    scenario_ml_analysis[scenario_id] = analysis
+    return analysis

@@ -2,10 +2,10 @@
 Tor & Obfuscated Network Telemetry Profiler.
 100% Offline / Air-Gapped Linux & WSL2 compliant.
 
-Solves the core Tor de-anonymization challenge:
+Analyzes recorded Tor-related relay telemetry:
 1. Calculates Shannon Timing Entropy (H) on gossip propagation delays (Δt).
 2. Performs multi-vantage Tor circuit clustering using Common-Input Ownership Heuristics (CIOH).
-3. Evaluates Obfuscation Evasion Risk and deanonymization confidence.
+3. Evaluates obfuscation/evasion indicators without claiming identity attribution.
 """
 import math
 import logging
@@ -76,8 +76,8 @@ class TorProfiler:
 
         entropy = self.calculate_shannon_entropy(same_ip_deltas)
 
-        # Obfuscation resilience scoring:
-        # High delta_t + Tor exit node + Multi-input cluster = High deanonymization confidence
+        # Obfuscation resilience scoring. These indicators do not identify a
+        # person, location, or host controller.
         has_cluster_link = len(cluster_wallets) > 1
         burst_automation = entropy < 1.5 and len(same_ip_deltas) > 3
 
@@ -111,10 +111,11 @@ class TorProfiler:
                 "cluster_size": len(cluster_wallets),
                 "syndicate_link": has_cluster_link
             },
-            "deanonymization_confidence": (
-                "HIGH (Unmasked via CIOH Multi-Input Clustering)" if has_cluster_link 
-                else ("MEDIUM (Timing Jitter Fingerprinted)" if is_tor else "LOW")
+            "relay_telemetry_correlation_indicator": (
+                "HIGH (CIOH and recorded relay telemetry correlated)" if has_cluster_link
+                else ("MEDIUM (recorded timing and Tor indicator correlated)" if is_tor else "LOW")
             ),
+            "attribution_note": "Recorded relay telemetry does not establish identity, location, or control of a host.",
             "obfuscation_evasion_score": evasion_risk_score
         }
 

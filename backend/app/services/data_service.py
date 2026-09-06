@@ -26,6 +26,8 @@ class DataService:
 
     def initialize(self):
         """Loads master dataset and builds reverse indexes for instant lookups."""
+        if self.is_ready:
+            return
         logger.info("Initializing in-memory forensic data store...")
         t0 = time.time()
         self.df = load_master_dataset()
@@ -177,25 +179,32 @@ class DataService:
             self.address_out_map[out_a].append(txid)
             self.unique_wallets.add(out_a)
 
-    def add_transaction(self, record: Dict[str, Any]) -> None:
+    def add_transaction(self, record: Dict[str, Any]) -> bool:
         """Dynamically indexes a new transaction into memory and persists to SQLite."""
+        txid = int(record["txid"])
+        if txid in self.txid_map:
+            return False
         self._index_transaction_memory(record)
         try:
             db_service.save_transaction(record, is_custom=True)
         except Exception as exc:
             logger.warning(f"Could not persist transaction {record.get('txid')} to SQLite: {exc}")
+        return True
 
     def add_transactions_batch(self, records: List[Dict[str, Any]]) -> int:
         """Batch-indexes new transactions in memory and persists to SQLite."""
-        count = 0
+        new_records = []
         for r in records:
+            txid = int(r["txid"])
+            if txid in self.txid_map:
+                continue
             self._index_transaction_memory(r)
-            count += 1
+            new_records.append(r)
         try:
-            db_service.save_transactions_batch(records, is_custom=True)
+            db_service.save_transactions_batch(new_records, is_custom=True)
         except Exception as exc:
-            logger.warning(f"Could not batch-persist {len(records)} transactions to SQLite: {exc}")
-        return count
+            logger.warning(f"Could not batch-persist {len(new_records)} transactions to SQLite: {exc}")
+        return len(new_records)
 
     def get_stats(self) -> Dict[str, Any]:
         """Return high-level memory store telemetry."""

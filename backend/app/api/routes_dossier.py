@@ -1,6 +1,4 @@
-"""
-Law Enforcement Agency (LEA) Investigation Dossier API Routes.
-"""
+"""Investigation summary API routes."""
 from fastapi import APIRouter, HTTPException
 from fastapi.responses import HTMLResponse
 from backend.app.services.dossier_service import dossier_service
@@ -33,7 +31,7 @@ def _resolve_txid(target: str) -> int:
 @router.get("/saved/list")
 def get_saved_dossiers_list():
     """
-    Returns a list of all court-ready Section 91 Cr.P.C. dossiers persisted in SQLite.
+    Returns a list of saved system-generated investigative summaries.
     """
     from backend.app.services.db_service import db_service
     return db_service.list_all_dossiers()
@@ -41,7 +39,7 @@ def get_saved_dossiers_list():
 @router.get("/{txid}")
 def get_dossier_json(txid: str):
     """
-    Returns a structured Section 91 Cr.P.C. / FIU-IND Forensic Investigation Dossier as JSON.
+    Returns a structured forensic investigative summary as JSON.
     Accepts either an integer TXID or a candidate ID string (e.g. cand_ransom_...).
     """
     numeric_txid = _resolve_txid(txid)
@@ -53,7 +51,7 @@ def get_dossier_json(txid: str):
 @router.get("/{txid}/html", response_class=HTMLResponse)
 def get_dossier_html(txid: str):
     """
-    Returns a print-ready, official HTML Law Enforcement Investigation Report for 1-click PDF download.
+    Returns a print-ready HTML investigative summary for 1-click PDF download.
     Accepts either an integer TXID or a candidate ID string.
     """
     numeric_txid = _resolve_txid(txid)

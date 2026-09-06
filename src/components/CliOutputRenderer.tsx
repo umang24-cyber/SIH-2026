@@ -28,11 +28,13 @@ function formatStatusOutput(content: any): string {
   const engine = content.status || content.engine_status || 'ONLINE';
   const mem = content.memory_usage_mb ? `${content.memory_usage_mb} MB` : 'N/A';
   const uptime = content.uptime_seconds ? `${Math.floor(content.uptime_seconds / 60)}m ${content.uptime_seconds % 60}s` : '0m 0s';
-  const txCount = content.loaded_transactions ?? content.dataset?.loaded_transactions ?? content.total_transactions_indexed ?? 294693;
-  const walletCount = content.unique_wallets ?? content.dataset?.unique_wallets ?? content.total_wallets_indexed ?? 984076;
-  const illicitRatio = content.illicit_transaction_ratio !== undefined ? `${(content.illicit_transaction_ratio * 100).toFixed(2)}%` : 'N/A';
-  const clusters = content.clustering?.total_clusters ?? 634214;
-  const alertsCount = content.typologies?.total_alerts ?? 1105;
+  const txCount = content.loaded_transactions ?? content.dataset?.loaded_transactions;
+  const walletCount = content.unique_wallets ?? content.dataset?.unique_wallets;
+  const illicitRatio = content.illicit_transaction_ratio !== undefined && content.illicit_transaction_ratio !== null
+    ? `${(content.illicit_transaction_ratio * 100).toFixed(2)}%`
+    : (content.illicit_ratio_note || 'N/A');
+  const clusters = content.cluster_count ?? content.clustering?.total_clusters;
+  const alertsCount = content.alert_count ?? content.typologies?.total_alerts;
 
   return [
     '================================================================================',
@@ -43,10 +45,10 @@ function formatStatusOutput(content: any): string {
     ` [SYSTEM UPTIME]          : ${uptime}`,
     ` [MEMORY FOOTPRINT]       : ${mem}`,
     '--------------------------------------------------------------------------------',
-    ` [INDEXED TRANSACTIONS]   : ${Number(txCount).toLocaleString()}`,
-    ` [INDEXED WALLETS]        : ${Number(walletCount).toLocaleString()}`,
-    ` [CIOH ENTITY CLUSTERS]   : ${Number(clusters).toLocaleString()}`,
-    ` [ML DETECTED ALERTS]     : ${Number(alertsCount).toLocaleString()}`,
+    ` [INDEXED TRANSACTIONS]   : ${txCount === undefined ? 'N/A' : Number(txCount).toLocaleString()}`,
+    ` [INDEXED WALLETS]        : ${walletCount === undefined ? 'N/A' : Number(walletCount).toLocaleString()}`,
+    ` [CIOH ENTITY CLUSTERS]   : ${clusters === undefined ? 'N/A' : Number(clusters).toLocaleString()}`,
+    ` [ML DETECTED ALERTS]     : ${alertsCount === undefined ? 'N/A' : Number(alertsCount).toLocaleString()}`,
     ` [ILLICIT TX RATIO]       : ${illicitRatio}`,
     ` [TOPOLOGY ENGINE]        : ONLINE (Ransomware, Peeling, Mixing, Layering)`,
     ` [ML INFERENCE PIPELINE]  : XGBOOST BINARY + MULTI-CLASS + SHAP EXPLAINER`,
@@ -65,7 +67,7 @@ function formatHelpOutput(): string {
     '  trace <src> <dst>     - Run multi-hop shortest path velocity trace',
     '  taint <seed_address>  - Forward dirty coin risk propagation & decay',
     '  alerts                - Real-time detected typology candidates & ML alerts',
-    '  dossier <txid|list>   - Generate Section 91 Cr.P.C. legal dossier or list saved cases',
+    '  dossier <txid|list>   - Generate a system investigative summary or list saved cases',
     '  tor [txid]            - Tor timing entropy analysis & exit node profiler',
     '  ingest sample [type]  - Dynamic injection of ransomware/peeling/mixing/licit flows',
     '  ingest <raw_json>     - Dynamic live-injection of custom TX with instant ML scoring',
@@ -267,7 +269,7 @@ export const CliOutputRenderer: React.FC<CliOutputRendererProps> = React.memo(({
         <div className="output-block" style={{ background: 'var(--bg-card)', border: '1px solid #ff3344', padding: '14px' }}>
           <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '10px' }}>
             <div style={{ color: '#ff3344', fontWeight: 'bold', fontSize: '15px' }}>
-              CONFIDENTIAL // LAW ENFORCEMENT INVESTIGATION DOSSIER
+              CONFIDENTIAL // SYSTEM-GENERATED INVESTIGATIVE SUMMARY
             </div>
             <a
               href={`http://localhost:8000/api/dossier/${entry.content.transaction_evidence?.txid}/html`}
@@ -275,18 +277,20 @@ export const CliOutputRenderer: React.FC<CliOutputRendererProps> = React.memo(({
               rel="noreferrer"
               style={{ background: '#00ff66', color: '#000', padding: '3px 10px', fontWeight: 'bold', textDecoration: 'none', borderRadius: '3px', fontSize: '12px' }}
             >
-              🖨️ Export Section 91 CrPC PDF
+              🖨️ Export Investigation Summary PDF
             </a>
           </div>
           <div style={{ fontSize: '13px', lineHeight: '1.6' }}>
             <p><strong>Case ID:</strong> <code>{entry.content.case_metadata?.dossier_id}</code> | <strong>Threat Rating:</strong> <span style={{ color: '#ff3344', fontWeight: 'bold' }}>{entry.content.threat_assessment?.risk_rating} (Score: {entry.content.threat_assessment?.composite_risk_score})</span></p>
-            <p><strong>Target TXID:</strong> <code>{entry.content.transaction_evidence?.txid}</code> | <strong>Value:</strong> {entry.content.transaction_evidence?.btc_value} BTC</p>
-            <p><strong>Relay Telemetry:</strong> IP {entry.content.network_telemetry_attribution?.ip_address} ({entry.content.network_telemetry_attribution?.isp}) | Country: {entry.content.network_telemetry_attribution?.country} | Tor: {entry.content.network_telemetry_attribution?.is_tor_exit_node ? 'YES (High Risk)' : 'NO'}</p>
-            <p><strong>CIOH Entity Cluster:</strong> {entry.content.entity_clustering?.entity_cluster_id} ({entry.content.entity_clustering?.total_unmasked_wallets_in_cluster} co-owned wallets)</p>
+            <p><strong>Data status:</strong> {entry.content.case_metadata?.data_status} | <strong>Model status:</strong> {entry.content.case_metadata?.model_status}</p>
+            <p><strong>Target TXID:</strong> <code>{entry.content.transaction_evidence?.txid}</code> | <strong>Value:</strong> {entry.content.transaction_evidence?.transferred_btc} BTC</p>
+            <p><strong>Recorded relay telemetry:</strong> IP {entry.content.network_telemetry_observation?.observed_relay_ip} ({entry.content.network_telemetry_observation?.recorded_isp}) | Country code: {entry.content.network_telemetry_observation?.recorded_country_code} | Tor indicator: {entry.content.network_telemetry_observation?.tor_exit_indicator ? 'RECORDED' : 'NOT RECORDED'}</p>
+            <p><strong>CIOH Entity Cluster:</strong> {entry.content.entity_clustering?.entity_cluster_id} ({entry.content.entity_clustering?.total_cioh_linked_addresses_observed} linked addresses observed)</p>
             <div style={{ marginTop: '10px', background: '#001406', padding: '10px', borderLeft: '3px solid #00ff66' }}>
-              <strong>Mandated Legal Directives:</strong>
+              <strong>Recommended Investigative Actions:</strong>
+              <p style={{ margin: '6px 0', color: '#ffaa33' }}>{entry.content.case_metadata?.document_status}</p>
               <ul style={{ margin: '6px 0 0 16px', padding: 0 }}>
-                {entry.content.statutory_legal_directives?.map((d: string, idx: number) => (
+                {entry.content.recommended_investigative_actions?.map((d: string, idx: number) => (
                   <li key={idx}>{d}</li>
                 ))}
               </ul>
@@ -299,11 +303,11 @@ export const CliOutputRenderer: React.FC<CliOutputRendererProps> = React.memo(({
       {entry.type === 'DOSSIER_LIST' && entry.content && (
         <div className="output-block" style={{ background: 'var(--bg-card)', border: '1px solid #00ff66', padding: '14px' }}>
           <div style={{ color: '#00ff66', fontWeight: 'bold', fontSize: '15px', marginBottom: '8px' }}>
-            📁 PERSISTENT LAW ENFORCEMENT CASE REGISTRY ({entry.content.length} SAVED DOSSIERS)
+            📁 PERSISTENT INVESTIGATION SUMMARY REGISTRY ({entry.content.length} SAVED SUMMARIES)
           </div>
           {entry.content.length === 0 ? (
             <div style={{ color: '#aaffaa', fontSize: '13px' }}>
-              No court dossiers have been generated yet. Run <code>dossier &lt;txid&gt;</code> to generate and persist a Section 91 Cr.P.C. dossier.
+              No investigation summaries have been generated yet. Run <code>dossier &lt;txid&gt;</code> to generate and persist a system summary.
             </div>
           ) : (
             <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: '13px', marginTop: '8px' }}>
@@ -369,7 +373,9 @@ export const CliOutputRenderer: React.FC<CliOutputRendererProps> = React.memo(({
                     <span style={{ color: alt.severity === 'CRITICAL' ? '#ff3344' : '#ffaa00', fontWeight: 'bold' }}>
                       [{alt.severity}] {alt.predicted_pattern_type?.toUpperCase()}
                     </span>
-                    <span style={{ color: '#33ff88' }}>Confidence: {(alt.confidence * 100).toFixed(1)}%</span>
+                    <span style={{ color: '#33ff88' }}>
+                      Binary: {(Number(alt.binary_confidence ?? 0) * 100).toFixed(1)}% | Typology: {(Number(alt.typology_confidence ?? 0) * 100).toFixed(1)}%
+                    </span>
                   </div>
                   <div style={{ fontSize: '13px', color: '#aaffaa', margin: '4px 0' }}>{alt.explanation}</div>
                   <div style={{ fontSize: '12px', color: '#66aa77' }}>
@@ -399,7 +405,8 @@ export const CliOutputRenderer: React.FC<CliOutputRendererProps> = React.memo(({
             <div style={{ fontSize: '13px' }}>
               <p><strong>Suspect TXID:</strong> {entry.content.txid} | <strong>IP:</strong> {entry.content.ip_address} | <strong>Tor Node:</strong> {entry.content.is_tor ? 'YES' : 'NO'}</p>
               <p><strong>Shannon Timing Entropy:</strong> {entry.content.timing_entropy} ({entry.content.entropy_interpretation})</p>
-              <p><strong>Deanonymization Status:</strong> <span style={{ color: '#33ff88' }}>{entry.content.deanonymization_confidence}</span></p>
+              <p><strong>Relay telemetry correlation:</strong> <span style={{ color: '#33ff88' }}>{entry.content.relay_telemetry_correlation_indicator}</span></p>
+              <p><strong>Attribution note:</strong> {entry.content.attribution_note}</p>
               <p><strong>Obfuscation Evasion Score:</strong> <span style={{ color: '#ff3344' }}>{entry.content.obfuscation_evasion_score}</span></p>
             </div>
           )}
@@ -422,7 +429,7 @@ export const CliOutputRenderer: React.FC<CliOutputRendererProps> = React.memo(({
               fontSize: '11px',
               fontWeight: 'bold'
             }}>
-              {entry.content.is_illicit ? `ILLICIT: ${entry.content.predicted_typology?.toUpperCase()} (${(entry.content.typology_confidence * 100).toFixed(1)}%)` : `LICIT (Confidence ${(entry.content.binary_confidence * 100).toFixed(1)}%)`}
+              {entry.content.is_illicit ? `ILLICIT: ${entry.content.predicted_typology?.toUpperCase()} (${(entry.content.typology_confidence * 100).toFixed(1)}%)` : `LICIT (P(illicit) ${(entry.content.binary_confidence * 100).toFixed(1)}%)`}
             </span>
           </div>
 
@@ -430,7 +437,7 @@ export const CliOutputRenderer: React.FC<CliOutputRendererProps> = React.memo(({
             <p><strong>Scenario Cluster:</strong> <code>{entry.content.scenario_id}</code> | <strong>Primary Wallet:</strong> <code>{entry.content.primary_wallet}</code></p>
             <p><strong>Binary Risk Score:</strong> <span style={{ color: entry.content.risk_score >= 0.5 ? '#ff3344' : '#33ff88', fontWeight: 'bold' }}>{(entry.content.risk_score * 100).toFixed(1)}%</span> | <strong>Typology:</strong> <span style={{ color: '#ffaa00', fontWeight: 'bold' }}>{entry.content.predicted_typology?.toUpperCase()}</span></p>
             {entry.content.anomaly_score !== null && entry.content.anomaly_score !== undefined && (
-              <p><strong>Isolation Forest Anomaly:</strong> <span style={{ color: entry.content.anomaly_score >= 70 ? '#ff3344' : entry.content.anomaly_score >= 40 ? '#ffaa00' : '#33ff88' }}>{entry.content.anomaly_score} / 100 [{entry.content.anomaly_label}]</span></p>
+              <p><strong>Isolation Forest Anomaly / Unusualness (0–100; not probability):</strong> <span style={{ color: entry.content.anomaly_score >= 70 ? '#ff3344' : entry.content.anomaly_score >= 40 ? '#ffaa00' : '#33ff88' }}>{entry.content.anomaly_score} [{entry.content.anomaly_label}]</span></p>
             )}
             
             {entry.content.top_shap_attributions?.length > 0 && (
@@ -474,6 +481,49 @@ export const CliOutputRenderer: React.FC<CliOutputRendererProps> = React.memo(({
             <p><strong>Transactions Ingested:</strong> <span style={{ color: '#33ff88', fontWeight: 'bold' }}>{entry.content.total_ingested}</span></p>
             <p><strong>New Wallets Indexed:</strong> {entry.content.unique_wallets_added}</p>
             <p><strong>Scenario Clusters:</strong> {entry.content.scenario_ids?.join(', ') || 'Auto-clustered'}</p>
+            {entry.content.scenario_results?.map((result: any) => {
+              const available = result.analysis_status === 'AVAILABLE';
+              return (
+                <div
+                  key={result.scenario_id}
+                  style={{
+                    marginTop: '10px',
+                    padding: '9px',
+                    border: `1px solid ${available ? '#006b32' : '#aa7700'}`,
+                    background: available ? '#001c0b' : '#211700',
+                  }}
+                >
+                  <div style={{ color: available ? '#33ff88' : '#ffaa33', fontWeight: 'bold' }}>
+                    ML ANALYSIS // {result.scenario_id} // {available ? 'AVAILABLE' : 'UNAVAILABLE'}
+                  </div>
+                  <div style={{ fontSize: '12px', marginTop: '4px' }}>
+                    Transactions: {result.transaction_count} | Features: {result.feature_count}
+                  </div>
+                  {result.sample_size_warning && (
+                    <div style={{ color: '#ffcc66', fontSize: '12px', marginTop: '4px' }}>
+                      {result.sample_size_warning}
+                    </div>
+                  )}
+                  {available ? (
+                    <>
+                      <div style={{ fontSize: '12px', marginTop: '4px' }}>
+                        Scenario P(illicit): {(Number(result.risk_score) * 100).toFixed(2)}% | Binary P(illicit): {(Number(result.binary_confidence) * 100).toFixed(2)}%
+                      </div>
+                      <div style={{ fontSize: '12px' }}>
+                        Typology: {result.is_illicit ? (result.predicted_typology || 'unknown') : 'N/A — not applicable'} | Typology confidence: {result.is_illicit && result.typology_confidence !== null && result.typology_confidence !== undefined ? `${(Number(result.typology_confidence) * 100).toFixed(2)}%` : 'N/A — not applicable'}
+                      </div>
+                      <div style={{ fontSize: '12px' }}>
+                        Anomaly / unusualness (0–100, not probability): {result.anomaly_score !== null && result.anomaly_score !== undefined ? `${result.anomaly_score} [${result.anomaly_label}]` : (result.anomaly_message || 'UNAVAILABLE')}
+                      </div>
+                    </>
+                  ) : (
+                    <div style={{ color: '#ffcc66', fontSize: '12px', marginTop: '4px' }}>
+                      {result.analysis_message}
+                    </div>
+                  )}
+                </div>
+              );
+            })}
             <div style={{ marginTop: '10px', display: 'flex', gap: '8px', flexWrap: 'wrap' }}>
               {entry.content.scenario_ids?.map((scId: string) => (
                 <span
@@ -514,4 +564,3 @@ export const CliOutputRenderer: React.FC<CliOutputRendererProps> = React.memo(({
 });
 
 export default CliOutputRenderer;
-

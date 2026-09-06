@@ -34,25 +34,16 @@ async function fetchJson<T>(endpoint: string, options?: RequestInit): Promise<T>
 
 export interface HealthResponse {
   status: string;
+  app_name: string;
   version: string;
-  dataset: {
-    loaded_transactions: number;
-    unique_wallets: number;
-    unique_scenarios: number;
-    uptime_seconds: number;
-  };
-  clustering: {
-    is_clustered: boolean;
-    total_clusters: number;
-  };
-  typologies: {
-    is_scanned: boolean;
-    total_alerts: number;
-  };
-  ml_model: {
-    is_loaded: boolean;
-    model_type: string;
-  };
+  loaded_transactions: number;
+  unique_scenarios: number;
+  unique_wallets: number;
+  uptime_seconds: number;
+  alert_count: number;
+  cluster_count: number;
+  illicit_transaction_ratio?: number | null;
+  illicit_ratio_note: string;
 }
 
 export interface EntityResponse {
@@ -122,6 +113,37 @@ export interface TraceResponse {
   hops: TraceHop[];
 }
 
+export interface IngestScenarioAnalysis {
+  scenario_id: string;
+  transaction_count: number;
+  analysis_status: 'AVAILABLE' | 'UNAVAILABLE';
+  analysis_message: string;
+  feature_count: number;
+  score_scope: 'SCENARIO';
+  sample_size_warning?: string | null;
+  risk_score?: number | null;
+  is_illicit?: boolean | null;
+  binary_confidence?: number | null;
+  predicted_typology?: string | null;
+  typology_confidence?: number | null;
+  typology_explanation: string;
+  anomaly_score?: number | null;
+  anomaly_label?: string | null;
+  anomaly_message: string;
+  top_shap_attributions: Array<{
+    feature_name: string;
+    value: number | string;
+    shap_value: number;
+    direction: string;
+  }>;
+  typology_shap_attributions: Array<{
+    feature_name: string;
+    value: number | string;
+    shap_value: number;
+    direction: string;
+  }>;
+}
+
 export interface TaintNode {
   address: string;
   taint_score: number;
@@ -143,7 +165,8 @@ export interface AlertSummary {
   candidate_id: string;
   scenario_id: string;
   predicted_pattern_type: string;
-  confidence: number;
+  binary_confidence: number;
+  typology_confidence: number;
   severity: string;
   explanation: string;
   primary_wallet: string;
@@ -176,27 +199,31 @@ export interface DossierResponse {
   case_metadata: {
     dossier_id: string;
     generation_timestamp: string;
-    investigating_authority: string;
-    statutory_mandates: string[];
+    document_owner: string;
+    legal_context: string;
+    document_status: string;
+    data_status: string;
+    model_status: string;
   };
   transaction_evidence: {
     txid: number;
-    block_timestamp: string;
-    btc_value: number;
+    timestamp_utc: string;
+    transferred_btc: number;
+    fee_btc: number;
     input_addresses: string[];
     output_addresses: string[];
   };
-  network_telemetry_attribution: {
-    ip_address: string;
-    isp: string;
-    asn: string;
-    country: string;
-    is_tor_exit_node: boolean;
+  network_telemetry_observation: {
+    observed_relay_ip: string;
+    recorded_isp: string;
+    recorded_asn: string;
+    recorded_country_code: string;
+    tor_exit_indicator: boolean;
     propagation_delta_t_seconds: number;
   };
   entity_clustering: {
     entity_cluster_id: string;
-    total_unmasked_wallets_in_cluster: number;
+    total_cioh_linked_addresses_observed: number;
     sample_co_owned_addresses: string[];
   };
   threat_assessment: {
@@ -205,7 +232,7 @@ export interface DossierResponse {
     detected_typologies: string[];
     taint_hop_flows_count: number;
   };
-  statutory_legal_directives: string[];
+  recommended_investigative_actions: string[];
 }
 
 export interface TorSummary {
@@ -256,6 +283,8 @@ export const api = {
       body: formData,
     });
   },
+  getIngestScenarioAnalysis: (scenarioId: string) =>
+    fetchJson<IngestScenarioAnalysis>(`/api/ingest/scenario/${encodeURIComponent(scenarioId)}/analysis`),
   getIngestSample: (typology = 'ransomware') =>
     fetchJson<any>(`/api/ingest/sample?typology=${encodeURIComponent(typology)}`),
   listSavedDossiers: () => fetchJson<any[]>('/api/dossier/saved/list'),

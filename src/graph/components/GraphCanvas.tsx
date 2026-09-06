@@ -127,6 +127,7 @@ export const GraphCanvas: React.FC<GraphCanvasProps> = ({
       green: createBitcoinTexture('#00ff66', '₿'),
       orange: createBitcoinTexture('#ffaa00', '₿'),
       red: createBitcoinTexture('#ff3344', '₿'),
+      unavailable: createBitcoinTexture('#94a3b8', '?'),
       tx: createBitcoinTexture('#ffd700', 'TX'),
       ip: createBitcoinTexture('#00ccff', 'IP'),
     };
@@ -208,21 +209,24 @@ export const GraphCanvas: React.FC<GraphCanvasProps> = ({
 
     nodes.forEach(node => {
       const pos = nodePositions.get(node.id) || new THREE.Vector3();
-      const risk = node.riskScore ?? 0.2;
+      const risk = node.riskScore;
 
       // Select texture based on node type and trust level
       let tex = textures.green;
       let colorHex = '#00ff66';
-      if (node.type === 'TRANSACTION') {
+      if (node.mlAnalysisStatus === 'UNAVAILABLE') {
+        tex = textures.unavailable;
+        colorHex = '#94a3b8';
+      } else if (node.type === 'TRANSACTION') {
         tex = textures.tx;
         colorHex = '#ffd700';
       } else if (node.type === 'IP') {
         tex = textures.ip;
         colorHex = '#00ccff';
-      } else if (risk > 0.75) {
+      } else if (risk !== undefined && risk > 0.75) {
         tex = textures.red;
         colorHex = '#ff3344';
-      } else if (risk >= 0.40) {
+      } else if (risk !== undefined && risk >= 0.40) {
         tex = textures.orange;
         colorHex = '#ffaa00';
       }
@@ -536,21 +540,22 @@ export const GraphCanvas: React.FC<GraphCanvasProps> = ({
           alignItems: 'center',
         }}
       >
-        <span style={{ color: '#88bb99', fontWeight: 'bold' }}>TRUST TAXONOMY:</span>
+        <span style={{ color: '#88bb99', fontWeight: 'bold' }}>GRAPH STATUS:</span>
         <span style={{ display: 'inline-flex', alignItems: 'center', gap: '4px', color: '#00ff66' }}>
           <span style={{ width: '8px', height: '8px', borderRadius: '50%', background: '#00ff66', display: 'inline-block' }}></span>
-          High Trust (Low Risk &lt; 0.40)
+          Wallet scenario P(illicit) &lt; 0.40
         </span>
         <span style={{ display: 'inline-flex', alignItems: 'center', gap: '4px', color: '#ffaa00' }}>
           <span style={{ width: '8px', height: '8px', borderRadius: '50%', background: '#ffaa00', display: 'inline-block' }}></span>
-          Warning (0.40 - 0.75)
+          Wallet scenario P(illicit) 0.40–0.75
         </span>
         <span style={{ display: 'inline-flex', alignItems: 'center', gap: '4px', color: '#ff3344' }}>
           <span style={{ width: '8px', height: '8px', borderRadius: '50%', background: '#ff3344', display: 'inline-block' }}></span>
-          Threat / Mixer (&gt; 0.75)
+          Wallet scenario P(illicit) &gt; 0.75
         </span>
-        <span style={{ color: '#ffd700' }}>[TX] Block</span>
-        <span style={{ color: '#00ccff' }}>[IP] Relay</span>
+        <span style={{ color: '#ffd700' }}>[TX] Type color</span>
+        <span style={{ color: '#00ccff' }}>[IP] Relay type color</span>
+        <span style={{ color: '#94a3b8' }}>[?] Scenario ML unavailable</span>
       </div>
 
       {/* Hover Node Tooltip HUD */}

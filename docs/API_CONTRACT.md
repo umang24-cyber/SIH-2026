@@ -22,7 +22,7 @@ All API endpoints strictly use field names and types specified in [DATA_DICTIONA
 | `GET` | `/taint` | Forward dirty coin risk propagation (Haircut & FIFO models) with distance decay. | P6 (Backend), P1/P2 (Frontend) |
 | `GET` | `/alerts` | Retrieve prioritized list of forensic candidate alerts with ML predictions and explanations. | P5 (ML), P6 (Backend), P1 (Alert Feed) |
 | `GET` | `/alerts/{candidate_id}/evidence` | Deep forensic evidence dossier and SHAP feature attribution breakdown. | P5 (ML/SHAP), P6 (Backend), P1/P2 (Frontend) |
-| `GET` | `/alerts/{candidate_id}/export` | Export formatted legal case dossier report for law enforcement use. | P6 (Backend) |
+| `GET` | `/alerts/{candidate_id}/export` | Export formatted investigation summary for authorized review. | P6 (Backend) |
 | `GET` | `/search` | Universal search across TxIDs, Wallet Addresses, IPs, ASNs, and Scenarios. | P6 (Backend), P1 (Search UI) |
 | `GET` | `/scenarios` | Paginated scenario cluster explorer with transaction count and volume. | P6 (Backend), P1 (Dashboard) |
 | `GET` | `/scenarios/{scenario_id}` | Deep forensic risk profile, infrastructure score, and hub wallets. | P6 (Backend), P1 (Dashboard) |

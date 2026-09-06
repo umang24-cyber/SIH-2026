@@ -12,35 +12,6 @@ import type {
   GraphEdge as ScenarioEdge,
 } from "../data/forensicScenarios";
 
-function getScenarioRiskScore(
-  node: ScenarioNode
-): number {
-  const label = node.label.toLowerCase();
-
-  const infrastructureType =
-    String(
-      node.properties.node_type ?? ""
-    ).toLowerCase();
-
-  if (
-    label.includes("origin") ||
-    label.includes("peel") ||
-    label.includes("bulletproof") ||
-    infrastructureType.includes("bulletproof")
-  ) {
-    return 0.9;
-  }
-
-  if (
-    label.includes("change") ||
-    node.type === "Transaction"
-  ) {
-    return 0.65;
-  }
-
-  return 0.2;
-}
-
 function getScenarioClusterId(
   node: ScenarioNode
 ): string {
@@ -79,7 +50,8 @@ export function adaptScenarioNode(
     x: node.x,
     y: node.y,
     address: node.properties.address ?? node.label,
-    riskScore: getScenarioRiskScore(node),
+    mlAnalysisStatus: "UNAVAILABLE",
+    mlAnalysisMessage: "No backend scenario-level ML result is attached to this static demonstration graph.",
     transactionCount: undefined,
     clusterId: getScenarioClusterId(node),
     tags: [],
@@ -101,7 +73,8 @@ export function adaptScenarioNode(
     inputCount: undefined,
     outputCount: undefined,
     confidenceScore: undefined,
-    riskScore: getScenarioRiskScore(node),
+    mlAnalysisStatus: "UNAVAILABLE",
+    mlAnalysisMessage: "No backend scenario-level ML result is attached to this static demonstration graph.",
     clusterId: getScenarioClusterId(node),
 
     patternTags: [],
@@ -120,7 +93,8 @@ export function adaptScenarioNode(
     isp: node.properties.isp,
     latency: node.properties.propagation_delta_ms,
     infrastructureType: node.properties.node_type,
-    riskScore: getScenarioRiskScore(node),
+    mlAnalysisStatus: "UNAVAILABLE",
+    mlAnalysisMessage: "No backend scenario-level ML result is attached to this static demonstration graph.",
     clusterId: getScenarioClusterId(node),
 
   };

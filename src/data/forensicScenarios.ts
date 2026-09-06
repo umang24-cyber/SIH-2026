@@ -44,7 +44,8 @@ export interface ForensicAlert {
   candidate_id: string;
   scenario_id: string;
   predicted_pattern_type: 'peeling_chain' | 'layering' | 'mixing' | 'ransomware';
-  confidence: number;
+  binary_confidence: number;
+  typology_confidence: number;
   severity: 'CRITICAL' | 'HIGH' | 'MEDIUM';
   explanation: string;
   primary_wallet: string;
@@ -285,7 +286,8 @@ export const FORENSIC_SCENARIOS: Record<string, ForensicScenario> = {
         candidate_id: 'cand_peel_001_seq01',
         scenario_id: 'peel_001',
         predicted_pattern_type: 'peeling_chain',
-        confidence: 0.942,
+        binary_confidence: 0.942,
+        typology_confidence: 0.942,
         severity: 'CRITICAL',
         explanation: 'Sequential 1-in-2-out transactions peeling small outputs (avg 0.05 BTC) with change reuse across 5 consecutive hops via bulletproof infrastructure (AS210644).',
         primary_wallet: '12dhqUGwzF6c6eW5F7DkyXyqBmW1',
@@ -492,7 +494,8 @@ export const FORENSIC_SCENARIOS: Record<string, ForensicScenario> = {
         candidate_id: 'cand_layer_014_seq02',
         scenario_id: 'layer_014',
         predicted_pattern_type: 'layering',
-        confidence: 0.887,
+        binary_confidence: 0.887,
+        typology_confidence: 0.887,
         severity: 'HIGH',
         explanation: 'Rapid fan-out from single UTXO into 8 intermediate addresses followed by 8-to-1 fan-in reconvergence within 12 minutes.',
         primary_wallet: '1BvBMSEYstWetqTFn5Au4m4GFg7xJaNVN2',
@@ -671,7 +674,8 @@ export const FORENSIC_SCENARIOS: Record<string, ForensicScenario> = {
         candidate_id: 'cand_mix_003_seq09',
         scenario_id: 'mix_003',
         predicted_pattern_type: 'mixing',
-        confidence: 0.764,
+        binary_confidence: 0.764,
+        typology_confidence: 0.764,
         severity: 'MEDIUM',
         explanation: 'CoinJoin mixing pool execution with uniform 0.1 BTC denominations routed via Tor exit infrastructure to obfuscate UTXO lineage.',
         primary_wallet: '1Lbcfr7sAHTD9CgdQo3HTMTkV8LK4ZnX71',

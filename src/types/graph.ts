@@ -7,6 +7,15 @@ export interface BaseNode {
   x?: number;
   y?: number;
   riskScore?: number;
+  mlAnalysisStatus?: "AVAILABLE" | "UNAVAILABLE";
+  mlAnalysisMessage?: string;
+  scoreScope?: "SCENARIO";
+  isIllicit?: boolean;
+  binaryConfidence?: number;
+  typologyConfidence?: number;
+  predictedTypology?: string;
+  anomalyScore?: number;
+  anomalyLabel?: string;
 }
 
 export interface WalletNode extends BaseNode {

@@ -62,6 +62,37 @@ export default function NodeDetails({
         <strong>LABEL:</strong> {node.label}
       </div>
 
+      {node.mlAnalysisStatus && (
+        <div
+          style={{
+            color: node.mlAnalysisStatus === "AVAILABLE" ? "#33ff88" : "#ffaa33",
+            marginBottom: "12px",
+          }}
+        >
+          <strong>ML ANALYSIS:</strong> {node.mlAnalysisStatus}
+          {node.mlAnalysisMessage && (
+            <div style={{ fontSize: "11px", marginTop: "4px", lineHeight: 1.35 }}>
+              {node.mlAnalysisMessage}
+            </div>
+          )}
+          <div style={{ fontSize: "11px", marginTop: "4px" }}>
+            <strong>NODE-LEVEL ML SCORE:</strong> NOT COMPUTED
+          </div>
+          {node.mlAnalysisStatus === "AVAILABLE" && (
+            <div style={{ fontSize: "11px", marginTop: "4px" }}>
+              <strong>SCENARIO BINARY P(illicit):</strong> {node.binaryConfidence !== undefined ? `${(node.binaryConfidence * 100).toFixed(2)}%` : "N/A"}
+              {" | "}
+              <strong>SCENARIO TYPOLOGY:</strong> {node.isIllicit && node.typologyConfidence !== undefined ? `${(node.typologyConfidence * 100).toFixed(2)}%` : "N/A — not applicable"}
+            </div>
+          )}
+          {node.mlAnalysisStatus === "AVAILABLE" && (
+            <div style={{ fontSize: "11px", marginTop: "4px" }}>
+              <strong>ANOMALY / UNUSUALNESS:</strong> {node.anomalyScore !== undefined ? `${node.anomalyScore} / 100 [${node.anomalyLabel || "UNLABELED"}] — not probability` : "N/A"}
+            </div>
+          )}
+        </div>
+      )}
+
       {/* WALLET DETAILS */}
       {node.type === "WALLET" && (
         <>
@@ -85,8 +116,8 @@ export default function NodeDetails({
           </div>
 
           <div>
-            <strong>RISK SCORE:</strong>{" "}
-            {formatRiskScore(node.riskScore)}
+            <strong>SCENARIO RISK SCORE:</strong>{" "}
+            {node.mlAnalysisStatus === "AVAILABLE" ? formatRiskScore(node.riskScore) : "N/A — unavailable"}
           </div>
 
           <div>
@@ -156,13 +187,12 @@ export default function NodeDetails({
           </div>
 
           <div>
-            <strong>RISK SCORE:</strong>{" "}
-            {formatRiskScore(node.riskScore)}
+            <strong>SCENARIO RISK SCORE:</strong>{" "}
+            {node.mlAnalysisStatus === "AVAILABLE" ? formatRiskScore(node.riskScore) : "N/A — unavailable"}
           </div>
 
           <div>
-            <strong>CONFIDENCE SCORE:</strong>{" "}
-            {formatRiskScore(node.confidenceScore)}
+            <strong>NODE-LEVEL CONFIDENCE:</strong> NOT COMPUTED
           </div>
 
           <div>
@@ -208,7 +238,7 @@ export default function NodeDetails({
           </div>
 
           <div>
-            <strong>RISK SCORE:</strong>{" "}
+            <strong>SCENARIO RISK SCORE:</strong>{" "}
             {formatRiskScore(node.riskScore)}
           </div>
 

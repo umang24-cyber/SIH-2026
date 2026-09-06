@@ -16,7 +16,7 @@ DESIGN (post Task-2 fix):
   The final alert shown on the dashboard uses:
     - typology label  = ML model class or explicit low-confidence ambiguity
                          (NOT the detector's shape guess)
-    - binary_confidence = binary model probability for the illicit prediction
+    - binary_confidence = binary model P(illicit), equal to risk_score
     - typology_confidence = ML model's calibrated typology probability
     - explanation     = ML model SHAP-derived natural-language string
     - is_ml_driven    = True (always, for every alert this module emits)

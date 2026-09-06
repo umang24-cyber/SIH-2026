@@ -166,7 +166,7 @@ def get_evaluation_benchmark():
 @router.get("/alerts/{candidate_id}/export")
 def export_forensic_dossier(candidate_id: str):
     """
-    Exports a formatted text/markdown forensic case file for law enforcement proceedings.
+    Exports a formatted text/markdown forensic investigation summary for authorized review.
     """
     evidence = typology_detector.get_evidence(candidate_id)
     if not evidence:
@@ -174,13 +174,15 @@ def export_forensic_dossier(candidate_id: str):
 
     lines = [
         "=" * 80,
-        "           BITKAUN FORENSIC INTELLIGENCE DOSSIER (CONFIDENTIAL / LEA USE)",
+        "           BITKAUN FORENSIC INVESTIGATION SUMMARY (CONFIDENTIAL / DEMONSTRATION)",
         "=" * 80,
         f"CANDIDATE ID        : {evidence.candidate_id}",
         f"SCENARIO CLUSTER    : {evidence.scenario_id}",
         f"PREDICTED TYPOLOGY  : {evidence.predicted_pattern_type.upper()}",
-        f"BINARY CONFIDENCE   : {evidence.binary_confidence * 100:.1f}%",
+        f"BINARY P(ILLICIT)   : {evidence.binary_confidence * 100:.1f}%",
         f"TYPOLOGY CONFIDENCE : {evidence.typology_confidence * 100:.1f}%",
+        "DATA STATUS         : Synthetic / Demonstration Dataset",
+        "MODEL STATUS        : V7 Frozen Synthetic Benchmark",
         "-" * 80,
         "HEURISTIC MATCH SUMMARY:",
         f"  - Algorithm Applied       : {evidence.typology_heuristic_match.get('heuristic_name')}",
@@ -195,9 +197,9 @@ def export_forensic_dossier(candidate_id: str):
     lines.extend([
         "-" * 80,
         "NETWORK TELEMETRY SUMMARY:",
-        f"  - Origin IPs    : {', '.join(evidence.telemetry_summary.get('origin_ips', []))}",
-        f"  - Origin ASNs   : {', '.join(evidence.telemetry_summary.get('origin_asns', []))}",
-        f"  - Origin Nations: {', '.join(evidence.telemetry_summary.get('countries', []))}",
+        f"  - Observed Relay IPs    : {', '.join(evidence.telemetry_summary.get('origin_ips', []))}",
+        f"  - Recorded Relay ASNs   : {', '.join(evidence.telemetry_summary.get('origin_asns', []))}",
+        f"  - Recorded Country Codes: {', '.join(evidence.telemetry_summary.get('countries', []))}",
         "-" * 80,
         "TRANSACTION CHRONOLOGY:"
     ])
