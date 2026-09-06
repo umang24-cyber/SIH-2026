@@ -11,11 +11,11 @@ interface GraphViewProps {
 }
 
 export default function GraphView({
-  scenarioId = "licit_00001",
+  scenarioId = "normal_00002",
   onClose,
 }: GraphViewProps) {
-  const [currentScenario, setCurrentScenario] = useState<string>(scenarioId || "licit_00001");
-  const [inputScenario, setInputScenario] = useState<string>(scenarioId || "licit_00001");
+  const [currentScenario, setCurrentScenario] = useState<string>(scenarioId || "normal_00002");
+  const [inputScenario, setInputScenario] = useState<string>(scenarioId || "normal_00002");
   const [mode, setMode] = useState<GraphMode>("OVERVIEW");
   const [selectedNodeId, setSelectedNodeId] = useState<string | null>(null);
   const [graphData, setGraphData] = useState<GraphData>({ nodes: [], edges: [] });
@@ -23,7 +23,7 @@ export default function GraphView({
   const [errorMsg, setErrorMsg] = useState<string | null>(null);
 
   // Suggested scenarios available in the ledger
-  const quickScenarios = ["licit_00001", "ransom_0001", "peeling_0001", "mixing_0001", "layering_0001"];
+  const quickScenarios = ["normal_00002", "ransomware_03287", "peeling_chain_04651", "mixing_05246", "normal_02462"];
 
   const loadScenario = (scId: string) => {
     setIsLoading(true);
@@ -262,8 +262,8 @@ export default function GraphView({
           </div>
           <button
             onClick={() => {
-              setInputScenario("licit_00001");
-              setCurrentScenario("licit_00001");
+              setInputScenario("normal_00002");
+              setCurrentScenario("normal_00002");
             }}
             style={{
               marginTop: "16px",
@@ -276,7 +276,7 @@ export default function GraphView({
               borderRadius: "3px",
             }}
           >
-            Load Default Scenario (licit_00001)
+            Load Default Scenario (normal_00002)
           </button>
         </div>
       ) : (

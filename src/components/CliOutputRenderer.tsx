@@ -222,7 +222,7 @@ export const CliOutputRenderer: React.FC<CliOutputRendererProps> = React.memo(({
             FORWARD TAINT DECAY ANALYSIS // SEED: {entry.content.seed_address}
           </div>
           <div style={{ marginBottom: '10px', fontSize: '13px', color: '#aaffaa' }}>
-            Model: {entry.content.model || 'FIFO Poisoning with Decay'} | Total Tainted Volume: {entry.content.total_tainted_btc} BTC
+            Model: {entry.content.model || 'FIFO Poisoning with Decay'} | Total Tainted Volume: {entry.content.total_tainted_btc ?? entry.content.total_tainted_volume_btc ?? 0} BTC
           </div>
           <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: '13px' }}>
             <thead>
@@ -235,14 +235,14 @@ export const CliOutputRenderer: React.FC<CliOutputRendererProps> = React.memo(({
               </tr>
             </thead>
             <tbody>
-              {entry.content.tainted_descendants?.map((n: any, i: number) => (
+              {(entry.content.tainted_descendants || entry.content.contaminated_wallets || []).map((n: any, i: number) => (
                 <tr key={i} style={{ borderBottom: '1px solid #00220a' }}>
                   <td style={{ padding: '5px', color: '#ffaa33' }}>Hop {n.hop_distance}</td>
                   <td style={{ padding: '5px' }}>
                     <span className="cmd-clickable" onClick={() => onRunCommand(`inspect ${n.address}`)}>{n.address}</span>
                   </td>
                   <td style={{ padding: '5px', color: n.taint_score >= 0.5 ? '#ff3344' : '#33ff88' }}>{(n.taint_score * 100).toFixed(1)}%</td>
-                  <td style={{ padding: '5px' }}>{n.received_tainted_btc} BTC</td>
+                  <td style={{ padding: '5px' }}>{n.received_tainted_btc ?? n.received_btc_from_seed ?? 0} BTC</td>
                   <td style={{ padding: '5px' }}>
                     <span className="cmd-clickable" onClick={() => onRunCommand(`inspect ${n.via_txid}`)}>{n.via_txid}</span>
                   </td>

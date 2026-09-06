@@ -119,6 +119,11 @@ class TaintNode(BaseModel):
     received_btc_from_seed: float
     via_txid: int
     is_licit_exchange: bool = False
+    received_tainted_btc: Optional[float] = None
+
+    def model_post_init(self, __context):
+        if self.received_tainted_btc is None:
+            self.received_tainted_btc = self.received_btc_from_seed
 
 class TaintResponse(BaseModel):
     seed_address: str
@@ -127,6 +132,14 @@ class TaintResponse(BaseModel):
     total_tainted_wallets: int
     total_tainted_volume_btc: float
     contaminated_wallets: List[TaintNode]
+    total_tainted_btc: Optional[float] = None
+    tainted_descendants: Optional[List[TaintNode]] = None
+
+    def model_post_init(self, __context):
+        if self.total_tainted_btc is None:
+            self.total_tainted_btc = self.total_tainted_volume_btc
+        if self.tainted_descendants is None:
+            self.tainted_descendants = self.contaminated_wallets
 
 # ==========================================
 # 5b. Anomaly Detection Schema (Isolation Forest)

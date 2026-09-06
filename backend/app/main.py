@@ -39,10 +39,11 @@ async def lifespan(app: FastAPI):
     """Lifespan startup: Ingest master CSVs, cluster multi-input entities, scan typologies, load ML models."""
     logger.info("Starting up BitKaun AML Forensics API (100% Offline Engine)...")
     data_service.initialize()
-    clustering_service.build_clusters()
-    typology_detector.scan_all_typologies()
     ml_service.load_model()
     anomaly_service.load_model()
+    clustering_service.build_clusters()
+    if not typology_detector.is_scanned:
+        typology_detector.scan_all_typologies()
     yield
     logger.info("Shutting down BitKaun AML Forensics API...")
 
