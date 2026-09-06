@@ -246,23 +246,41 @@ html:active, body:active {
   font-family: var(--font-mono);
   font-size: 20px;
   font-weight: 700;
+  line-height: 24px;
+  height: 24px;
   white-space: pre;
   letter-spacing: 0.5px;
+  pointer-events: none;
 }
 
-/* Blinking MS-DOS Solid Green Rectangle Cursor */
+/* Blinking MS-DOS / Linux Terminal Solid Green Rectangle Cursor */
 .cli-cursor {
   display: inline-block;
-  width: 11px;
-  height: 20px;
+  min-width: 1ch;
+  height: 24px;
+  line-height: 24px;
   background-color: var(--fg-primary);
+  color: #030805;
+  font-family: var(--font-mono);
+  font-size: 20px;
+  font-weight: 700;
+  letter-spacing: 0.5px;
+  white-space: pre;
+  text-align: center;
+  vertical-align: middle;
   animation: cursor-blink 0.75s step-start infinite;
-  vertical-align: sub;
-  margin-left: 2px;
+  user-select: none;
+  pointer-events: none;
+  margin: 0;
+  padding: 0;
+  box-sizing: border-box;
 }
 
 @keyframes cursor-blink {
-  50% { opacity: 0; }
+  50% {
+    background-color: transparent;
+    color: var(--fg-white);
+  }
 }
 
 /* Completely transparent input capturing keystrokes */
@@ -281,9 +299,14 @@ html:active, body:active {
   color: transparent !important;
   caret-color: transparent !important;
   cursor: var(--cursor-text) !important;
+  font-family: var(--font-mono) !important;
   font-size: 20px !important;
+  font-weight: 700 !important;
+  letter-spacing: 0.5px !important;
+  line-height: 24px !important;
   padding: 0 !important;
   margin: 0 !important;
+  z-index: 2;
 }
 
 /* Clean Output Blocks */

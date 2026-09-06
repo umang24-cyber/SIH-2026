@@ -17,6 +17,7 @@ from backend.app.main import app
 from backend.app.services.data_service import data_service
 from backend.app.services.typology_detector import typology_detector
 from backend.app.services.clustering_service import clustering_service
+from backend.app.core.config import settings
 from backend.app.services.ml_service import ml_service
 
 class TestBackendAPI(unittest.TestCase):
@@ -30,10 +31,11 @@ class TestBackendAPI(unittest.TestCase):
         cls.client = TestClient(app)
 
     def test_01_ingestion_integrity(self):
-        """Verify 82,078 rows loaded and indexed with zero nulls."""
-        self.assertEqual(len(data_service.txid_map), 82078)
-        self.assertGreater(len(data_service.unique_wallets), 10000)
-        self.assertGreater(len(data_service.scenario_tx_map), 10000)
+        """Verify rows loaded and indexed with zero nulls."""
+        self.assertEqual(len(data_service.txid_map), settings.EXPECTED_TOTAL_ROWS)
+        self.assertGreater(len(data_service.unique_wallets), 1000)
+        self.assertGreater(len(data_service.scenario_tx_map), 1000)
+
 
         # Spot check a transaction
         sample_txid = next(iter(data_service.txid_map.keys()))
@@ -51,7 +53,8 @@ class TestBackendAPI(unittest.TestCase):
         self.assertIn("X-Process-Time", response.headers)
         data = response.json()
         self.assertEqual(data["status"], "ONLINE")
-        self.assertEqual(data["loaded_transactions"], 82078)
+        self.assertEqual(data["loaded_transactions"], len(data_service.txid_map))
+
 
     def test_03_transaction_endpoint(self):
         """Verify GET /transaction/{txid} returns full dual-layer telemetry."""

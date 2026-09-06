@@ -19,7 +19,11 @@ export default defineConfig({
       '/search': 'http://localhost:8000',
       '/scenarios': 'http://localhost:8000',
       '/stats': 'http://localhost:8000',
-      '/eval': 'http://localhost:8000'
+      '/eval': 'http://localhost:8000',
+      '/anomaly': 'http://localhost:8000',
+      '/dossier': 'http://localhost:8000',
+      '/intel': 'http://localhost:8000',
+      '/stream': 'http://localhost:8000'
     }
   }
 });

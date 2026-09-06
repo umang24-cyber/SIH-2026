@@ -1,10 +1,10 @@
-# Project Task Tracker & Roadmap — SIH PS146
+# Project Task Tracker & Pending Roadmap — SIH PS146
 
 > ### ⚠️ MANDATORY PRE-COMMIT PROTOCOL
-> **Rule for Collaborators:** Update this file, root `TODO.md`, and `CHANGELOG.md` **before every commit**!
+> **Rule for Collaborators:** Update this file and `CHANGELOG.md` **before every commit**!
 > 1. Check off completed items by replacing `[ ]` with `[x]`.
-> 2. Add any newly identified bug fixes, refactors, or feature requests under the relevant section.
-> 3. Summarize your completed changes in `CHANGELOG.md`.
+> 2. Add any newly identified bug fixes, refactors, or feature requests under the relevant module section.
+> 3. Summarize what you completed in `CHANGELOG.md`.
 
 ---
 

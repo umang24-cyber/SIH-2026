@@ -1,10 +1,6 @@
-import React, { useState } from "react";
-import type {
-  GraphData,
-  GraphNode,
-  GraphEdge,
-  GraphMode,
-} from "../../types/graph";
+import React, { useEffect, useRef, useState, useMemo } from 'react';
+import * as THREE from 'three';
+import type { GraphData, GraphNode, GraphEdge, GraphMode } from '../../types/graph';
 
 interface GraphCanvasProps {
   data: GraphData;
@@ -13,679 +9,593 @@ interface GraphCanvasProps {
   onSelectNode: (nodeId: string | null) => void;
 }
 
-function getDynamicNodePositions(
-  nodes: GraphNode[],
-  edges: GraphEdge[]
-) {
-  const outgoingEdges = new Map<string, string[]>();
-  const incomingCount = new Map<string, number>();
-  const layers = new Map<string, number>();
+// Pre-generate crisp Bitcoin medallion canvas textures
+function createBitcoinTexture(colorHex: string, symbol: string = '₿'): THREE.CanvasTexture {
+  const canvas = document.createElement('canvas');
+  canvas.width = 128;
+  canvas.height = 128;
+  const ctx = canvas.getContext('2d');
+  if (!ctx) return new THREE.CanvasTexture(canvas);
 
-  nodes.forEach((node) => {
-    outgoingEdges.set(node.id, []);
-    incomingCount.set(node.id, 0);
-  });
+  const cx = 64;
+  const cy = 64;
 
-  edges.forEach((edge) => {
-    const outgoing = outgoingEdges.get(edge.source);
+  // Outer halation glow
+  const glowGrad = ctx.createRadialGradient(cx, cy, 38, cx, cy, 62);
+  glowGrad.addColorStop(0, colorHex + '66');
+  glowGrad.addColorStop(1, 'rgba(0,0,0,0)');
+  ctx.fillStyle = glowGrad;
+  ctx.beginPath();
+  ctx.arc(cx, cy, 62, 0, Math.PI * 2);
+  ctx.fill();
 
-    if (outgoing) {
-      outgoing.push(edge.target);
-    }
+  // Outer metallic coin rim
+  ctx.beginPath();
+  ctx.arc(cx, cy, 46, 0, Math.PI * 2);
+  ctx.fillStyle = '#111812';
+  ctx.fill();
+  ctx.lineWidth = 4;
+  ctx.strokeStyle = colorHex;
+  ctx.stroke();
 
-    incomingCount.set(
-      edge.target,
-      (incomingCount.get(edge.target) ?? 0) + 1
-    );
-  });
+  // Inner coin bezel
+  ctx.beginPath();
+  ctx.arc(cx, cy, 40, 0, Math.PI * 2);
+  ctx.lineWidth = 1.5;
+  ctx.strokeStyle = colorHex + 'aa';
+  ctx.stroke();
 
-  const queue: string[] = [];
-
-  nodes.forEach((node) => {
-    if ((incomingCount.get(node.id) ?? 0) === 0) {
-      queue.push(node.id);
-      layers.set(node.id, 0);
-    }
-  });
-
-  let queueIndex = 0;
-
-  while (queueIndex < queue.length) {
-    const currentNodeId = queue[queueIndex];
-    queueIndex++;
-
-    const currentLayer =
-      layers.get(currentNodeId) ?? 0;
-
-    const connectedNodes =
-      outgoingEdges.get(currentNodeId) ?? [];
-
-    connectedNodes.forEach((targetId) => {
-      const nextLayer = currentLayer + 1;
-
-      const existingLayer =
-        layers.get(targetId);
-
-      if (
-        existingLayer === undefined ||
-        nextLayer > existingLayer
-      ) {
-        layers.set(targetId, nextLayer);
-      }
-
-      const remainingIncoming =
-        (incomingCount.get(targetId) ?? 0) - 1;
-
-      incomingCount.set(
-        targetId,
-        remainingIncoming
-      );
-
-      if (remainingIncoming === 0) {
-        queue.push(targetId);
-      }
-    });
+  // Circuit notches around perimeter
+  for (let i = 0; i < 12; i++) {
+    const angle = (i * Math.PI * 2) / 12;
+    const nx = cx + Math.cos(angle) * 43;
+    const ny = cy + Math.sin(angle) * 43;
+    ctx.beginPath();
+    ctx.arc(nx, ny, 1.8, 0, Math.PI * 2);
+    ctx.fillStyle = colorHex;
+    ctx.fill();
   }
 
-  let highestLayer = Math.max(
-    ...Array.from(layers.values()),
-    0
-  );
+  // Coin face disk
+  const diskGrad = ctx.createRadialGradient(cx - 8, cy - 8, 4, cx, cy, 38);
+  diskGrad.addColorStop(0, '#1f2e22');
+  diskGrad.addColorStop(0.7, '#0b140d');
+  diskGrad.addColorStop(1, '#050a06');
+  ctx.beginPath();
+  ctx.arc(cx, cy, 38, 0, Math.PI * 2);
+  ctx.fillStyle = diskGrad;
+  ctx.fill();
 
-  nodes.forEach((node) => {
-    if (!layers.has(node.id)) {
-      highestLayer++;
+  // Center symbol (Tilted ₿ or icon)
+  ctx.save();
+  ctx.translate(cx, cy);
+  ctx.rotate(symbol === '₿' ? 0.18 : 0);
+  ctx.font = symbol === '₿' ? 'bold 44px "Courier New", monospace' : 'bold 36px "Courier New", monospace';
+  ctx.textAlign = 'center';
+  ctx.textBaseline = 'middle';
+  ctx.fillStyle = colorHex;
+  ctx.shadowColor = colorHex;
+  ctx.shadowBlur = 8;
+  ctx.fillText(symbol, 0, 0);
+  ctx.restore();
 
-      layers.set(
-        node.id,
-        highestLayer
-      );
-    }
-  });
-
-  const nodesByLayer = new Map<
-    number,
-    GraphNode[]
-  >();
-
-  nodes.forEach((node) => {
-    const layer =
-      layers.get(node.id) ?? 0;
-
-    const layerNodes =
-      nodesByLayer.get(layer) ?? [];
-
-    layerNodes.push(node);
-
-    nodesByLayer.set(
-      layer,
-      layerNodes
-    );
-  });
-
-  const positions = new Map<
-    string,
-    { x: number; y: number }
-  >();
-
-  const horizontalSpacing = 220;
-  const verticalSpacing = 150;
-
-  nodesByLayer.forEach(
-    (layerNodes, layer) => {
-      const x =
-        160 +
-        layer * horizontalSpacing;
-
-      const totalHeight =
-        (layerNodes.length - 1) *
-        verticalSpacing;
-
-      const startY =
-        350 -
-        totalHeight / 2;
-
-      layerNodes.forEach(
-        (node, index) => {
-          positions.set(node.id, {
-            x,
-            y:
-              startY +
-              index * verticalSpacing,
-          });
-        }
-      );
-    }
-  );
-
-  return positions;
+  const texture = new THREE.CanvasTexture(canvas);
+  texture.needsUpdate = true;
+  return texture;
 }
 
-function getNodeStyle(node: GraphNode) {
-  switch (node.type) {
-    case "WALLET":
-      return {
-        fill: "#062a18",
-        stroke: "#00ff66",
-        label: "W",
-      };
+// Text label texture
+function createTextLabelTexture(text: string, colorHex: string): THREE.CanvasTexture {
+  const canvas = document.createElement('canvas');
+  canvas.width = 256;
+  canvas.height = 64;
+  const ctx = canvas.getContext('2d');
+  if (!ctx) return new THREE.CanvasTexture(canvas);
 
-    case "TRANSACTION":
-      return {
-        fill: "#2a1a05",
-        stroke: "#ff9900",
-        label: "TX",
-      };
+  ctx.fillStyle = '#050a06cc';
+  ctx.roundRect ? ctx.roundRect(4, 12, 248, 40, 6) : ctx.fillRect(4, 12, 248, 40);
+  ctx.fill();
 
-    case "IP":
-      return {
-        fill: "#1d0a33",
-        stroke: "#bb66ff",
-        label: "IP",
-      };
-  }
+  ctx.strokeStyle = colorHex + 'aa';
+  ctx.lineWidth = 1.5;
+  ctx.stroke();
+
+  ctx.font = 'bold 20px "Courier New", monospace';
+  ctx.fillStyle = '#e0ffe8';
+  ctx.textAlign = 'center';
+  ctx.textBaseline = 'middle';
+  ctx.fillText(text, 128, 32);
+
+  const texture = new THREE.CanvasTexture(canvas);
+  texture.needsUpdate = true;
+  return texture;
 }
 
-function getNodeRadius(node: GraphNode) {
-  switch (node.type) {
-    case "WALLET":
-      return 28;
-
-    case "TRANSACTION":
-      return 32;
-
-    case "IP":
-      return 36;
-  }
-}
-
-function getEdgeCoordinates(
-  sourceNode: GraphNode,
-  targetNode: GraphNode,
-  sourcePosition: { x: number; y: number },
-  targetPosition: { x: number; y: number }
-) {
-  const dx = targetPosition.x - sourcePosition.x;
-  const dy = targetPosition.y - sourcePosition.y;
-
-  const distance = Math.sqrt(
-    dx * dx + dy * dy
-  );
-
-  if (distance === 0) {
-    return {
-      x1: sourcePosition.x,
-      y1: sourcePosition.y,
-      x2: targetPosition.x,
-      y2: targetPosition.y,
-    };
-  }
-
-  const unitX = dx / distance;
-  const unitY = dy / distance;
-
-  const sourceOffset =
-    getNodeRadius(sourceNode) + 4;
-
-  const targetOffset =
-    getNodeRadius(targetNode) + 14;
-
-  return {
-    x1:
-      sourcePosition.x +
-      unitX * sourceOffset,
-
-    y1:
-      sourcePosition.y +
-      unitY * sourceOffset,
-
-    x2:
-      targetPosition.x -
-      unitX * targetOffset,
-
-    y2:
-      targetPosition.y -
-      unitY * targetOffset,
-  };
-}
-function getRiskColor(
-  node: GraphNode,
-  isRiskMode: boolean
-) {
-  if (!isRiskMode) {
-    return null;
-  }
-
-  const riskScore = node.riskScore ?? 0;
-
-  if (riskScore >= 0.8) {
-    return {
-      fill: "#3b0808",
-      stroke: "#ff3333",
-    };
-  }
-
-  if (riskScore >= 0.5) {
-    return {
-      fill: "#3a2205",
-      stroke: "#ff9900",
-    };
-  }
-
-  return {
-    fill: "#062a18",
-    stroke: "#00ff66",
-  };
-}
-
-function getClusterColor(
-  clusterId: string | undefined,
-  isClusterMode: boolean
-) {
-  if (!isClusterMode) {
-    return null;
-  }
-
-  switch (clusterId) {
-    case "PEEL_CHAIN_ALPHA":
-      return {
-        fill: "#102a3a",
-        stroke: "#00ccff",
-      };
-
-    case "SUSPICIOUS_INFRASTRUCTURE":
-      return {
-        fill: "#350818",
-        stroke: "#ff3366",
-      };
-
-    case "NETWORK_TELEMETRY":
-      return {
-        fill: "#21113d",
-        stroke: "#bb66ff",
-      };
-
-    default:
-      return {
-        fill: "#062a18",
-        stroke: "#00ff66",
-      };
-  }
-}
-
-export default function GraphCanvas({
+export const GraphCanvas: React.FC<GraphCanvasProps> = ({
   data,
-  mode,
   selectedNodeId,
   onSelectNode,
-}: GraphCanvasProps) {
-    
-    const [hoveredNodeId, setHoveredNodeId] =
-  useState<string | null>(null);
-const isFlowMode = mode === "FLOW";
-const isRiskMode = mode === "RISK";
-const isClusterMode = mode === "CLUSTER";
+}) => {
+  const containerRef = useRef<HTMLDivElement>(null);
+  const [hoveredNode, setHoveredNode] = useState<GraphNode | null>(null);
+  const [showOrbs, setShowOrbs] = useState<boolean>(true);
+  const [autoRotate, setAutoRotate] = useState<boolean>(true);
 
-const visibleNodes =
-  mode === "OVERVIEW"
-    ? data.nodes
-    : data.nodes;
+  // Textures cache for high performance
+  const textures = useMemo(() => {
+    return {
+      green: createBitcoinTexture('#00ff66', '₿'),
+      orange: createBitcoinTexture('#ffaa00', '₿'),
+      red: createBitcoinTexture('#ff3344', '₿'),
+      tx: createBitcoinTexture('#ffd700', 'TX'),
+      ip: createBitcoinTexture('#00ccff', 'IP'),
+    };
+  }, []);
 
-const visibleEdges =
-  mode === "OVERVIEW"
-    ? data.edges
-    : data.edges;
+  const controlsRef = useRef<{
+    zoomIn: () => void;
+    zoomOut: () => void;
+    resetView: () => void;
+    fitView: () => void;
+  } | null>(null);
 
-const nodePositions =
-  getDynamicNodePositions(
-    visibleNodes,
-    visibleEdges
-  );
+  useEffect(() => {
+    const container = containerRef.current;
+    if (!container) return;
 
-const positions = Array.from(
-  nodePositions.values()
-);
+    let width = container.clientWidth || 900;
+    let height = container.clientHeight || 550;
 
-const connectedNodeIds = new Set<string>();
+    // 1. Scene, Camera, Renderer
+    const scene = new THREE.Scene();
+    scene.background = new THREE.Color(0x020603);
+    scene.fog = new THREE.FogExp2(0x020603, 0.0018);
 
-if (selectedNodeId) {
-  visibleEdges.forEach((edge) => {
-    if (edge.source === selectedNodeId) {
-      connectedNodeIds.add(edge.target);
+    const camera = new THREE.PerspectiveCamera(50, width / height, 1, 3000);
+    camera.position.set(0, 0, 320);
+
+    const renderer = new THREE.WebGLRenderer({ antialias: true, alpha: false, powerPreference: 'high-performance' });
+    renderer.setSize(width, height);
+    renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
+    renderer.domElement.style.display = 'block';
+    container.innerHTML = '';
+    container.appendChild(renderer.domElement);
+
+    // 2. Compute 3D Force-Directed Positions
+    const nodes = data.nodes || [];
+    const edges = data.edges || [];
+    const nodeCount = nodes.length;
+
+    const nodePositions = new Map<string, THREE.Vector3>();
+
+    if (nodeCount > 0) {
+      // Fibonacci sphere initialization with repulsive relaxation
+      nodes.forEach((node, i) => {
+        const phi = Math.acos(-1 + (2 * (i + 0.5)) / nodeCount);
+        const theta = Math.sqrt(nodeCount * Math.PI) * phi;
+        const radius = 100 + (node.riskScore ? node.riskScore * 30 : 15);
+        const x = radius * Math.cos(theta) * Math.sin(phi);
+        const y = radius * Math.sin(theta) * Math.sin(phi);
+        const z = radius * Math.cos(phi) * 0.7; // slight flattening for better camera depth
+        nodePositions.set(node.id, new THREE.Vector3(x, y, z));
+      });
+
+      // Simple fast 3D relaxation steps based on edges
+      const edgeWeight = 0.06;
+      for (let step = 0; step < 25; step++) {
+        edges.forEach(edge => {
+          const p1 = nodePositions.get(edge.source);
+          const p2 = nodePositions.get(edge.target);
+          if (p1 && p2) {
+            const delta = new THREE.Vector3().subVectors(p2, p1);
+            const dist = delta.length();
+            const desiredDist = 70;
+            if (dist > 0.1) {
+              const force = (dist - desiredDist) * edgeWeight;
+              delta.normalize().multiplyScalar(force * 0.5);
+              p1.add(delta);
+              p2.sub(delta);
+            }
+          }
+        });
+      }
     }
 
-    if (edge.target === selectedNodeId) {
-      connectedNodeIds.add(edge.source);
+    // 3. Build Node Sprites
+    const spriteGroup = new THREE.Group();
+    const hitMeshGroup = new THREE.Group();
+    const nodeObjMap = new Map<string, { sprite: THREE.Sprite; pos: THREE.Vector3; node: GraphNode }>();
+
+    nodes.forEach(node => {
+      const pos = nodePositions.get(node.id) || new THREE.Vector3();
+      const risk = node.riskScore ?? 0.2;
+
+      // Select texture based on node type and trust level
+      let tex = textures.green;
+      let colorHex = '#00ff66';
+      if (node.type === 'TRANSACTION') {
+        tex = textures.tx;
+        colorHex = '#ffd700';
+      } else if (node.type === 'IP') {
+        tex = textures.ip;
+        colorHex = '#00ccff';
+      } else if (risk > 0.75) {
+        tex = textures.red;
+        colorHex = '#ff3344';
+      } else if (risk >= 0.40) {
+        tex = textures.orange;
+        colorHex = '#ffaa00';
+      }
+
+      // Medallion Sprite
+      const spriteMat = new THREE.SpriteMaterial({
+        map: tex,
+        transparent: true,
+        depthWrite: false,
+      });
+      const sprite = new THREE.Sprite(spriteMat);
+      const isSelected = node.id === selectedNodeId;
+      const scale = isSelected ? 26 : 20;
+      sprite.scale.set(scale, scale, 1);
+      sprite.position.copy(pos);
+      spriteGroup.add(sprite);
+
+      // Label Sprite
+      const shortLabel = node.label ? (node.label.length > 14 ? node.label.slice(0, 12) + '..' : node.label) : node.id.slice(0, 8);
+      const labelTex = createTextLabelTexture(`[${shortLabel}]`, colorHex);
+      const labelMat = new THREE.SpriteMaterial({ map: labelTex, transparent: true, depthWrite: false });
+      const labelSprite = new THREE.Sprite(labelMat);
+      labelSprite.scale.set(22, 5.5, 1);
+      labelSprite.position.set(pos.x, pos.y - 12, pos.z);
+      spriteGroup.add(labelSprite);
+
+      // Invisible sphere mesh for accurate raycast click/hover hit detection
+      const hitGeo = new THREE.SphereGeometry(12, 8, 8);
+      const hitMat = new THREE.MeshBasicMaterial({ visible: false });
+      const hitMesh = new THREE.Mesh(hitGeo, hitMat);
+      hitMesh.position.copy(pos);
+      hitMesh.userData = { nodeId: node.id };
+      hitMeshGroup.add(hitMesh);
+
+      nodeObjMap.set(node.id, { sprite, pos, node });
+    });
+
+    scene.add(spriteGroup);
+    scene.add(hitMeshGroup);
+
+    // 4. Build Directed 3D Edges & Animated Moving Orbs
+    const edgeLinesGroup = new THREE.Group();
+    const orbsGroup = new THREE.Group();
+
+    interface OrbData {
+      mesh: THREE.Mesh;
+      src: THREE.Vector3;
+      dst: THREE.Vector3;
+      progress: number;
+      speed: number;
     }
-  });
-}
 
-  const padding = 180;
-  const labelSpace = 80;
+    const orbs: OrbData[] = [];
+    const orbGeo = new THREE.SphereGeometry(1.8, 8, 8);
 
-  const minX =
-    Math.min(
-      ...positions.map(
-        (position) => position.x
-      )
-    ) - padding;
+    edges.forEach(edge => {
+      const srcPos = nodePositions.get(edge.source);
+      const dstPos = nodePositions.get(edge.target);
+      if (srcPos && dstPos) {
+        // Directed 3D line
+        const points = [srcPos, dstPos];
+        const lineGeo = new THREE.BufferGeometry().setFromPoints(points);
+        const lineMat = new THREE.LineBasicMaterial({
+          color: edge.type === 'BROADCAST' ? 0x00aaff : 0x007a33,
+          transparent: true,
+          opacity: 0.55,
+        });
+        const line = new THREE.Line(lineGeo, lineMat);
+        edgeLinesGroup.add(line);
 
-  const maxX =
-    Math.max(
-      ...positions.map(
-        (position) => position.x
-      )
-    ) + padding;
+        // Animated Transaction Orb
+        const orbColor = edge.amountBtc && edge.amountBtc > 10 ? 0xffaa00 : 0x33ff88;
+        const orbMat = new THREE.MeshBasicMaterial({ color: orbColor });
+        const orbMesh = new THREE.Mesh(orbGeo, orbMat);
+        orbMesh.position.copy(srcPos);
+        orbsGroup.add(orbMesh);
 
-  const minY =
-    Math.min(
-      ...positions.map(
-        (position) => position.y
-      )
-    ) - padding;
+        // Calculate speed proportional to BTC amount (capped between 0.004 and 0.015)
+        const amt = edge.amountBtc || 1.0;
+        const speed = Math.min(0.016, 0.005 + (amt / 50) * 0.005);
 
-  const maxY =
-    Math.max(
-      ...positions.map(
-        (position) => position.y
-      )
-    ) +
-    padding +
-    labelSpace;
+        orbs.push({
+          mesh: orbMesh,
+          src: srcPos,
+          dst: dstPos,
+          progress: Math.random(), // desynchronize orbs across links
+          speed,
+        });
+      }
+    });
 
-  const graphWidth = maxX - minX;
+    scene.add(edgeLinesGroup);
+    scene.add(orbsGroup);
 
-  const graphHeight = maxY - minY;
+    // 5. Mouse & Touch Orbit Controls (Native WebGL event listener)
+    let isDragging = false;
+    let isRightDragging = false;
+    let prevMouse = { x: 0, y: 0 };
+    const rotationSpeed = 0.005;
+
+    const raycaster = new THREE.Raycaster();
+    const mouse = new THREE.Vector2();
+
+    const onMouseDown = (e: MouseEvent) => {
+      if (e.button === 0) isDragging = true;
+      if (e.button === 2) isRightDragging = true;
+      prevMouse = { x: e.clientX, y: e.clientY };
+    };
+
+    const onMouseMove = (e: MouseEvent) => {
+      const rect = renderer.domElement.getBoundingClientRect();
+      mouse.x = ((e.clientX - rect.left) / rect.width) * 2 - 1;
+      mouse.y = -((e.clientY - rect.top) / rect.height) * 2 + 1;
+
+      if (isDragging) {
+        const deltaX = e.clientX - prevMouse.x;
+        const deltaY = e.clientY - prevMouse.y;
+        scene.rotation.y += deltaX * rotationSpeed;
+        scene.rotation.x += deltaY * rotationSpeed;
+      } else if (isRightDragging) {
+        const deltaX = e.clientX - prevMouse.x;
+        const deltaY = e.clientY - prevMouse.y;
+        camera.position.x -= deltaX * 0.25;
+        camera.position.y += deltaY * 0.25;
+      }
+
+      prevMouse = { x: e.clientX, y: e.clientY };
+
+      // Raycast for hover detection
+      raycaster.setFromCamera(mouse, camera);
+      const intersects = raycaster.intersectObjects(hitMeshGroup.children);
+      if (intersects.length > 0) {
+        const hitId = intersects[0].object.userData.nodeId;
+        const found = nodes.find(n => n.id === hitId) || null;
+        setHoveredNode(found);
+      } else {
+        setHoveredNode(null);
+      }
+    };
+
+    const onMouseUp = () => {
+      isDragging = false;
+      isRightDragging = false;
+    };
+
+    const onClick = (e: MouseEvent) => {
+      const rect = renderer.domElement.getBoundingClientRect();
+      mouse.x = ((e.clientX - rect.left) / rect.width) * 2 - 1;
+      mouse.y = -((e.clientY - rect.top) / rect.height) * 2 + 1;
+
+      raycaster.setFromCamera(mouse, camera);
+      const intersects = raycaster.intersectObjects(hitMeshGroup.children);
+      if (intersects.length > 0) {
+        const hitId = intersects[0].object.userData.nodeId;
+        onSelectNode(hitId);
+      }
+    };
+
+    const onWheel = (e: WheelEvent) => {
+      e.preventDefault();
+      camera.position.z += e.deltaY * 0.2;
+      camera.position.z = Math.max(60, Math.min(650, camera.position.z));
+    };
+
+    const dom = renderer.domElement;
+    dom.addEventListener('mousedown', onMouseDown);
+    window.addEventListener('mousemove', onMouseMove);
+    window.addEventListener('mouseup', onMouseUp);
+    dom.addEventListener('click', onClick);
+    dom.addEventListener('wheel', onWheel, { passive: false });
+    dom.addEventListener('contextmenu', e => e.preventDefault());
+
+    // 6. Window Resize
+    const handleResize = () => {
+      if (!container) return;
+      width = container.clientWidth;
+      height = container.clientHeight;
+      camera.aspect = width / height;
+      camera.updateProjectionMatrix();
+      renderer.setSize(width, height);
+    };
+    window.addEventListener('resize', handleResize);
+
+    // 7. Animation Loop (Silky Smooth 60 FPS)
+    let reqId: number;
+    const animate = () => {
+      reqId = requestAnimationFrame(animate);
+
+      // Auto-rotation if enabled and user not dragging
+      if (autoRotate && !isDragging && !isRightDragging) {
+        scene.rotation.y += 0.0015;
+      }
+
+      // Animate directional transaction orbs
+      if (showOrbs) {
+        orbsGroup.visible = true;
+        for (let i = 0; i < orbs.length; i++) {
+          const orb = orbs[i];
+          orb.progress += orb.speed;
+          if (orb.progress > 1) orb.progress = 0;
+          orb.mesh.position.lerpVectors(orb.src, orb.dst, orb.progress);
+        }
+      } else {
+        orbsGroup.visible = false;
+      }
+
+      renderer.render(scene, camera);
+    };
+
+    animate();
+
+    // Wire HUD controls
+    controlsRef.current = {
+      zoomIn: () => {
+        camera.position.z = Math.max(60, camera.position.z - 40);
+      },
+      zoomOut: () => {
+        camera.position.z = Math.min(650, camera.position.z + 40);
+      },
+      resetView: () => {
+        scene.rotation.set(0, 0, 0);
+        camera.position.set(0, 0, 320);
+      },
+      fitView: () => {
+        scene.rotation.set(0, 0, 0);
+        camera.position.set(0, 0, 240);
+      }
+    };
+
+    // Cleanup
+    return () => {
+      cancelAnimationFrame(reqId);
+      dom.removeEventListener('mousedown', onMouseDown);
+      window.removeEventListener('mousemove', onMouseMove);
+      window.removeEventListener('mouseup', onMouseUp);
+      dom.removeEventListener('click', onClick);
+      dom.removeEventListener('wheel', onWheel);
+      dom.removeEventListener('contextmenu', e => e.preventDefault());
+      window.removeEventListener('resize', handleResize);
+      renderer.dispose();
+    };
+  }, [data, selectedNodeId, textures, showOrbs, autoRotate]);
 
   return (
-    <div
-      className="graph-canvas"
-      style={{
-        width: "100%",
-        height: "700px",
-        overflow: "hidden",
-      }}
-    >
-      <svg
-        viewBox={`${minX} ${minY} ${graphWidth} ${graphHeight}`}
-        preserveAspectRatio="xMidYMid meet"
-        width="100%"
-        height="100%"
+    <div style={{ position: 'relative', width: '100%', height: '520px', background: '#020603', overflow: 'hidden', border: '1px solid #004d20' }}>
+      {/* Three.js Canvas mount container */}
+      <div ref={containerRef} style={{ width: '100%', height: '100%', cursor: 'grab' }} />
+
+      {/* 3D HUD Controls Toolbar */}
+      <div
         style={{
-          width: "100%",
-          height: "100%",
-          display: "block",
+          position: 'absolute',
+          top: '10px',
+          right: '10px',
+          display: 'flex',
+          gap: '6px',
+          background: 'rgba(0, 14, 6, 0.85)',
+          padding: '4px 8px',
+          borderRadius: '3px',
+          border: '1px solid #00ff66',
+          zIndex: 10,
+          fontSize: '12px',
+          fontFamily: 'monospace',
         }}
       >
-        <defs>
-          <marker
-            id="arrow-green"
-            markerWidth="12"
-            markerHeight="12"
-            refX="10"
-            refY="6"
-            orient="auto"
-            markerUnits="strokeWidth"
-          >
-            <path
-              d="M0,0 L12,6 L0,12 z"
-              fill="#00cc66"
-            />
-          </marker>
+        <button className="cmd-tag" onClick={() => controlsRef.current?.zoomIn()} title="Zoom In">
+          [+]
+        </button>
+        <button className="cmd-tag" onClick={() => controlsRef.current?.zoomOut()} title="Zoom Out">
+          [-]
+        </button>
+        <button className="cmd-tag" onClick={() => controlsRef.current?.fitView()} title="Fit Scene">
+          [⛶ FIT]
+        </button>
+        <button className="cmd-tag" onClick={() => controlsRef.current?.resetView()} title="Reset Camera">
+          [⟲ RESET]
+        </button>
+        <button
+          className="cmd-tag"
+          onClick={() => setShowOrbs(prev => !prev)}
+          style={{ color: showOrbs ? '#33ff88' : '#777' }}
+          title="Toggle Transaction Flow Orbs"
+        >
+          {showOrbs ? '[⚡ ORBS: ON]' : '[ORBS: OFF]'}
+        </button>
+        <button
+          className="cmd-tag"
+          onClick={() => setAutoRotate(prev => !prev)}
+          style={{ color: autoRotate ? '#33ff88' : '#777' }}
+          title="Toggle 3D Orbit Auto-Rotation"
+        >
+          {autoRotate ? '[⟳ ROTATE]' : '[PAUSED]'}
+        </button>
+      </div>
 
-          <marker
-            id="arrow-purple"
-            markerWidth="12"
-            markerHeight="12"
-            refX="10"
-            refY="6"
-            orient="auto"
-            markerUnits="strokeWidth"
-          >
-            <path
-              d="M0,0 L12,6 L0,12 z"
-              fill="#bb66ff"
-            />
-          </marker>
-        </defs>
+      {/* Trust & Threat Legend HUD */}
+      <div
+        style={{
+          position: 'absolute',
+          bottom: '10px',
+          left: '10px',
+          background: 'rgba(2, 10, 4, 0.85)',
+          padding: '6px 12px',
+          borderRadius: '3px',
+          border: '1px solid #004d20',
+          fontFamily: 'monospace',
+          fontSize: '11px',
+          zIndex: 10,
+          display: 'flex',
+          gap: '14px',
+          alignItems: 'center',
+        }}
+      >
+        <span style={{ color: '#88bb99', fontWeight: 'bold' }}>TRUST TAXONOMY:</span>
+        <span style={{ display: 'inline-flex', alignItems: 'center', gap: '4px', color: '#00ff66' }}>
+          <span style={{ width: '8px', height: '8px', borderRadius: '50%', background: '#00ff66', display: 'inline-block' }}></span>
+          High Trust (Low Risk &lt; 0.40)
+        </span>
+        <span style={{ display: 'inline-flex', alignItems: 'center', gap: '4px', color: '#ffaa00' }}>
+          <span style={{ width: '8px', height: '8px', borderRadius: '50%', background: '#ffaa00', display: 'inline-block' }}></span>
+          Warning (0.40 - 0.75)
+        </span>
+        <span style={{ display: 'inline-flex', alignItems: 'center', gap: '4px', color: '#ff3344' }}>
+          <span style={{ width: '8px', height: '8px', borderRadius: '50%', background: '#ff3344', display: 'inline-block' }}></span>
+          Threat / Mixer (&gt; 0.75)
+        </span>
+        <span style={{ color: '#ffd700' }}>[TX] Block</span>
+        <span style={{ color: '#00ccff' }}>[IP] Relay</span>
+      </div>
 
-        {data.edges.map((edge) => {
-          const sourcePosition =
-            nodePositions.get(edge.source);
-
-          const targetPosition =
-            nodePositions.get(edge.target);
-
-          const sourceNode =
-            data.nodes.find(
-              (node) =>
-                node.id === edge.source
-            );
-
-          const targetNode =
-            data.nodes.find(
-              (node) =>
-                node.id === edge.target
-            );
-
-          if (
-            !sourcePosition ||
-            !targetPosition ||
-            !sourceNode ||
-            !targetNode
-          ) {
-            return null;
-          }
-
-          const coordinates =
-            getEdgeCoordinates(
-              sourceNode,
-              targetNode,
-              sourcePosition,
-              targetPosition
-            );
-
-          const isBroadcast =
-            edge.type === "BROADCAST";
-
-            const isConnectedToSelectedNode =
-  selectedNodeId !== null &&
-  (
-    edge.source === selectedNodeId ||
-    edge.target === selectedNodeId
-  );
-          const isConnectedToHoveredNode =
-  hoveredNodeId !== null &&
-  (
-    edge.source === hoveredNodeId ||
-    edge.target === hoveredNodeId
-  );
-
-          return (
-            <line
-              key={edge.id}
-              x1={coordinates.x1}
-              y1={coordinates.y1}
-              x2={coordinates.x2}
-              y2={coordinates.y2}
-              stroke={
-  isBroadcast
-    ? "#bb66ff"
-    : isFlowMode
-      ? "#00ff88"
-      : "#00cc66"
-}
-
-strokeWidth={
-  isConnectedToSelectedNode
-    ? "4"
-    : isConnectedToHoveredNode
-      ? "3.5"
-      : isFlowMode
-        ? "3"
-        : "2"
-}
-
-opacity={
-  selectedNodeId !== null
-    ? isConnectedToSelectedNode
-      ? "1"
-      : "0.15"
-    : hoveredNodeId !== null
-      ? isConnectedToHoveredNode
-        ? "1"
-        : "0.15"
-      : isFlowMode
-        ? "0.95"
-        : "0.7"
-}
-
-strokeDasharray={
-  isBroadcast
-    ? "6 6"
-    : undefined
-}
-
-              markerEnd={
-                isBroadcast
-                  ? "url(#arrow-purple)"
-                  : "url(#arrow-green)"
-              }
-            />
-          );
-        })}
-
-        {data.nodes.map((node) => {
-          const position =
-            nodePositions.get(node.id);
-          const isSelected =
-  selectedNodeId === node.id;
-          const isConnected =
-  connectedNodeIds.has(node.id);
-
-          if (!position) {
-            return null;
-          }
-
-          const style = getNodeStyle(node);
-
-const riskStyle = getRiskColor(
-  node,
-  isRiskMode
-);
-
-const clusterStyle = getClusterColor(
-  node.clusterId,
-  isClusterMode
-);
-
-const nodeFill =
-  riskStyle?.fill ??
-  clusterStyle?.fill ??
-  style.fill;
-
-const nodeStroke =
-  riskStyle?.stroke ??
-  clusterStyle?.stroke ??
-  style.stroke;
-          const isHovered =
-  hoveredNodeId === node.id;
-
-          return (
-            <g
-  key={node.id}
-  transform={`translate(${position.x}, ${position.y}) scale(${
-    isHovered || isSelected ? 1.12 : 1
-  })`}
-  onMouseEnter={() => setHoveredNodeId(node.id)}
-  onMouseLeave={() => setHoveredNodeId(null)}
-  onClick={() =>
-  onSelectNode(
-    isSelected ? null : node.id
-  )
-}
-  style={{
-  cursor: "pointer",
-
-  opacity:
-    selectedNodeId !== null
-      ? isSelected || isConnected
-        ? 1
-        : 0.25
-      : hoveredNodeId !== null
-        ? isHovered
-          ? 1
-          : 0.4
-        : 1,
-
-  transition: "opacity 0.2s ease",
-}}
-  
->
-    {isSelected && (
-  <circle
-    r="70"
-    fill={nodeFill}
-stroke={nodeStroke}
-    strokeWidth="8"
-  />
-)}
-              {node.type === "WALLET" && (
-                <circle
-                  r="28"
-                  fill={style.fill}
-                  stroke={style.stroke}
-                  strokeWidth="3"
-                />
-              )}
-
-              {node.type ===
-                "TRANSACTION" && (
-                <rect
-                  x="-28"
-                  y="-28"
-                  width="56"
-                  height="56"
-                  rx="6"
-                  fill={nodeFill}
-                  stroke={nodeStroke}
-                  strokeWidth="3"
-                />
-              )}
-
-              {node.type === "IP" && (
-                <polygon
-                  points="0,-32 32,0 0,32 -32,0"
-                  fill={nodeFill}
-                  stroke={nodeStroke}
-                  strokeWidth="3"
-                />
-              )}
-
-              <text
-                textAnchor="middle"
-                dominantBaseline="middle"
-                fill="#ffffff"
-                fontSize="13"
-                fontWeight="700"
-                fontFamily="monospace"
+      {/* Hover Node Tooltip HUD */}
+      {hoveredNode && (
+        <div
+          style={{
+            position: 'absolute',
+            top: '10px',
+            left: '10px',
+            background: 'rgba(0, 18, 8, 0.92)',
+            border: '1px solid #00ff66',
+            padding: '8px 12px',
+            borderRadius: '4px',
+            fontFamily: 'monospace',
+            fontSize: '12px',
+            zIndex: 10,
+            maxWidth: '380px',
+            pointerEvents: 'none',
+            boxShadow: '0 0 12px rgba(0, 255, 102, 0.25)',
+          }}
+        >
+          <div style={{ color: '#00ff66', fontWeight: 'bold', borderBottom: '1px dashed #004d20', paddingBottom: '4px', marginBottom: '4px' }}>
+            &gt; NODE TELEMETRY :: {hoveredNode.type}
+          </div>
+          <div><strong>ID:</strong> <span style={{ color: '#e0ffe8' }}>{hoveredNode.id}</span></div>
+          {hoveredNode.label && <div><strong>Label:</strong> {hoveredNode.label}</div>}
+          {hoveredNode.riskScore !== undefined && (
+            <div>
+              <strong>Risk Score:</strong>{' '}
+              <span
+                style={{
+                  color: hoveredNode.riskScore > 0.75 ? '#ff3344' : hoveredNode.riskScore >= 0.4 ? '#ffaa00' : '#00ff66',
+                  fontWeight: 'bold',
+                }}
               >
-                {style.label}
-              </text>
-
-              <text
-                y="48"
-                textAnchor="middle"
-                fill="#ffffff"
-                fontSize="12"
-                fontFamily="monospace"
-              >
-                {node.label}
-              </text>
-            </g>
-          );
-        })}
-      </svg>
+                {(hoveredNode.riskScore * 100).toFixed(1)}% {hoveredNode.riskScore > 0.75 ? '[CRITICAL]' : hoveredNode.riskScore >= 0.4 ? '[SUSPICIOUS]' : '[LICIT]'}
+              </span>
+            </div>
+          )}
+          {hoveredNode.clusterId && <div><strong>CIOH Cluster:</strong> {hoveredNode.clusterId}</div>}
+          <div style={{ color: '#66aa77', fontSize: '10px', marginTop: '4px' }}>Click to select &amp; view forensic details</div>
+        </div>
+      )}
     </div>
   );
-}
+};
+
+export default GraphCanvas;

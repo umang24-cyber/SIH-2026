@@ -28,6 +28,6 @@ class Settings(BaseModel):
     CORS_ORIGINS: list[str] = ["*"]
     
     # Expected record count
-    EXPECTED_TOTAL_ROWS: int = 82078
+    EXPECTED_TOTAL_ROWS: int = 96251
 
 settings = Settings()

@@ -1,9 +1,10 @@
-import React, { useState, useEffect, useRef } from 'react';
+import React, { useState, useEffect, useRef, useCallback } from 'react';
 import { sound } from './audio/soundEngine';
 import { CliOutputRenderer } from './components/CliOutputRenderer';
 import { PacmanSplashScreen } from './components/PacmanSplashScreen';
 import { ScrambledAsciiLogo } from './components/ScrambledAsciiLogo';
 import { AmbientBinaryRain } from './components/AmbientBinaryRain';
+import { CliSpinner } from './components/CliSpinner';
 import { api } from './services/api';
 
 interface TerminalEntry {
@@ -16,19 +17,21 @@ interface TerminalEntry {
 export function App() {
   const [showSplash, setShowSplash] = useState<boolean>(true);
   const [inputVal, setInputVal] = useState<string>('');
+  const [cursorPos, setCursorPos] = useState<number>(0);
   const [commandHistory, setCommandHistory] = useState<string[]>([]);
   const [historyIdx, setHistoryIdx] = useState<number>(-1);
   const [entries, setEntries] = useState<TerminalEntry[]>([]);
+  const [pendingCommand, setPendingCommand] = useState<string | null>(null);
 
   const inputRef = useRef<HTMLInputElement>(null);
   const scrollBottomRef = useRef<HTMLDivElement>(null);
   const terminalBodyRef = useRef<HTMLDivElement>(null);
 
-  const scrollToBottom = () => {
+  const scrollToBottom = useCallback(() => {
     if (terminalBodyRef.current) {
       terminalBodyRef.current.scrollTop = terminalBodyRef.current.scrollHeight;
     }
-  };
+  }, []);
 
   useEffect(() => {
     scrollToBottom();
@@ -92,11 +95,15 @@ export function App() {
           return;
         }
         sound.playEnterSuccess();
+        setPendingCommand(trimmed);
         try {
           // Check if numeric txid or address
           const isNumeric = /^\d+$/.test(arg1);
           if (isNumeric) {
             const tx = await api.getTransaction(arg1);
+            const isIllicit = tx.scenario_id && !tx.scenario_id.toLowerCase().startsWith('licit');
+            const risk = isIllicit ? (tx.scenario_id.includes('ransom') ? 92 : 78) : 15;
+
             setEntries(prev => [
               ...prev,
               {
@@ -110,9 +117,9 @@ export function App() {
                     id: `TX:${arg1}`,
                     label: `TX:${arg1} (Scenario: ${tx.scenario_id})`,
                     type: 'TRANSACTION',
-                    riskScore: 65,
+                    riskScore: risk,
                     clusterId: tx.scenario_id,
-                    balanceBtc: tx.output_amounts ? tx.output_amounts.reduce((a, b) => a + b, 0) : 0,
+                    balanceBtc: tx.output_amounts ? tx.output_amounts.reduce((a: number, b: number) => a + b, 0) : 0,
                     txCount: 1,
                     firstSeen: tx.timestamp,
                     lastSeen: tx.timestamp,
@@ -130,6 +137,9 @@ export function App() {
               clusterId = cl.cluster_id;
             } catch {}
 
+            const isIllicit = entity.associated_scenarios?.some((sc: string) => !sc.toLowerCase().startsWith('licit'));
+            const risk = entity.is_licit_exchange ? 5 : isIllicit ? 85 : 20;
+
             setEntries(prev => [
               ...prev,
               {
@@ -143,7 +153,7 @@ export function App() {
                     id: arg1,
                     label: entity.address,
                     type: entity.is_licit_exchange ? 'EXCHANGE' : 'WALLET',
-                    riskScore: entity.is_licit_exchange ? 10 : 60,
+                    riskScore: risk,
                     clusterId: clusterId,
                     balanceBtc: entity.total_received_btc - entity.total_sent_btc,
                     txCount: entity.tx_count,
@@ -168,6 +178,8 @@ export function App() {
               content: { message: `Inspect failed: ${err.message}` }
             }
           ]);
+        } finally {
+          setPendingCommand(null);
         }
         break;
 
@@ -187,6 +199,7 @@ export function App() {
           return;
         }
         sound.playEnterSuccess();
+        setPendingCommand(trimmed);
         try {
           const traceResult = await api.getTrace(arg1, arg2);
           setEntries(prev => [
@@ -209,6 +222,8 @@ export function App() {
               content: { message: `Trace failed: ${err.message}` }
             }
           ]);
+        } finally {
+          setPendingCommand(null);
         }
         break;
 
@@ -221,12 +236,13 @@ export function App() {
               id: `entry-${Date.now()}`,
               command: trimmed,
               type: 'ERROR',
-              content: { message: "Usage: taint <seed_address> (e.g. 'taint 12dhqUGwzF6c6eW5F7DkyXyqBmW1')" }
+              content: { message: "Usage: taint <seed_address> (e.g. 'taint 18hvz1KnqUjLRr3KHifSbMDi6m')" }
             }
           ]);
           return;
         }
         sound.playEnterSuccess();
+        setPendingCommand(trimmed);
         try {
           const taintRes = await api.getTaint(arg1);
           setEntries(prev => [
@@ -249,12 +265,15 @@ export function App() {
               content: { message: `Taint propagation failed: ${err.message}` }
             }
           ]);
+        } finally {
+          setPendingCommand(null);
         }
         break;
 
       case 'alerts':
       case 'alert':
         sound.playEnterSuccess();
+        setPendingCommand(trimmed);
         try {
           const alertsRes = await api.getAlerts(0.5, 20);
           setEntries(prev => [
@@ -277,6 +296,8 @@ export function App() {
               content: { message: `Alerts retrieval failed: ${err.message}` }
             }
           ]);
+        } finally {
+          setPendingCommand(null);
         }
         break;
 
@@ -290,12 +311,13 @@ export function App() {
               id: `entry-${Date.now()}`,
               command: trimmed,
               type: 'ERROR',
-              content: { message: "Usage: dossier <txid> (e.g. 'dossier 58234917')" }
+              content: { message: "Usage: dossier <txid> (e.g. 'dossier 322596997')" }
             }
           ]);
           return;
         }
         sound.playEnterSuccess();
+        setPendingCommand(trimmed);
         try {
           const dossierRes = await api.getDossier(arg1);
           setEntries(prev => [
@@ -318,11 +340,14 @@ export function App() {
               content: { message: `Dossier generation failed: ${err.message}` }
             }
           ]);
+        } finally {
+          setPendingCommand(null);
         }
         break;
 
       case 'tor':
         sound.playEnterSuccess();
+        setPendingCommand(trimmed);
         try {
           if (arg1) {
             const torProf = await api.getTorProfiler(arg1);
@@ -358,6 +383,40 @@ export function App() {
               content: { message: `Tor profiler failed: ${err.message}` }
             }
           ]);
+        } finally {
+          setPendingCommand(null);
+        }
+        break;
+
+      case 'logs':
+      case 'log':
+      case 'stream':
+        sound.playEnterSuccess();
+        setPendingCommand(trimmed);
+        try {
+          const batch = await api.getStreamBatch(15);
+          setEntries(prev => [
+            ...prev,
+            {
+              id: `entry-${Date.now()}`,
+              command: trimmed,
+              type: 'LOGS',
+              content: batch
+            }
+          ]);
+        } catch (err: any) {
+          sound.playErrorChirp();
+          setEntries(prev => [
+            ...prev,
+            {
+              id: `entry-${Date.now()}`,
+              command: trimmed,
+              type: 'ERROR',
+              content: { message: `Stream telemetry failed: ${err.message}` }
+            }
+          ]);
+        } finally {
+          setPendingCommand(null);
         }
         break;
 
@@ -365,6 +424,7 @@ export function App() {
       case 'sys':
       case 'health':
         sound.playEnterSuccess();
+        setPendingCommand(trimmed);
         try {
           const health = await api.getHealth();
           setEntries(prev => [
@@ -387,8 +447,11 @@ export function App() {
               content: { message: `Engine offline or unreachable: ${err.message}` }
             }
           ]);
+        } finally {
+          setPendingCommand(null);
         }
         break;
+
 
       case 'clear':
       case 'cls':
@@ -451,6 +514,12 @@ export function App() {
     }
   };
 
+  const syncCursorPos = (target: HTMLInputElement | null) => {
+    if (!target) return;
+    const pos = target.selectionStart ?? target.value.length;
+    setCursorPos(pos);
+  };
+
   const handleKeyDown = (e: React.KeyboardEvent<HTMLInputElement>) => {
     if (e.key !== 'Enter' && e.key !== 'Tab') {
       sound.playKeyClick();
@@ -460,22 +529,38 @@ export function App() {
       e.preventDefault();
       handleRunCommand(inputVal);
       setInputVal('');
+      setCursorPos(0);
     } else if (e.key === 'ArrowUp') {
       e.preventDefault();
       if (commandHistory.length > 0) {
         const nextIdx = Math.min(historyIdx + 1, commandHistory.length - 1);
         setHistoryIdx(nextIdx);
-        setInputVal(commandHistory[nextIdx]);
+        const val = commandHistory[nextIdx];
+        setInputVal(val);
+        setCursorPos(val.length);
+        setTimeout(() => {
+          if (inputRef.current) {
+            inputRef.current.setSelectionRange(val.length, val.length);
+          }
+        }, 0);
       }
     } else if (e.key === 'ArrowDown') {
       e.preventDefault();
       if (historyIdx > 0) {
         const prevIdx = historyIdx - 1;
         setHistoryIdx(prevIdx);
-        setInputVal(commandHistory[prevIdx]);
+        const val = commandHistory[prevIdx];
+        setInputVal(val);
+        setCursorPos(val.length);
+        setTimeout(() => {
+          if (inputRef.current) {
+            inputRef.current.setSelectionRange(val.length, val.length);
+          }
+        }, 0);
       } else if (historyIdx === 0) {
         setHistoryIdx(-1);
         setInputVal('');
+        setCursorPos(0);
       }
     } else if (e.key === 'Tab') {
       e.preventDefault();
@@ -484,13 +569,27 @@ export function App() {
       const allCmds = ['graph', 'inspect', 'trace', 'taint', 'alerts', 'dossier', 'tor', 'status', 'help', 'clear', 'sound', 'reboot'];
       const match = allCmds.find(c => c.startsWith(trimmed.toLowerCase()));
       if (match) {
-        setInputVal(match + ' ');
+        const completed = match + ' ';
+        setInputVal(completed);
+        setCursorPos(completed.length);
+        setTimeout(() => {
+          if (inputRef.current) {
+            inputRef.current.setSelectionRange(completed.length, completed.length);
+          }
+        }, 0);
       }
     } else if (e.ctrlKey && (e.key === 'l' || e.key === 'L')) {
       e.preventDefault();
       setEntries([]);
+    } else if (['ArrowLeft', 'ArrowRight', 'Home', 'End', 'Backspace', 'Delete'].includes(e.key)) {
+      requestAnimationFrame(() => syncCursorPos(inputRef.current));
     }
   };
+
+  const safeCursorPos = Math.max(0, Math.min(cursorPos, inputVal.length));
+  const textBefore = inputVal.slice(0, safeCursorPos);
+  const charAtCursor = inputVal.slice(safeCursorPos, safeCursorPos + 1);
+  const textAfter = inputVal.slice(safeCursorPos + 1);
 
   return (
     <div className="terminal-window" onClick={() => inputRef.current?.focus()}>
@@ -582,20 +681,37 @@ export function App() {
           </div>
         ))}
 
+        {/* Active Command Execution Spinner */}
+        {pendingCommand && (
+          <div style={{ margin: '8px 0', padding: '4px 0', color: '#00ff66', fontFamily: 'monospace' }}>
+            <CliSpinner label={`EXECUTING COMMAND: [${pendingCommand}] ...`} />
+          </div>
+        )}
+
         {/* Current Active Input Prompt */}
         <div className="prompt-line">
           <span className="prompt-prefix">bitkaun@investigation</span>
           <span className="prompt-char">:$</span>
           <div className="input-cursor-wrapper">
-            <span className="typed-text">{inputVal}</span>
-            <span className="cli-cursor" />
+            <span className="typed-text">{textBefore}</span>
+            <span key={safeCursorPos} className="cli-cursor">
+              {charAtCursor || '\u00A0'}
+            </span>
+            <span className="typed-text">{textAfter}</span>
             <input
               ref={inputRef}
               type="text"
               className="terminal-real-input"
               value={inputVal}
-              onChange={e => setInputVal(e.target.value)}
+              onChange={e => {
+                setInputVal(e.target.value);
+                setCursorPos(e.target.selectionStart ?? e.target.value.length);
+              }}
               onKeyDown={handleKeyDown}
+              onKeyUp={e => syncCursorPos(e.currentTarget)}
+              onClick={e => syncCursorPos(e.currentTarget)}
+              onSelect={e => syncCursorPos(e.currentTarget)}
+              onFocus={e => syncCursorPos(e.currentTarget)}
               autoFocus
               spellCheck={false}
               autoComplete="off"
