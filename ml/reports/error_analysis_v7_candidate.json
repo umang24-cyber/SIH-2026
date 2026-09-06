@@ -1,0 +1,23 @@
+{
+  "binary_fp": [
+    "normal_00012",
+    "normal_00152",
+    "normal_00284",
+    "normal_00366",
+    "normal_00532"
+  ],
+  "binary_fn": [
+    "peeling_chain_04823",
+    "peeling_chain_04833",
+    "ransomware_03257",
+    "ransomware_03720",
+    "ransomware_04334"
+  ],
+  "typology_errs": [
+    "layering_04941",
+    "layering_04983",
+    "layering_05005",
+    "layering_05037",
+    "layering_05058"
+  ]
+}

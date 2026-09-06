@@ -39,7 +39,7 @@ def ece_score(y_true, y_prob, n_bins=10):
     return float(ece)
 
 print("==================================================")
-print("1. LOADING V6 FROZEN DATA")
+print("1. LOADING V7 CANDIDATE DATA")
 print("==================================================")
 feats_tr = pd.read_csv(DATA / "scenario_features_full_train.csv")
 feats_te = pd.read_csv(DATA / "scenario_features_full_test.csv")
@@ -94,7 +94,7 @@ bin_model = XGBClassifier(
     early_stopping_rounds=50, tree_method="hist", random_state=42, verbosity=0
 )
 bin_model.fit(X_proper, y_proper, eval_set=[(X_eval, y_eval)], verbose=False)
-bin_model.save_model(MDLS / "binary_model_v6.xgb")
+bin_model.save_model(MDLS / "binary_model_v7_candidate.ubj")
 
 y_te_prob = bin_model.predict_proba(X_te)[:,1]
 y_te_pred = bin_model.predict(X_te)
@@ -138,7 +138,7 @@ typ_model = XGBClassifier(
     eval_metric="mlogloss", tree_method="hist", random_state=42, verbosity=0
 )
 typ_model.fit(X_typ_tr, y_typ_tr, sample_weight=sample_weights)
-typ_model.save_model(MDLS / "typology_model_v6.xgb")
+typ_model.save_model(MDLS / "typology_model_v7_candidate.ubj")
 
 y_typ_pred = typ_model.predict(X_typ_te)
 y_typ_prob = typ_model.predict_proba(X_typ_te)
@@ -209,14 +209,14 @@ print("==================================================")
 print("9. MANIFEST (PHASE 12)")
 print("==================================================")
 manifest = {
-    "dataset_version": "v6_frozen",
-    "feature_pipeline_version": "v6_production",
+    "dataset_version": "v7_candidate",
+    "feature_pipeline_version": "v7_production",
     "train_scenarios": len(train_all),
     "test_scenarios": len(test_all),
     "feature_count": len(feature_cols),
     "feature_names": feature_cols,
-    "binary_model": "binary_model_v6.xgb",
-    "typology_model": "typology_model_v6.xgb",
+    "binary_model": "binary_model_v7_candidate.ubj",
+    "typology_model": "typology_model_v7_candidate.ubj",
     "random_seed": 42,
     "evaluation_metrics": {
         "binary": bin_metrics,
@@ -226,18 +226,18 @@ manifest = {
     "timestamp": datetime.now(timezone.utc).isoformat()
 }
 
-with open(MANS / "MANIFEST_v6.json", "w") as f:
+with open(MANS / "MANIFEST_v7_candidate.json", "w") as f:
     json.dump(manifest, f, indent=2)
 
-with open(REPS / "binary_metrics_v6.json", "w") as f:
+with open(REPS / "binary_metrics_v7_candidate.json", "w") as f:
     json.dump({"metrics": bin_metrics, "calibration": cal_res}, f, indent=2)
-with open(REPS / "typology_metrics_v6.json", "w") as f:
+with open(REPS / "typology_metrics_v7_candidate.json", "w") as f:
     json.dump(typ_metrics, f, indent=2)
-with open(REPS / "feature_importance_v6.json", "w") as f:
+with open(REPS / "feature_importance_v7_candidate.json", "w") as f:
     json.dump({"binary_gain": bin_gain, "binary_perm": bin_perm, "typology_gain": typ_gain, "typology_perm": typ_perm}, f, indent=2)
-with open(REPS / "ablation_v6.json", "w") as f:
+with open(REPS / "ablation_v7_candidate.json", "w") as f:
     json.dump(ablation_res, f, indent=2)
-with open(REPS / "error_analysis_v6.json", "w") as f:
+with open(REPS / "error_analysis_v7_candidate.json", "w") as f:
     json.dump(error_res, f, indent=2)
 
 print("PIPELINE COMPLETED SUCCESSFULLY")

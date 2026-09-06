@@ -1,4 +1,4 @@
-# SIH PS146: AI-Powered Monitoring & Analysis of Bitcoin Transaction Traffic
+﻿# SIH PS146: AI-Powered Monitoring & Analysis of Bitcoin Transaction Traffic
 
 [![Target OS: Linux / WSL2](https://img.shields.io/badge/OS-Ubuntu%2024.04%20LTS-E95420?logo=ubuntu&logoColor=white)](file:///c:/Users/arora/SIH/SIH-2026/docs/SETUP.md)
 [![Data Schema: v2.0 Finalized](https://img.shields.io/badge/Data%20Schema-v2.0%20(82%2C078%20txns)-blue)](file:///c:/Users/arora/SIH/SIH-2026/DATA_DICTIONARY.md)
@@ -47,7 +47,7 @@ An offline, air-gapped forensic intelligence and graph-analytics platform design
 |                                                 RAW DATA LAYER                                                    |
 |                                                                                                                   |
 |   data/processed/blockchain_transactions.csv                  data/processed/network_metadata.csv                 |
-|   (82,078 rows · Multi-I/O JSON arrays · BTC Fees)            (82,078 rows · P2P Timestamps · IP/ASN Telemetry)   |
+|   (82,078 rows ┬╖ Multi-I/O JSON arrays ┬╖ BTC Fees)            (82,078 rows ┬╖ P2P Timestamps ┬╖ IP/ASN Telemetry)   |
 +---------------------------------------------------------+---------------------------------------------------------+
                                                           |
                                                           | 1:1 Inner Join on `txid` (Primary Key)
@@ -167,7 +167,7 @@ The underlying dataset is generated and validated under **v2.0 specifications**,
 
 ## 5. Critical System Invariant: Zero Label Leakage
 
-> ### ⚠️ SYSTEM ARCHITECTURAL INVARIANT
+> ### ΓÜá∩╕Å SYSTEM ARCHITECTURAL INVARIANT
 > The ground-truth columns **`is_illicit`** and **`pattern_type`** MUST NEVER be used as features, inputs, or heuristics during:
 > 1. Graph construction algorithms
 > 2. Typology detection heuristics (`peeling_chain`, `layering`, `mixing`)

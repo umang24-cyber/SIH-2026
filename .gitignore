@@ -18,3 +18,7 @@ __pycache__/
 .venv/
 venv/
 
+
+output/*.json
+output/graph_export.json
+public/data/

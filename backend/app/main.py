@@ -12,6 +12,7 @@ from backend.app.services.data_service import data_service
 from backend.app.services.typology_detector import typology_detector
 from backend.app.services.clustering_service import clustering_service
 from backend.app.services.ml_service import ml_service
+from backend.app.services.anomaly_service import anomaly_service
 from backend.app.api.routes_health import router as health_router
 from backend.app.api.routes_entity import router as entity_router
 from backend.app.api.routes_transaction import router as transaction_router
@@ -24,6 +25,7 @@ from backend.app.api.routes_stats import router as stats_router
 from backend.app.api.routes_stream import router as stream_router
 from backend.app.api.routes_intel import router as intel_router
 from backend.app.api.routes_dossier import router as dossier_router
+from backend.app.api.routes_anomaly import router as anomaly_router
 
 # Configure logging
 logging.basicConfig(
@@ -40,6 +42,7 @@ async def lifespan(app: FastAPI):
     clustering_service.build_clusters()
     typology_detector.scan_all_typologies()
     ml_service.load_model()
+    anomaly_service.load_model()
     yield
     logger.info("Shutting down BitKaun AML Forensics API...")
 
@@ -82,6 +85,7 @@ app.include_router(stats_router)
 app.include_router(stream_router)
 app.include_router(intel_router)
 app.include_router(dossier_router)
+app.include_router(anomaly_router)
 
 @app.get("/")
 def root():
