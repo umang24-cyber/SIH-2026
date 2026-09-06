@@ -1,0 +1,14 @@
+# Enforce consistent LF line endings across all platforms (WSL2 / Linux / Windows)
+* text=auto eol=lf
+
+# Explicit binary files
+*.png binary
+*.jpg binary
+*.jpeg binary
+*.gif binary
+*.ico binary
+*.webp binary
+*.docx binary
+*.pdf binary
+*.zip binary
+*.tar.gz binary

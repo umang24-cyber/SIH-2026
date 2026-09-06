@@ -1,18 +1,26 @@
-export type ViewMode = 'BANNER' | 'GRAPH' | 'INSPECT' | 'LOGS' | 'HELP' | 'TRACE' | 'SYS';
+export type ViewMode = 'BANNER' | 'GRAPH' | 'INSPECT' | 'LOGS' | 'HELP' | 'TRACE' | 'SYS' | 'ALERTS' | 'TAINT' | 'DOSSIER' | 'TOR' | 'SCENARIOS';
 
 export interface ForensicNode {
   id: string;
   label: string;
-  type: 'WALLET' | 'MIXER' | 'EXCHANGE' | 'SMART_CONTRACT' | 'SUSPECT' | 'MERCHANT';
+  type: 'WALLET' | 'MIXER' | 'EXCHANGE' | 'TRANSACTION' | 'SUSPECT' | 'IP' | 'SMART_CONTRACT' | 'MERCHANT' | 'PEELING_CHAIN' | 'LAYERING_HUB';
   riskScore: number; // 0 - 100
   clusterId: string;
-  balanceEth: number;
+  balanceBtc: number;
+  balanceEth?: number; // legacy alias fallback
   txCount: number;
   firstSeen: string;
   lastSeen: string;
   tags: string[];
   ownerAlias?: string;
   flags: string[];
+  isLicitExchange?: boolean;
+  address?: string;
+  txid?: number;
+  candidateId?: string;
+  candidateType?: string;
+  asn?: string;
+  relayIp?: string;
   x?: number;
   y?: number;
   z?: number;
@@ -24,11 +32,14 @@ export interface ForensicNode {
 export interface ForensicLink {
   source: string;
   target: string;
-  txHash: string;
-  amountEth: number;
+  txid?: number | string;
+  txHash?: string; // legacy alias fallback
+  amountBtc?: number;
+  amountEth?: number; // legacy alias fallback
   timestamp: string;
   isSuspicious: boolean;
   hopIndex?: number;
+  candidateId?: string;
 }
 
 export interface KernelLogEntry {
