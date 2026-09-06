@@ -285,32 +285,30 @@ function getClusterColor(
   if (!isClusterMode) {
     return null;
   }
-
-  switch (clusterId) {
-    case "PEEL_CHAIN_ALPHA":
-      return {
-        fill: "#102a3a",
-        stroke: "#00ccff",
-      };
-
-    case "SUSPICIOUS_INFRASTRUCTURE":
-      return {
-        fill: "#350818",
-        stroke: "#ff3366",
-      };
-
-    case "NETWORK_TELEMETRY":
-      return {
-        fill: "#21113d",
-        stroke: "#bb66ff",
-      };
-
-    default:
-      return {
-        fill: "#062a18",
-        stroke: "#00ff66",
-      };
+  
+  if (!clusterId || clusterId === 'UNKNOWN') {
+    return {
+      fill: "#062a18",
+      stroke: "#00ff66",
+    };
   }
+
+  // Simple string hash function
+  let hash = 0;
+  for (let i = 0; i < clusterId.length; i++) {
+    hash = clusterId.charCodeAt(i) + ((hash << 5) - hash);
+  }
+
+  // Generate distinct HSL colors based on hash
+  const h = Math.abs(hash) % 360;
+  // Keep saturation high and lightness low for dark mode theme
+  const fillL = 15;
+  const strokeL = 50;
+  
+  return {
+    fill: `hsl(${h}, 80%, ${fillL}%)`,
+    stroke: `hsl(${h}, 90%, ${strokeL}%)`,
+  };
 }
 
 export default function GraphCanvas({

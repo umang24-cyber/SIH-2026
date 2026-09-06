@@ -35,7 +35,8 @@ export default function GraphView({
               label: n.label || n.id,
               x: (idx * 15) % 90 + 5,
               y: ((idx * 23) % 80) + 10,
-              riskScore: n.properties?.is_licit_exchange ? 0.1 : 0.75,
+              riskScore: n.properties?.is_licit_exchange ? 0.1 : (n.properties?.risk_score ?? n.properties?.taint_score ?? 0.75),
+              clusterId: n.properties?.cluster_id || n.properties?.scenario_id || 'UNKNOWN',
               address: n.properties?.address,
               txid: n.properties?.txid ? String(n.properties.txid) : undefined,
               feeBtc: n.properties?.fee_btc,
@@ -98,6 +99,20 @@ export default function GraphView({
           onClick={() => setMode("FLOW")}
         >
           FLOW
+        </button>
+
+        <button
+          style={{ background: mode === "RISK" ? "#ff3333" : "#3b0808", color: mode === "RISK" ? "#fff" : "#ff3333", border: "1px solid #ff3333", padding: "4px 10px", cursor: "pointer", fontWeight: "bold" }}
+          onClick={() => setMode("RISK")}
+        >
+          RISK MAP
+        </button>
+
+        <button
+          style={{ background: mode === "CLUSTER" ? "#00ccff" : "#002b3d", color: mode === "CLUSTER" ? "#fff" : "#00ccff", border: "1px solid #00ccff", padding: "4px 10px", cursor: "pointer", fontWeight: "bold" }}
+          onClick={() => setMode("CLUSTER")}
+        >
+          CLUSTERS
         </button>
 
         {onClose && (
