@@ -92,11 +92,11 @@ export const AlertsSubwindow: React.FC<AlertsSubwindowProps> = ({
                 className={`alert-card-item ${isSelected ? 'selected' : ''}`}
                 onClick={() => onSelectAlert(alert)}
               >
-                <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '6px' }}>
+                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '4px', marginBottom: '6px' }}>
                   <span className={`severity-tag ${severityClass}`}>
                     {alert.severity} • {alert.predicted_pattern_type.toUpperCase()}
                   </span>
-                  <span style={{ color: '#00ff66', fontWeight: 800, fontSize: '13px' }}>
+                  <span style={{ color: '#00ff66', fontWeight: 800, fontSize: '12px', whiteSpace: 'nowrap' }}>
                     BIN {(alert.binary_confidence * 100).toFixed(1)}% · TYPO {(alert.typology_confidence * 100).toFixed(1)}%
                   </span>
                 </div>

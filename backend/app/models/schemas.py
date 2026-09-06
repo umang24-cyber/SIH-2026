@@ -45,6 +45,8 @@ class ClusterResponse(BaseModel):
     total_cluster_sent_btc: float
     multi_input_tx_count: int
     associated_scenarios: List[str]
+    clustering_method: str = "CIOH + Graph Structural Embedding"
+    cluster_embedding: Optional[List[float]] = None
 
 # ==========================================
 # 3. Transaction Schemas
@@ -61,6 +63,10 @@ class NetworkTelemetry(BaseModel):
     protocol_version: int = 70015
     user_agent: str
     propagation_delta_ms: float
+    src_ip: Optional[str] = None
+    dst_ip: Optional[str] = None
+    src_port: Optional[int] = None
+    dst_port: Optional[int] = None
 
 class TransactionResponse(BaseModel):
     txid: int

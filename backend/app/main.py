@@ -94,13 +94,23 @@ app.include_router(ingest_router)
 
 from fastapi.staticfiles import StaticFiles
 from fastapi.responses import FileResponse
+import os
 
-app.mount("/assets", StaticFiles(directory="/home/param/SIH-2026/dist/assets"), name="assets")
-app.mount("/fonts", StaticFiles(directory="/home/param/SIH-2026/dist/fonts"), name="fonts")
+dist_dir = os.path.abspath(os.path.join(os.path.dirname(__file__), "..", "..", "dist"))
+assets_dir = os.path.join(dist_dir, "assets")
+fonts_dir = os.path.join(dist_dir, "fonts")
+index_html = os.path.join(dist_dir, "index.html")
+
+if os.path.exists(assets_dir):
+    app.mount("/assets", StaticFiles(directory=assets_dir), name="assets")
+if os.path.exists(fonts_dir):
+    app.mount("/fonts", StaticFiles(directory=fonts_dir), name="fonts")
 
 @app.get("/")
 def root():
-    return FileResponse("/home/param/SIH-2026/dist/index.html")
+    if os.path.exists(index_html):
+        return FileResponse(index_html)
+    return {"status": "ONLINE", "message": "BitKaun AML Forensics API"}
 
 if __name__ == "__main__":
     import uvicorn

@@ -398,8 +398,11 @@ export const CliOutputRenderer: React.FC<CliOutputRendererProps> = React.memo(({
             <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(220px, 1fr))', gap: '10px', fontSize: '13px' }}>
               <div><strong>Total Tor Transactions:</strong> <span style={{ color: '#ff3344' }}>{entry.content.total_tor_transactions}</span></div>
               <div><strong>Unique Tor Exit Nodes:</strong> {entry.content.unique_tor_exit_nodes}</div>
-              <div><strong>Timing Entropy (H):</strong> <span style={{ color: '#33ff88' }}>{entry.content.tor_timing_entropy}</span></div>
-              <div><strong>Avg Tor Delay (Δt):</strong> {entry.content.average_tor_propagation_delay_sec}s</div>
+              <div><strong>Timing Entropy (H):</strong> <span style={{ color: '#33ff88' }}>{entry.content.tor_timing_entropy}</span> <span style={{ color: '#77aa88', fontSize: '11px' }}>(Shannon H = -Σ p log₂ p, 1s bins)</span></div>
+              <div><strong>Avg Tor Delay (Δt):</strong> {entry.content.average_tor_propagation_delay_sec} seconds</div>
+              <div style={{ gridColumn: '1 / -1', color: '#77aa88', fontSize: '11px', marginTop: '4px' }}>
+                [TELEMETRY BENCHMARK]: Observed Relay Telemetry (Synthetic V7 Ground-Truth Benchmark · Zero Identity Attribution Claimed)
+              </div>
             </div>
           ) : (
             <div style={{ fontSize: '13px' }}>

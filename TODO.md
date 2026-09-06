@@ -26,6 +26,9 @@
 
 ### 2. Frontend & UI Visualizer Polish (P1, P2)
 - [x] **Blinking Green Rectangle Cursor Dynamic Caret Synchronization:** Fully resolved cursor detachment bug; green blinking rectangle (`.cli-cursor`) now dynamically tracks insertion caret index across arrow keys, clicks, typing, history recalls, and auto-completion with character inversion.
+- [x] **Ransomware Wallet Details & Fallback Audit (Item D):** Populated `cluster_id`, `transaction_count`, `tags`, `first_seen`, `last_seen` from live backend data in `graph_service.py`; honest fallback labels in `NodeDetails.tsx`.
+- [x] **Alert Card Layout & Clipping Fix (Item D):** Fixed flex-wrap and responsive font rendering in `AlertsSubwindow.tsx`.
+- [x] **Tor Profiler Units & Methodology Audit (Item D):** Shannon entropy formula, second units, and observed telemetry benchmark explicitly surfaced in `tor_profiler.py` and CLI output.
 - [ ] **Deadlock Protocol Interactive Engine:** Implement the full `DEADLOCK_PROTOCOL.md` specification (hydraulic dual curtain drop, jaw-snap skull formation, Pac-Man exit, live mempool stream simulation, and dynamic red-skull mutation).
 - [ ] **Export to PDF / Dossier Download:** Implement one-click PDF generation for the `/alerts/{id}/evidence` case dossier drawer so investigators can export official forensic case reports.
 - [ ] **3D Graph Camera Auto-Focus:** When selecting an alert from the triage table, smoothly animate the Three.js camera to focus and zoom in on the primary suspect wallet node.
@@ -34,6 +37,9 @@
 
 
 ### 3. Backend & System Engineering (P6)
+- [x] **PS146 Schema Compliance — Task 3 & 5 (Item B):** Implemented 8-dimensional graph structural topological embeddings in `clustering_service.py` (`CIOH + Graph Structural Embedding`) and added explicit `src_ip`, `dst_ip`, `src_port`, `dst_port` network schema in `schemas.py` and `data_service.py`.
+- [x] **Audit Note on Evaluation Confidence Discrepancy (Item C):** Documented root-cause analysis in `docs/backend/BACKEND.md` Section 5 confirming independent live inference pipelines.
+- [x] **Cross-Platform Static Assets Path Fix:** Replaced hardcoded `/home/param` Linux directory path with dynamic relative resolution in `backend/app/main.py`.
 - [ ] **Unified Startup Script (`run_all.bat` / `run_all.sh`):** Create single double-click launchers for Windows and Linux/WSL2 that concurrently start both FastAPI (port 8000) and Vite (port 5173).
 - [ ] **Expanded Route Unit Tests:** Add automated test coverage in `tests/` for `/alerts`, `/alerts/{id}/evidence`, `/anomaly/{scenario_id}`, and `/taint` endpoints.
 - [ ] **Optional Disk Persistence Cache:** For low-RAM evaluation machines (<8GB RAM), provide an optional SQLite/Parquet disk-backed mode to keep memory footprint under 500MB.

@@ -8,6 +8,7 @@ from functools import lru_cache
 from typing import Optional, List, Dict, Any, Set
 from collections import deque
 from backend.app.services.data_service import data_service
+from backend.app.services.clustering_service import clustering_service
 from backend.app.models.schemas import (
     GraphResponse,
     GraphNode,
@@ -61,12 +62,23 @@ class GraphService:
             for idx, (in_addr, in_amt) in enumerate(zip(tx["input_addresses"], tx["input_amounts"])):
                 if in_addr not in nodes_map:
                     is_exc = len(data_service.address_in_map.get(in_addr, [])) >= 50
+                    tx_in = data_service.address_in_map.get(in_addr, [])
+                    tx_out = data_service.address_out_map.get(in_addr, [])
+                    all_tx = tx_in + tx_out
+                    ts = [str(data_service.txid_map[t]["timestamp"]) for t in all_tx if t in data_service.txid_map]
+                    cluster_id = clustering_service.get_entity_id(in_addr)
+                    tags = ["LICIT_EXCHANGE"] if is_exc else ([scenario_id.upper()] if scenario_id else ["WALLET"])
                     nodes_map[in_addr] = GraphNode(
                         id=in_addr,
                         type="Wallet",
                         properties={
                             "address": in_addr,
-                            "is_licit_exchange": is_exc
+                            "is_licit_exchange": is_exc,
+                            "cluster_id": cluster_id,
+                            "transaction_count": len(all_tx),
+                            "tags": tags,
+                            "first_seen": min(ts) if ts else "N/A (observed in scenario)",
+                            "last_seen": max(ts) if ts else "N/A (observed in scenario)",
                         }
                     )
                     
@@ -83,12 +95,23 @@ class GraphService:
             for idx, (out_addr, out_amt) in enumerate(zip(tx["output_addresses"], tx["output_amounts"])):
                 if out_addr not in nodes_map:
                     is_exc = len(data_service.address_out_map.get(out_addr, [])) >= 50
+                    tx_in = data_service.address_in_map.get(out_addr, [])
+                    tx_out = data_service.address_out_map.get(out_addr, [])
+                    all_tx = tx_in + tx_out
+                    ts = [str(data_service.txid_map[t]["timestamp"]) for t in all_tx if t in data_service.txid_map]
+                    cluster_id = clustering_service.get_entity_id(out_addr)
+                    tags = ["LICIT_EXCHANGE"] if is_exc else ([scenario_id.upper()] if scenario_id else ["WALLET"])
                     nodes_map[out_addr] = GraphNode(
                         id=out_addr,
                         type="Wallet",
                         properties={
                             "address": out_addr,
-                            "is_licit_exchange": is_exc
+                            "is_licit_exchange": is_exc,
+                            "cluster_id": cluster_id,
+                            "transaction_count": len(all_tx),
+                            "tags": tags,
+                            "first_seen": min(ts) if ts else "N/A (observed in scenario)",
+                            "last_seen": max(ts) if ts else "N/A (observed in scenario)",
                         }
                     )
                     

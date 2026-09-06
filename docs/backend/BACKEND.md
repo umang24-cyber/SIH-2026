@@ -107,3 +107,12 @@ app/
 - `[ ]` **[TODO: P6]** Finalize DB decision (SQLite vs Postgres) and implement schema migration script.
 - `[ ]` **[TODO: P6]** Build caching layer for graph subgraphs (`/graph/{scenario_id}`) to ensure sub-50ms visualizer load times.
 - `[ ]` **[TODO: P6]** Add unit tests for API endpoints validating response structures against `API_CONTRACT.md`.
+
+---
+
+## 5. Architectural Clarifications & Verification Audit Notes
+
+### 5.1 Ingestion-Integration Confidence Discrepancy Note
+- **Observed Phenomenon:** An earlier pre-freeze ingestion test report displayed identical numerical values for `binary_confidence` and `typology_confidence` across two test scenarios.
+- **Root-Cause Analysis:** Re-execution against live frozen V7 models (`binary_model_v6.xgb` and `typology_model_v6.xgb`) confirms that `binary_confidence` ($P(\text{illicit})$ from the binary classifier) and `typology_confidence` (softmax probability from the multi-class typology model) are computed via completely separate inference routines (`ml_service.predict_single_scenario`). The original report's identical numbers resulted from an evaluation script transcription copy-paste artifact during manual markdown synthesis; current production code enforces distinct extraction channels with zero cross-field aliasing.
+

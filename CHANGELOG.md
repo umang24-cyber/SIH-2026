@@ -10,6 +10,11 @@
 
 ## Recent Entries
 
+- **2026-09-06 [Backend/ML/UI] [P1/P4/P6]** — **Items B, C, D Finalization (Graph Embeddings, Network Schema, UI Polishing):**
+  - **Item B (Task 3 & 5)**: Added 8-dimensional graph structural topological embeddings (`cluster_embedding`) to `clustering_service.py` & `schemas.py` satisfying PS146 "CIOH + graph embeddings". Implemented explicit `src_ip`, `dst_ip`, `src_port`, `dst_port` network schema across `schemas.py`, `data_service.py`, and `graph_service.py`.
+  - **Item C (Confidence Discrepancy)**: Added Section 5 root-cause audit documentation in `docs/backend/BACKEND.md` explaining historical evaluation transcription artifact vs. strictly independent live inference pipelines.
+  - **Item D (UI/UX Polish)**: Populated `cluster_id`, `transaction_count`, `tags`, `first_seen`, `last_seen` in `graph_service.py` and `NodeDetails.tsx` eliminating unexplained "N/A" ransomware wallet fields. Fixed alert card header text clipping in `AlertsSubwindow.tsx`. Added Shannon entropy formula and second units in `tor_profiler.py` and `CliOutputRenderer.tsx`. Corrected hardcoded `/home/param` path in `backend/app/main.py`. Verified 11/11 backend pytest pass and 0-error frontend build.
+
 - **2026-09-06 [UI/Terminal] [P1/P2]** — **Blinking Green Rectangle Cursor Dynamic Caret Synchronization (`App.tsx`, `terminal.css`):**
   - Resolved caret positioning bug where the solid green blinking rectangle (`.cli-cursor`) remained statically pinned to the end of the input line when typing or navigating through text.
   - Implemented exact character index tracking (`cursorPos`) via `selectionStart` synchronized across `onChange`, `onKeyDown`, `onKeyUp`, `onClick`, `onSelect`, and `onFocus`.

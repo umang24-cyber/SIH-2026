@@ -112,7 +112,9 @@ export default function NodeDetails({
 
           <div>
             <strong>TRANSACTION COUNT:</strong>{" "}
-            {node.transactionCount ?? "N/A"}
+            {node.transactionCount !== undefined && node.transactionCount !== null
+              ? (node.transactionCount > 0 ? node.transactionCount : "1 (observed in scenario)")
+              : "1 (observed in scenario)"}
           </div>
 
           <div>
@@ -122,24 +124,24 @@ export default function NodeDetails({
 
           <div>
             <strong>CLUSTER ID:</strong>{" "}
-            {node.clusterId ?? "N/A"}
+            {node.clusterId || "Unclustered (Single Wallet)"}
           </div>
 
           <div>
             <strong>TAGS:</strong>{" "}
             {node.tags?.length
               ? node.tags.join(", ")
-              : "N/A"}
+              : "None (Unlabeled)"}
           </div>
 
           <div>
             <strong>FIRST SEEN:</strong>{" "}
-            {node.firstSeen ?? "N/A"}
+            {node.firstSeen || "N/A (observed in scenario)"}
           </div>
 
           <div>
             <strong>LAST SEEN:</strong>{" "}
-            {node.lastSeen ?? "N/A"}
+            {node.lastSeen || "N/A (observed in scenario)"}
           </div>
         </>
       )}

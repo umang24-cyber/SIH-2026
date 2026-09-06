@@ -156,10 +156,13 @@ class TorProfiler:
             "total_tor_transactions": len(tor_txids),
             "unique_tor_exit_nodes": len(unique_tor_ips),
             "tor_timing_entropy": tor_entropy,
+            "entropy_formula": "Shannon Entropy H = -sum(p_i * log2(p_i)) over 1.0s propagation delay bins",
+            "delay_unit": "seconds",
             "average_tor_propagation_delay_sec": round(avg_tor_delta, 2),
             "average_normal_propagation_delay_sec": round(avg_normal_delta, 2),
             "top_tor_exit_countries": [{"country": c, "tx_count": cnt} for c, cnt in top_countries],
-            "methodology": "Passive Multi-Vantage Timing Entropy & CIOH Cross-Layer Triangulation"
+            "methodology": "Passive Multi-Vantage Timing Entropy & CIOH Cross-Layer Triangulation",
+            "telemetry_source": "Observed Relay Telemetry (Synthetic V7 Ground-Truth Benchmark)"
         }
         return self._cached_summary
 

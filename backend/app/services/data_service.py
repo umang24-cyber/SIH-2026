@@ -98,7 +98,11 @@ class DataService:
                 isp=str(rec.get("isp", "")),
                 protocol_version=int(rec.get("protocol_version", 70015)),
                 user_agent=str(rec.get("user_agent", "/Satoshi:22.0.0/")),
-                propagation_delta_ms=float(rec.get("propagation_delta_ms", 0.0))
+                propagation_delta_ms=float(rec.get("propagation_delta_ms", 0.0)),
+                src_ip=str(rec.get("src_ip", rec.get("relay_ip", "0.0.0.0"))),
+                dst_ip=str(rec.get("dst_ip", "127.0.0.1")),
+                src_port=int(rec.get("src_port", rec.get("relay_port", 8333))),
+                dst_port=int(rec.get("dst_port", 8333))
             )
         )
 

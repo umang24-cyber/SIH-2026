@@ -107,6 +107,10 @@ export default function GraphView({
                 label: n.label || props.address || n.id,
                 address: props.address || n.id,
                 clusterId: props.cluster_id,
+                transactionCount: props.transaction_count ?? props.tx_count,
+                tags: props.tags || [],
+                firstSeen: props.first_seen,
+                lastSeen: props.last_seen,
                 ...mlFields,
               };
             }
