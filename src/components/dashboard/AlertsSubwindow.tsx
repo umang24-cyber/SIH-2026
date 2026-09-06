@@ -58,7 +58,7 @@ export const AlertsSubwindow: React.FC<AlertsSubwindowProps> = ({
           flexWrap: 'wrap'
         }}
       >
-        {['ALL', 'PEELING_CHAIN', 'LAYERING', 'MIXING'].map(type => (
+        {['ALL', 'RANSOMWARE', 'PEELING_CHAIN', 'LAYERING', 'MIXING'].map(type => (
           <span
             key={type}
             className={`hud-pill ${filterType === type ? 'active' : ''}`}
@@ -77,38 +77,61 @@ export const AlertsSubwindow: React.FC<AlertsSubwindowProps> = ({
             No alerts matching filter.
           </div>
         ) : (
-          filteredAlerts.map(alert => {
-            const isSelected = alert.candidate_id === selectedAlertId;
-            const severityClass =
-              alert.severity === 'CRITICAL'
-                ? 'severity-critical'
-                : alert.severity === 'HIGH'
-                ? 'severity-high'
-                : 'severity-medium';
+          ['CRITICAL', 'HIGH', 'MEDIUM', 'LOW'].map(severityLevel => {
+            const groupAlerts = filteredAlerts.filter(a => a.severity === severityLevel);
+            if (groupAlerts.length === 0) return null;
 
             return (
-              <div
-                key={alert.candidate_id}
-                className={`alert-card-item ${isSelected ? 'selected' : ''}`}
-                onClick={() => onSelectAlert(alert)}
-              >
-                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '4px', marginBottom: '6px' }}>
-                  <span className={`severity-tag ${severityClass}`}>
-                    {alert.severity} • {alert.predicted_pattern_type.toUpperCase()}
-                  </span>
-                  <span style={{ color: '#00ff66', fontWeight: 800, fontSize: '12px', whiteSpace: 'nowrap' }}>
-                    BIN {(alert.binary_confidence * 100).toFixed(1)}% · TYPO {(alert.typology_confidence * 100).toFixed(1)}%
-                  </span>
+              <div key={severityLevel} style={{ marginBottom: '16px' }}>
+                {/* Divider Header */}
+                <div style={{
+                  backgroundColor: severityLevel === 'CRITICAL' ? '#330000' : '#002211',
+                  color: severityLevel === 'CRITICAL' ? '#ff3344' : '#00ff66',
+                  padding: '4px 8px',
+                  fontSize: '11px',
+                  fontWeight: 'bold',
+                  borderBottom: `1px solid ${severityLevel === 'CRITICAL' ? '#ff3344' : '#005520'}`,
+                  marginBottom: '8px',
+                  letterSpacing: '1px'
+                }}>
+                  ▼ {severityLevel} THREATS ({groupAlerts.length})
                 </div>
 
-                <div style={{ fontSize: '13px', color: '#f8fafc', marginBottom: '6px', lineHeight: '1.45' }}>
-                  {alert.explanation}
-                </div>
+                {groupAlerts.map(alert => {
+                  const isSelected = alert.candidate_id === selectedAlertId;
+                  const severityClass =
+                    alert.severity === 'CRITICAL'
+                      ? 'severity-critical'
+                      : alert.severity === 'HIGH'
+                      ? 'severity-high'
+                      : 'severity-medium';
 
-                <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '12px', color: '#94a3b8' }}>
-                  <span>Wallet: <strong style={{ color: '#ffffff' }}>{alert.primary_wallet.slice(0, 12)}...</strong></span>
-                  <span>{alert.member_txids.length} linked txns</span>
-                </div>
+                  return (
+                    <div
+                      key={alert.candidate_id}
+                      className={`alert-card-item ${isSelected ? 'selected' : ''}`}
+                      onClick={() => onSelectAlert(alert)}
+                    >
+                      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '4px', marginBottom: '6px' }}>
+                        <span className={`severity-tag ${severityClass}`}>
+                          {alert.severity} • {alert.predicted_pattern_type.toUpperCase()}
+                        </span>
+                        <span style={{ color: '#00ff66', fontWeight: 800, fontSize: '12px', whiteSpace: 'nowrap' }}>
+                          BIN {(alert.binary_confidence * 100).toFixed(1)}% · TYPO {(alert.typology_confidence * 100).toFixed(1)}%
+                        </span>
+                      </div>
+
+                      <div style={{ fontSize: '13px', color: '#f8fafc', marginBottom: '6px', lineHeight: '1.45' }}>
+                        {alert.explanation}
+                      </div>
+
+                      <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '12px', color: '#94a3b8' }}>
+                        <span>Wallet: <strong style={{ color: '#ffffff' }}>{alert.primary_wallet.slice(0, 12)}...</strong></span>
+                        <span>{alert.member_txids.length} linked txns</span>
+                      </div>
+                    </div>
+                  );
+                })}
               </div>
             );
           })
