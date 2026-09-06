@@ -59,6 +59,12 @@ def main(argv: list[str] | None = None) -> None:
         action="store_true",
         help="Skip ground-truth validation step (faster, no label columns needed)",
     )
+    parser.add_argument(
+        "--skip-embeddings",
+        action="store_true",
+        help="Skip Node2Vec graph embedding generation (Step 4.5).  "
+             "Use when checkpoint files already exist or embeddings are not needed.",
+    )
     args = parser.parse_args(argv)
 
     # Override config paths if CLI args were supplied
@@ -125,6 +131,38 @@ def main(argv: list[str] | None = None) -> None:
     log.info("  Done in %.1fs  (%d candidates)", time.perf_counter() - t0, len(features_df))
 
     # ------------------------------------------------------------------
+    # Step 4.5 — Graph Embeddings (Node2Vec)
+    # ------------------------------------------------------------------
+    embeddings: dict | None = None
+    if args.skip_embeddings:
+        log.info("STEP 4.5 / 6 — GRAPH EMBEDDINGS SKIPPED (--skip-embeddings)")
+    else:
+        log.info("=" * 60)
+        log.info("STEP 4.5 / 6 — GRAPH EMBEDDINGS (Node2Vec)")
+        log.info(
+            "  Note: pure-numpy implementation (~15–38 min for 448k nodes). "
+            "Pass --skip-embeddings to skip this step after the first run."
+        )
+        t0 = time.perf_counter()
+        from graph_engine import embeddings as emb_module
+        embeddings = emb_module.generate_embeddings(
+            G,
+            output_dir=config.OUTPUT_DIR,
+        )
+        # Mean-pool embeddings per candidate for the ML handoff
+        candidate_emb_df = emb_module.pool_candidate_embeddings(
+            all_candidates,
+            embeddings,
+            output_path=config.CANDIDATE_EMBEDDINGS_PARQUET,
+        )
+        log.info(
+            "  Done in %.1fs  (%d nodes embedded, %d candidates pooled)",
+            time.perf_counter() - t0,
+            len(embeddings),
+            len(candidate_emb_df),
+        )
+
+    # ------------------------------------------------------------------
     # Step 5 — Export
     # ------------------------------------------------------------------
     log.info("=" * 60)
@@ -154,10 +192,14 @@ def main(argv: list[str] | None = None) -> None:
     elapsed = time.perf_counter() - t_total
     log.info("=" * 60)
     log.info("PIPELINE COMPLETE in %.1fs", elapsed)
-    log.info("  graph_export.json       -> %s", config.GRAPH_EXPORT_JSON)
-    log.info("  candidates_ml_handoff   -> %s", config.ML_HANDOFF_CSV)
+    log.info("  graph_export.json         -> %s", config.GRAPH_EXPORT_JSON)
+    log.info("  candidates_ml_handoff     -> %s", config.ML_HANDOFF_CSV)
+    if not args.skip_embeddings:
+        log.info("  node_embeddings.npy       -> %s", config.NODE_EMBEDDINGS_NPY)
+        log.info("  embedding_features.parq   -> %s", config.EMBEDDING_FEATURES_PARQUET)
+        log.info("  candidate_embeddings.parq -> %s", config.CANDIDATE_EMBEDDINGS_PARQUET)
     if not args.no_validate:
-        log.info("  validation_report.json  -> %s", config.VALIDATION_REPORT_JSON)
+        log.info("  validation_report.json    -> %s", config.VALIDATION_REPORT_JSON)
     log.info("=" * 60)
 
 

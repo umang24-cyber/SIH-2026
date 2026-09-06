@@ -122,3 +122,51 @@ SUSPICIOUS_NODE_TYPES: frozenset[str] = frozenset({
 # A detected candidate is a TP if at least this fraction of its member txids
 # share the matching ground-truth pattern_type
 VALIDATION_TP_THRESHOLD: float = 0.80
+
+# ---------------------------------------------------------------------------
+# Node2Vec embedding tunables
+# ---------------------------------------------------------------------------
+# These are the defaults used by graph_engine/embeddings.py.  Every parameter
+# is a named constant so the ML teammate can override them at call time without
+# touching the module.
+#
+# Walk parameters (Node2VecWalker):
+#   walk_length : steps per walk.  80 is the Node2Vec paper default.
+#   num_walks   : walks per source node.  10 is the Node2Vec paper default.
+#   p           : return parameter.  1.0 = neutral (no return bias).
+#   q           : in-out parameter.  0.5 = mild DFS bias → better at capturing
+#                 community structure (mixing clusters).  1.0 would be neutral.
+#
+# Skip-Gram parameters (SkipGramEmbedder):
+#   embedding_dim  : vector length.  64 is a standard default; reduce to 32
+#                    if the ML teammate has memory constraints (~55 MB vs ~110 MB
+#                    for 448k nodes).
+#   window_size    : context window radius.  5 is the Word2Vec default.
+#   neg_samples    : negative samples per positive pair.  5 is standard.
+#   epochs         : training epochs.  1 is typical for large corpora with
+#                    many walk samples (analogous to Word2Vec with large data).
+#   seed           : RNG seed for reproducibility across runs.
+#
+# Runtime estimate at production scale (448k nodes, 409k+ edges):
+#   Alias table precomputation  : 2–5  min
+#   Random walk generation      : 3–8  min
+#   Skip-Gram training (1 epoch): 10–25 min
+#   Total                       : ~15–38 min
+# Run once, checkpoint to disk.  Use --skip-embeddings in main.py to reload
+# from checkpoint instead of regenerating.
+
+EMBED_WALK_LENGTH:  int   = 80
+EMBED_NUM_WALKS:    int   = 10
+EMBED_P:            float = 1.0
+EMBED_Q:            float = 0.5   # mild DFS bias for community/cluster detection
+EMBED_DIM:          int   = 64
+EMBED_WINDOW:       int   = 5
+EMBED_NEG_SAMPLES:  int   = 5
+EMBED_EPOCHS:       int   = 1
+EMBED_SEED:         int   = 42
+
+# Output file paths for embedding artefacts
+NODE_EMBEDDINGS_NPY         = OUTPUT_DIR / "node_embeddings.npy"
+NODE_EMBEDDING_INDEX_JSON   = OUTPUT_DIR / "node_embedding_index.json"
+EMBEDDING_FEATURES_PARQUET  = OUTPUT_DIR / "embedding_features.parquet"
+CANDIDATE_EMBEDDINGS_PARQUET = OUTPUT_DIR / "candidate_embeddings.parquet"

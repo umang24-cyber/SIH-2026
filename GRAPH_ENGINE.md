@@ -256,3 +256,97 @@ npm run dev
 # Type 'graph' in the BitKaun terminal to load the 3D point cloud
 ```
 
+---
+
+## 11. Graph Embedding Generation (Node2Vec)
+
+### 11.1. Overview
+
+`graph_engine/embeddings.py` adds Node2Vec structural embeddings as an additional feature source alongside the existing hand-engineered feature vectors in `candidates_ml_handoff.csv`.
+
+These embeddings capture the neighborhood structure of every node in the heterogeneous graph — transaction flow, connected entities, and local topology — as a fixed-length vector. They feed the same downstream ML classifier, augmenting (not replacing) the existing structural / temporal / amount / network features.
+
+### 11.2. Implementation
+
+**Pure-numpy, zero new pip dependencies.**
+
+The PyPI `node2vec` package (v0.5.0) requires `numpy<2.0.0` and `gensim>=4.3.0` (Cython-compiled). The project venv runs `numpy 2.5.2` on Python 3.14.7; installing the package would downgrade numpy and risk a failed gensim build on Python 3.14. The module instead implements Node2Vec natively using only `numpy` (≥1.24) and `networkx` (≥3.1), both already installed.
+
+### 11.3. Directed Graph Treatment
+
+The graph is treated as **directed** during walk generation: each walk step follows out-edges of the current node. Transaction-flow direction (wallet → transaction → wallet) is semantically meaningful and is preserved. Reverse traversal through SENT edges is never allowed in walks.
+
+### 11.4. Heterogeneity Handling
+
+Node2Vec is natively homogeneous — it assigns identical walk semantics to all node types. This graph has three types (wallet, transaction, ip).
+
+**Decision: embed the full heterogeneous graph (all node types together).** Cross-type walks (wallet → tx → wallet) capture the structural signal that drives peeling-chain and layering pattern detection. Separating by node type would sever cross-type connectivity and lose the most informative structural paths. The node-type distinction is exposed as a separate one-hot feature appended at classifier training time.
+
+### 11.5. Walk Hyperparameters
+
+| Parameter | Default | Rationale |
+|---|---|---|
+| `walk_length` | 80 | Node2Vec paper default |
+| `num_walks` | 10 | Node2Vec paper default |
+| `p` (return) | 1.0 | Neutral — no return bias |
+| `q` (in-out) | 0.5 | Mild DFS bias → better at capturing community structure (mixing clusters) |
+| `embedding_dim` | 64 | Standard default; reduce to 32 for memory-constrained teammates |
+| `window_size` | 5 | Word2Vec default |
+| `neg_samples` | 5 | Standard negative sampling count |
+| `epochs` | 1 | Sufficient for large walk corpora (448k × 10 walks) |
+
+All parameters are named constants in `config.py` and overridable at call time.
+
+### 11.6. Runtime Estimates (448k nodes, 409k+ edges)
+
+| Phase | Estimate |
+|---|---|
+| Alias table precomputation | 2–5 min |
+| Random walk generation | 3–8 min |
+| Skip-Gram training (1 epoch) | 10–25 min |
+| **Total** | **~15–38 min** |
+
+Run once and checkpoint to disk. Use `--skip-embeddings` in `main.py` to reload from checkpoint instead of regenerating.
+
+### 11.7. Output Files
+
+| File | Format | Contents |
+|---|---|---|
+| `output/node_embeddings.npy` | NumPy binary, shape (N, 64) | Row-indexed by position |
+| `output/node_embedding_index.json` | JSON `{"node_id": row_index}` | Position lookup |
+| `output/embedding_features.parquet` | Parquet, indexed by `node_id` | Per-node, columns `emb_0..emb_63` + `node_type` |
+| `output/candidate_embeddings.parquet` | Parquet, indexed by `candidate_id` | Mean-pooled per candidate, joinable to `candidates_ml_handoff.csv` |
+
+### 11.8. No-Leakage Guarantee
+
+Walks are computed from **graph topology only** (node connectivity and edge weights). No label attribute (`is_illicit`, `pattern_type`, `label`, `ground_truth`) is read in the embedding module. An explicit leakage guard at module entry scans all node attributes and warns if any label-like attribute is found on any node.
+
+---
+
+## 12. Future Work — GraphSAGE Heterogeneous Embeddings
+
+### 12.1. Why GraphSAGE Was Considered
+
+GraphSAGE is a compelling future upgrade over Node2Vec for this graph for two reasons:
+
+1. **Inductive:** GraphSAGE can embed unseen nodes (new transactions arriving after training) without retraining the encoder. Node2Vec is transductive — adding new nodes requires full re-embedding.
+
+2. **Typed aggregation:** Heterogeneous GraphSAGE (`HeteroSAGE`) supports separate weight matrices per edge type (wallet→tx, tx→wallet, ip→tx), which maps naturally to this graph's three edge types. Node2Vec is natively homogeneous — node-type information can only be recovered as a separate concatenated feature, not as part of the walk or aggregation itself.
+
+### 12.2. Why It Is Out of Scope for This Pass
+
+1. **Training loop required:** GraphSAGE requires a supervised or self-supervised training objective (link prediction or contrastive loss) with a defined train/validation split.
+
+2. **Second leakage surface:** The GNN encoder needs its own train/inference split, independent of the downstream classifier's train/test split. Conflating them would leak structural signal from test-set nodes into the encoder's training — a second leakage surface to manage, separate from the classifier's.
+
+3. **Heavy dependencies:** `torch-geometric` or `DGL` require a CUDA-compatible PyTorch build. These are large GPU-optimized dependencies that the hackathon timeline cannot absorb.
+
+4. **GPU time:** A minimum viable GNN training run on a graph of this size requires GPU compute unavailable in the current development environment.
+
+### 12.3. What Would Need to Exist to Add It Later
+
+- A GNN train split defined using `scenario_id` stratification **without** exposing `is_illicit` to the GNN encoder (no label leakage into the representation learning phase).
+- `torch-geometric` installed with a CUDA-compatible PyTorch build.
+- `HeteroData` objects with typed node-feature tensors (separate feature matrices for wallet / transaction / ip nodes).
+- A 2-layer `HeteroSAGE` encoder with mean aggregation, trained with a link-prediction or contrastive self-supervised objective.
+- An inference path that generates embeddings for new transaction nodes at serving time without full retraining (the inductive advantage over Node2Vec).
