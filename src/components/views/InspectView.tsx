@@ -44,10 +44,17 @@ export const InspectView: React.FC<InspectViewProps> = ({ node, data, onRunComma
           <div style={{ color: '#33ff88', fontWeight: 'bold', marginBottom: '6px', borderBottom: '1px dashed #004d20', paddingBottom: '4px' }}>
             LEDGER FINANCIAL METRICS
           </div>
+<<<<<<< HEAD
           <p><strong>BALANCE / VOLUME:</strong> <span style={{ color: '#33ff88' }}>{(node.balanceBtc || node.balanceEth || 0).toLocaleString()} BTC</span></p>
           <p><strong>TX LIFETIME COUNT:</strong> {(node.txCount || 0).toLocaleString()} transactions</p>
           <p><strong>FIRST SEEN:</strong> {node.firstSeen || 'N/A'}</p>
           <p><strong>LAST OBSERVED:</strong> {node.lastSeen || 'N/A'}</p>
+=======
+          <p><strong>CURRENT UTXO BALANCE:</strong> <span style={{ color: '#33ff88' }}>{(node.balanceBtc ?? node.balanceEth ?? 0).toLocaleString()} BTC</span></p>
+          <p><strong>TX LIFETIME COUNT:</strong> {node.txCount.toLocaleString()} transactions</p>
+          <p><strong>FIRST SEEN:</strong> {node.firstSeen}</p>
+          <p><strong>LAST OBSERVED:</strong> {node.lastSeen}</p>
+>>>>>>> origin/graph
         </div>
       </div>
 
@@ -68,6 +75,7 @@ export const InspectView: React.FC<InspectViewProps> = ({ node, data, onRunComma
         </div>
       )}
 
+<<<<<<< HEAD
       {/* Multi-I/O UTXO Breakdown if Transaction */}
       {data?.input_addresses && (
         <div style={{ border: '1px solid #007a33', padding: '10px', background: '#000c04', marginBottom: '16px' }}>
@@ -92,6 +100,13 @@ export const InspectView: React.FC<InspectViewProps> = ({ node, data, onRunComma
               ))}
             </div>
           </div>
+=======
+      {/* Raw Memory Hexdump */}
+      <div style={{ border: '1px solid #007a33', padding: '10px', background: '#000502', marginBottom: '16px' }}>
+        <div style={{ color: '#33ff88', fontWeight: 'bold', marginBottom: '6px', display: 'flex', justifyContent: 'space-between' }}>
+          <span>RAW BITCOIN SCRIPT / TRANSACTION BYTECODE (/proc/bitkaun/raw_tx/{node.id.slice(0, 10)})</span>
+          <span style={{ fontSize: '13px', color: '#007a33' }}>OFFSET: 0x00000000 - 0x00000050</span>
+>>>>>>> origin/graph
         </div>
       )}
 
@@ -101,6 +116,7 @@ export const InspectView: React.FC<InspectViewProps> = ({ node, data, onRunComma
         <span className="cmd-clickable" onClick={() => onRunCommand('graph')}>
           [Switch to 3D Graph]
         </span>
+<<<<<<< HEAD
         {isEntity && (
           <span className="cmd-clickable" onClick={() => onRunCommand(`taint ${node.id}`)}>
             [Trace Taint from this Wallet]
@@ -111,6 +127,17 @@ export const InspectView: React.FC<InspectViewProps> = ({ node, data, onRunComma
             [Generate Section 91 CrPC Dossier]
           </span>
         )}
+=======
+        <span className="cmd-clickable" onClick={() => onRunCommand(`trace ${node.id} 1s6D1TaSbKqeTG5YMhWWRJ85Ve8s7Y`)}>
+          [Trace to Cashout OTC: 1s6D1TaSbKqeTG5YMhWWRJ85Ve8s7Y]
+        </span>
+        <span className="cmd-clickable" onClick={() => onRunCommand('dmesg')}>
+          [View Kernel Logs]
+        </span>
+        <span className="cmd-clickable" onClick={() => onRunCommand('home')}>
+          [Return Home]
+        </span>
+>>>>>>> origin/graph
       </div>
     </div>
   );
