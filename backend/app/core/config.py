@@ -2,12 +2,29 @@
 Application Configuration and Path Constants.
 Uses pathlib.Path exclusively for cross-platform (WSL2 / Linux / Windows) compatibility.
 """
+import os
+import platform
 from pathlib import Path
 from pydantic import BaseModel
 
 # Base directories
 BASE_DIR = Path(__file__).resolve().parent.parent.parent.parent
 DATA_PROCESSED_DIR = BASE_DIR / "data" / "processed"
+
+def get_app_data_dir() -> Path:
+    """Returns the OS-specific local application data directory."""
+    system = platform.system()
+    if system == "Windows":
+        app_data = os.getenv("LOCALAPPDATA")
+        if not app_data:
+            app_data = os.path.expanduser("~\\AppData\\Local")
+        return Path(app_data) / "BitKaun"
+    else:
+        # Linux/macOS
+        return Path.home() / ".local" / "share" / "BitKaun"
+
+APP_DATA_DIR = get_app_data_dir()
+REPORTS_DIR = APP_DATA_DIR / "reports"
 
 # Master Data Files (v2.0)
 BLOCKCHAIN_CSV_PATH = DATA_PROCESSED_DIR / "blockchain_transactions.csv"

@@ -11,6 +11,7 @@ from backend.app.services.clustering_service import clustering_service
 from backend.app.services.typology_detector import typology_detector
 from backend.app.services.ml_service import ml_service
 from backend.app.services.taint_service import taint_service
+from backend.app.services.db_service import db_service
 
 logger = logging.getLogger(__name__)
 
@@ -19,6 +20,10 @@ class DossierService:
         """Generates a structured Law Enforcement Investigation Dossier for a transaction."""
         tx = data_service.txid_map.get(txid)
         if not tx:
+            # Try to retrieve from SQLite if already saved
+            saved = db_service.get_dossier(str(txid))
+            if saved:
+                return saved
             return {"error": f"Transaction {txid} not found", "txid": txid}
 
         node_type = str(tx.get("node_type", "residential"))
@@ -58,35 +63,32 @@ class DossierService:
         ]
         if is_tor:
             directives.append(
-                f"4. Coordinate with Cyber Crime Investigation Division regarding Tor Exit Node IP {tx.get('relay_ip')} and subpoena hosting ISP {tx.get('isp')}."
+                f"4. Coordinate with INTERPOL & Europol EC3 for Tor Exit Node attribution on Relay IP {tx.get('relay_ip', 'UNKNOWN')} ({tx.get('country_code', 'UNKNOWN')})."
             )
 
-        return {
+        dossier_res = {
             "case_metadata": {
                 "dossier_id": case_id,
                 "generation_timestamp": time.strftime("%Y-%m-%d %H:%M:%S UTC", time.gmtime()),
-                "investigating_authority": "Cyber & Financial Intelligence Forensics Unit (FIU-IND)",
-                "statutory_mandates": [
-                    "Section 91, Code of Criminal Procedure, 1973 (Cr.P.C.)",
-                    "Section 94, Bharatiya Nagarik Suraksha Sanhita, 2023 (BNSS)",
-                    "Section 69 / 69B, Information Technology Act, 2000",
-                    "Prevention of Money Laundering Act, 2002 (PMLA)"
-                ]
+                "investigating_authority": "Cyber & Financial Crimes Division",
+                "target_entity": f"TX:{txid}",
+                "statutory_authority": "Section 91 Cr.P.C. / Information Technology Act Sec 69",
+                "case_status": "CONFIDENTIAL // EVIDENCE ATTACHED"
             },
             "transaction_evidence": {
                 "txid": txid,
-                "block_timestamp": timestamp_str,
-                "btc_value": btc_value,
-                "input_addresses_count": len(input_addresses),
-                "output_addresses_count": len(output_addresses),
+                "timestamp_utc": timestamp_str,
+                "transferred_btc": round(btc_value, 4),
+                "fee_btc": float(tx.get("fee_btc", 0.0001)),
                 "input_addresses": input_addresses,
                 "output_addresses": output_addresses
             },
             "network_telemetry_attribution": {
-                "ip_address": tx.get("relay_ip", "0.0.0.0"),
-                "isp": tx.get("isp", "Unknown"),
-                "asn": tx.get("asn", "Unknown"),
-                "country": tx.get("country_code", "US"),
+                "origin_relay_ip": str(tx.get("relay_ip", "UNKNOWN")),
+                "origin_country": str(tx.get("country_code", "UNKNOWN")),
+                "asn": str(tx.get("asn", "UNKNOWN")),
+                "isp": str(tx.get("isp", "UNKNOWN")),
+                "node_type": node_type,
                 "is_tor_exit_node": is_tor,
                 "propagation_delta_t_seconds": round(delta_t_sec, 3)
             },
@@ -103,6 +105,14 @@ class DossierService:
             },
             "statutory_legal_directives": directives
         }
+
+        # Auto-save dossier to SQLite
+        try:
+            db_service.save_dossier(dossier_res)
+        except Exception as exc:
+            logger.warning(f"Could not persist dossier {case_id} to SQLite: {exc}")
+
+        return dossier_res
 
     def generate_html_dossier(self, txid: int) -> str:
         """Generates an official, print-ready HTML Law Enforcement Investigation Report."""

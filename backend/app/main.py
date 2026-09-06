@@ -9,6 +9,7 @@ from fastapi import FastAPI, Request
 from fastapi.middleware.cors import CORSMiddleware
 from backend.app.core.config import settings
 from backend.app.services.data_service import data_service
+from backend.app.services.db_service import db_service
 from backend.app.services.typology_detector import typology_detector
 from backend.app.services.clustering_service import clustering_service
 from backend.app.services.ml_service import ml_service
@@ -26,6 +27,7 @@ from backend.app.api.routes_stream import router as stream_router
 from backend.app.api.routes_intel import router as intel_router
 from backend.app.api.routes_dossier import router as dossier_router
 from backend.app.api.routes_anomaly import router as anomaly_router
+from backend.app.api.routes_ingest import router as ingest_router
 
 # Configure logging
 logging.basicConfig(
@@ -36,8 +38,9 @@ logger = logging.getLogger(__name__)
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
-    """Lifespan startup: Ingest master CSVs, cluster multi-input entities, scan typologies, load ML models."""
+    """Lifespan startup: Initialize SQLite DB, ingest master CSVs, cluster multi-input entities, scan typologies, load ML models."""
     logger.info("Starting up BitKaun AML Forensics API (100% Offline Engine)...")
+    db_service.ensure_initialized()
     data_service.initialize()
     ml_service.load_model()
     anomaly_service.load_model()
@@ -87,6 +90,7 @@ app.include_router(stream_router)
 app.include_router(intel_router)
 app.include_router(dossier_router)
 app.include_router(anomaly_router)
+app.include_router(ingest_router)
 
 @app.get("/")
 def root():

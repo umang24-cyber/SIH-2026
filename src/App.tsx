@@ -10,7 +10,7 @@ import { api } from './services/api';
 interface TerminalEntry {
   id: string;
   command?: string;
-  type: 'BANNER' | 'TEXT' | 'ERROR' | 'SUCCESS' | 'HELP' | 'INSPECT' | 'TRACE' | 'LOGS' | 'GRAPH' | 'STATUS' | 'ALERTS' | 'TAINT' | 'DOSSIER' | 'TOR';
+  type: 'BANNER' | 'TEXT' | 'ERROR' | 'SUCCESS' | 'HELP' | 'INSPECT' | 'TRACE' | 'LOGS' | 'GRAPH' | 'STATUS' | 'ALERTS' | 'TAINT' | 'DOSSIER' | 'DOSSIER_LIST' | 'TOR' | 'INGEST' | 'INGEST_BATCH';
   content?: any;
 }
 
@@ -302,7 +302,39 @@ export function App() {
         break;
 
       case 'dossier':
+      case 'dossiers':
       case 'report':
+        if (arg1 === 'list') {
+          sound.playEnterSuccess();
+          setPendingCommand(trimmed);
+          try {
+            const savedList = await api.listSavedDossiers();
+            setEntries(prev => [
+              ...prev,
+              {
+                id: `entry-${Date.now()}`,
+                command: trimmed,
+                type: 'DOSSIER_LIST',
+                content: savedList
+              }
+            ]);
+          } catch (err: any) {
+            sound.playErrorChirp();
+            setEntries(prev => [
+              ...prev,
+              {
+                id: `entry-${Date.now()}`,
+                command: trimmed,
+                type: 'ERROR',
+                content: { message: `Failed to retrieve saved dossiers: ${err.message}` }
+              }
+            ]);
+          } finally {
+            setPendingCommand(null);
+          }
+          return;
+        }
+
         if (!arg1) {
           sound.playErrorChirp();
           setEntries(prev => [
@@ -311,7 +343,7 @@ export function App() {
               id: `entry-${Date.now()}`,
               command: trimmed,
               type: 'ERROR',
-              content: { message: "Usage: dossier <txid> (e.g. 'dossier 322596997')" }
+              content: { message: "Usage: dossier <txid|scenario_id> or 'dossier list' (e.g. 'dossier 999182736', 'dossier list')" }
             }
           ]);
           return;
@@ -491,6 +523,169 @@ export function App() {
         }
         break;
 
+      case 'ingest':
+        if (!arg1 || arg1 === 'help') {
+          sound.playEnterSuccess();
+          setEntries(prev => [
+            ...prev,
+            {
+              id: `entry-${Date.now()}`,
+              command: trimmed,
+              type: 'TEXT',
+              content: {
+                message: [
+                  '================================================================================',
+                  ' BITKAUN DYNAMIC TRANSACTION INGESTION & AI/ML CORRELATION ENGINE',
+                  '================================================================================',
+                  ' Inject live Bitcoin transactions directly into the in-memory graph without restart.',
+                  ' Ingested transactions are automatically indexed, correlated with network telemetry,',
+                  ' and scored by the XGBoost & Isolation Forest inference pipeline with live SHAP.',
+                  '',
+                  ' USAGE:',
+                  '   ingest sample [type]      - Ingest a realistic synthetic scenario sample',
+                  '                               Types: ransomware | peeling_chain | mixing | licit',
+                  '   ingest <raw_json>          - Ingest custom JSON transaction payload',
+                  '   upload                     - Batch ingest CSV, JSON, or XML ledger files',
+                  '',
+                  ' QUICK PRESETS (Click to Run):',
+                  '   [ingest sample ransomware]    - Live Ransomware extortion split & Tor relay',
+                  '   [ingest sample peeling_chain] - Rapid Peel Chain UTXO wash with change address',
+                  '   [ingest sample mixing]        - CoinJoin mixer equal-output high-fanout pattern',
+                  '   [ingest sample licit]         - Clean merchant / licensed exchange transaction',
+                  '================================================================================'
+                ].join('\n')
+              }
+            }
+          ]);
+          return;
+        }
+
+        if (arg1 === 'sample') {
+          const sampleType = arg2 || 'ransomware';
+          sound.playEnterSuccess();
+          setPendingCommand(trimmed);
+          try {
+            const sampleData = await api.getIngestSample(sampleType);
+            const txToIngest = sampleData.sample_transaction || sampleData;
+            const ingestRes = await api.ingestTransaction(txToIngest);
+            setEntries(prev => [
+              ...prev,
+              {
+                id: `entry-${Date.now()}`,
+                command: trimmed,
+                type: 'INGEST',
+                content: ingestRes
+              }
+            ]);
+          } catch (err: any) {
+            sound.playErrorChirp();
+            setEntries(prev => [
+              ...prev,
+              {
+                id: `entry-${Date.now()}`,
+                command: trimmed,
+                type: 'ERROR',
+                content: { message: `Sample ingestion failed: ${err.message}` }
+              }
+            ]);
+          } finally {
+            setPendingCommand(null);
+          }
+          return;
+        }
+
+        // Handle raw JSON ingestion
+        {
+          const jsonStr = trimmed.slice(root.length).trim();
+          let parsedTx: any;
+          try {
+            parsedTx = JSON.parse(jsonStr);
+          } catch (e: any) {
+            sound.playErrorChirp();
+            setEntries(prev => [
+              ...prev,
+              {
+                id: `entry-${Date.now()}`,
+                command: trimmed,
+                type: 'ERROR',
+                content: {
+                  message: `Invalid JSON syntax for transaction ingestion: ${e.message}\nUsage: ingest {"inputs": ["1..."], "outputs": [{"address": "1...", "amount": 1.5}]}`
+                }
+              }
+            ]);
+            return;
+          }
+
+          sound.playEnterSuccess();
+          setPendingCommand(trimmed);
+          try {
+            const ingestRes = await api.ingestTransaction(parsedTx);
+            setEntries(prev => [
+              ...prev,
+              {
+                id: `entry-${Date.now()}`,
+                command: trimmed,
+                type: 'INGEST',
+                content: ingestRes
+              }
+            ]);
+          } catch (err: any) {
+            sound.playErrorChirp();
+            setEntries(prev => [
+              ...prev,
+              {
+                id: `entry-${Date.now()}`,
+                command: trimmed,
+                type: 'ERROR',
+                content: { message: `Transaction ingestion failed: ${err.message}` }
+              }
+            ]);
+          } finally {
+            setPendingCommand(null);
+          }
+        }
+        break;
+
+      case 'upload':
+        {
+          const fileInput = document.createElement('input');
+          fileInput.type = 'file';
+          fileInput.accept = '.csv,.json,.xml';
+          fileInput.onchange = async (e: any) => {
+            const file = e.target.files?.[0];
+            if (!file) return;
+            sound.playEnterSuccess();
+            setPendingCommand(`upload ${file.name}`);
+            try {
+              const res = await api.ingestFile(file);
+              setEntries(prev => [
+                ...prev,
+                {
+                  id: `entry-${Date.now()}`,
+                  command: `upload ${file.name}`,
+                  type: 'INGEST_BATCH',
+                  content: res
+                }
+              ]);
+            } catch (err: any) {
+              sound.playErrorChirp();
+              setEntries(prev => [
+                ...prev,
+                {
+                  id: `entry-${Date.now()}`,
+                  command: `upload ${file.name}`,
+                  type: 'ERROR',
+                  content: { message: `File ingestion failed: ${err.message}` }
+                }
+              ]);
+            } finally {
+              setPendingCommand(null);
+            }
+          };
+          fileInput.click();
+        }
+        break;
+
       case 'reboot':
       case 'splash':
       case 'boot':
@@ -566,7 +761,7 @@ export function App() {
       e.preventDefault();
       const trimmed = inputVal.trim();
       if (!trimmed) return;
-      const allCmds = ['graph', 'inspect', 'trace', 'taint', 'alerts', 'dossier', 'tor', 'status', 'help', 'clear', 'sound', 'reboot'];
+      const allCmds = ['graph', 'inspect', 'trace', 'taint', 'alerts', 'dossier', 'tor', 'ingest', 'upload', 'status', 'help', 'clear', 'sound', 'reboot'];
       const match = allCmds.find(c => c.startsWith(trimmed.toLowerCase()));
       if (match) {
         const completed = match + ' ';
@@ -649,6 +844,14 @@ export function App() {
             <div>
               <span className="cmd-tag" onClick={() => handleRunCommand('tor')}>[tor]</span>
               <span className="cmd-desc"> - Tor timing entropy profiler</span>
+            </div>
+            <div>
+              <span className="cmd-tag" onClick={() => handleRunCommand('ingest sample ransomware')}>[ingest sample]</span>
+              <span className="cmd-desc"> - Live inject custom flow & ML</span>
+            </div>
+            <div>
+              <span className="cmd-tag" onClick={() => handleRunCommand('upload')}>[upload]</span>
+              <span className="cmd-desc"> - Batch ledger file upload (CSV/JSON/XML)</span>
             </div>
             <div>
               <span className="cmd-tag" onClick={() => handleRunCommand('help')}>[help]</span>

@@ -7,12 +7,14 @@ const BASE_URL = '';
 
 async function fetchJson<T>(endpoint: string, options?: RequestInit): Promise<T> {
   const url = endpoint.startsWith('/') ? `${BASE_URL}${endpoint}` : `${BASE_URL}/${endpoint}`;
+  const isFormData = typeof FormData !== 'undefined' && options?.body instanceof FormData;
+  const headers: Record<string, string> = {
+    ...(!isFormData ? { 'Content-Type': 'application/json' } : {}),
+    ...(options?.headers as Record<string, string>),
+  };
   const response = await fetch(url, {
     ...options,
-    headers: {
-      'Content-Type': 'application/json',
-      ...options?.headers,
-    },
+    headers,
   });
 
   if (!response.ok) {
@@ -241,4 +243,20 @@ export const api = {
   getTorProfiler: (txid: number | string) => fetchJson<any>(`/api/intel/tor-profiler/${txid}`),
   getStreamBatch: (limit = 20, offset = 0, torOnly = false) =>
     fetchJson<any>(`/api/stream/batch?limit=${limit}&offset=${offset}&tor_only=${torOnly}`),
+  ingestTransaction: (payload: any) =>
+    fetchJson<any>('/api/ingest/transaction', {
+      method: 'POST',
+      body: JSON.stringify(payload),
+    }),
+  ingestFile: (file: File) => {
+    const formData = new FormData();
+    formData.append('file', file);
+    return fetchJson<any>('/api/ingest/file', {
+      method: 'POST',
+      body: formData,
+    });
+  },
+  getIngestSample: (typology = 'ransomware') =>
+    fetchJson<any>(`/api/ingest/sample?typology=${encodeURIComponent(typology)}`),
+  listSavedDossiers: () => fetchJson<any[]>('/api/dossier/saved/list'),
 };

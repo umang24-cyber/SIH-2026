@@ -22,3 +22,8 @@ venv/
 output/*.json
 output/graph_export.json
 public/data/
+
+# SQLite Database Files
+*.db
+*.db-wal
+*.db-shm

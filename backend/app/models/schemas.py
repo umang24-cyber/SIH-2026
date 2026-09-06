@@ -226,3 +226,52 @@ class EvidenceResponse(BaseModel):
     typology_explanation: str = ""
     telemetry_summary: Dict[str, Any]
     transactions: List[Dict[str, Any]]
+
+# ==========================================
+# 7. Live Dynamic Ingestion Schemas
+# ==========================================
+
+class IngestTransactionRequest(BaseModel):
+    txid: int
+    timestamp: str
+    input_addresses: List[str]
+    output_addresses: List[str]
+    input_amounts: List[float]
+    output_amounts: List[float]
+    fee_btc: float = 0.0001
+    script_type: str = "P2PKH"
+    scenario_id: Optional[str] = None
+    # Network Layer Telemetry (correlated observation)
+    relay_timestamp: Optional[str] = None
+    relay_ip: Optional[str] = "127.0.0.1"
+    relay_port: Optional[int] = 8333
+    node_type: Optional[str] = "residential"
+    country_code: Optional[str] = "US"
+    asn: Optional[str] = "AS15169"
+    isp: Optional[str] = "Standard ISP"
+    user_agent: Optional[str] = "/Satoshi:22.0.0/"
+    propagation_delta_ms: Optional[float] = None
+
+class IngestResultResponse(BaseModel):
+    status: str = "SUCCESS"
+    message: str
+    txid: int
+    scenario_id: str
+    primary_wallet: str
+    risk_score: float
+    is_illicit: bool
+    binary_confidence: float
+    predicted_typology: str
+    typology_confidence: float
+    anomaly_score: Optional[float] = None
+    anomaly_label: Optional[str] = None
+    top_shap_attributions: List[FeatureAttribution] = Field(default_factory=list)
+    dossier_available: bool = True
+
+class IngestBatchResponse(BaseModel):
+    status: str = "SUCCESS"
+    total_ingested: int
+    scenario_ids: List[str]
+    unique_wallets_added: int
+    sample_txids: List[int]
+    message: str

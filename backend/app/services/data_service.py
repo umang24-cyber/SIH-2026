@@ -9,6 +9,7 @@ from typing import Optional, Dict, Any, List
 from collections import defaultdict
 from backend.app.ingestion.loader import load_master_dataset
 from backend.app.models.schemas import EntityResponse, TransactionResponse, NetworkTelemetry
+from backend.app.services.db_service import db_service
 
 logger = logging.getLogger(__name__)
 
@@ -29,7 +30,7 @@ class DataService:
         t0 = time.time()
         self.df = load_master_dataset()
         
-        # Build in-memory fast lookup indexes
+        # Build in-memory fast lookup indexes from master dataset
         logger.info("Indexing addresses and scenario clusters...")
         records = self.df.to_dict(orient="records")
         for rec in records:
@@ -50,6 +51,16 @@ class DataService:
             for out_addr in rec.get("output_addresses", []):
                 self.address_out_map[out_addr].append(txid)
                 self.unique_wallets.add(out_addr)
+
+        # Hydrate all persisted custom transactions from SQLite database
+        try:
+            persisted_custom_txs = db_service.load_all_custom_transactions()
+            for r in persisted_custom_txs:
+                self._index_transaction_memory(r)
+            if persisted_custom_txs:
+                logger.info(f"Restored {len(persisted_custom_txs)} custom transactions from persistent SQLite DB.")
+        except Exception as exc:
+            logger.warning(f"Could not load custom transactions from SQLite on boot: {exc}")
 
         elapsed = time.time() - t0
         self.is_ready = True
@@ -143,6 +154,48 @@ class DataService:
     def get_scenario_txids(self, scenario_id: str) -> List[int]:
         """Return all txids belonging to a specific scenario."""
         return self.scenario_tx_map.get(scenario_id, [])
+
+    def _index_transaction_memory(self, record: Dict[str, Any]) -> None:
+        """Internal helper to index a transaction dictionary into memory maps."""
+        txid = int(record["txid"])
+        self.txid_map[txid] = record
+
+        sc_id = str(record.get("scenario_id") or f"custom_{txid}")
+        if sc_id not in self.scenario_tx_map:
+            self.scenario_tx_map[sc_id] = []
+        if txid not in self.scenario_tx_map[sc_id]:
+            self.scenario_tx_map[sc_id].append(txid)
+
+        in_addrs = record.get("input_addresses", [])
+        out_addrs = record.get("output_addresses", [])
+
+        for in_a in in_addrs:
+            self.address_in_map[in_a].append(txid)
+            self.unique_wallets.add(in_a)
+
+        for out_a in out_addrs:
+            self.address_out_map[out_a].append(txid)
+            self.unique_wallets.add(out_a)
+
+    def add_transaction(self, record: Dict[str, Any]) -> None:
+        """Dynamically indexes a new transaction into memory and persists to SQLite."""
+        self._index_transaction_memory(record)
+        try:
+            db_service.save_transaction(record, is_custom=True)
+        except Exception as exc:
+            logger.warning(f"Could not persist transaction {record.get('txid')} to SQLite: {exc}")
+
+    def add_transactions_batch(self, records: List[Dict[str, Any]]) -> int:
+        """Batch-indexes new transactions in memory and persists to SQLite."""
+        count = 0
+        for r in records:
+            self._index_transaction_memory(r)
+            count += 1
+        try:
+            db_service.save_transactions_batch(records, is_custom=True)
+        except Exception as exc:
+            logger.warning(f"Could not batch-persist {len(records)} transactions to SQLite: {exc}")
+        return count
 
     def get_stats(self) -> Dict[str, Any]:
         """Return high-level memory store telemetry."""
