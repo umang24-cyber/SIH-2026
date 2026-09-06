@@ -91,9 +91,10 @@ def compute_graph_features(grp: pd.DataFrame) -> dict:
 
     # max_chain_length — longest simple path length
     # Use dag_longest_path_length if DAG, else BFS fallback with depth limit 15.
+    # B3 FIX: Pass weight=None to dag_longest_path_length so it counts hops, not amounts.
     if nx.is_directed_acyclic_graph(G):
         try:
-            max_chain_length = nx.dag_longest_path_length(G)
+            max_chain_length = nx.dag_longest_path_length(G, weight=None)
         except Exception:
             max_chain_length = 1
     else:
@@ -114,10 +115,31 @@ def compute_graph_features(grp: pd.DataFrame) -> dict:
                             visited.add(nxt)
                             queue.append((nxt, depth + 1))
         max_chain_length = max_depth
+        
+    # Divide by 2 because bipartite graph has 2 edges per transaction (addr->tx->addr)
+    max_chain_length = max_chain_length // 2
 
-    # avg_clustering — on undirected projection of the full graph
-    G_undirected = G.to_undirected()
-    avg_clustering = nx.average_clustering(G_undirected)
+    # avg_clustering — on address-only one-mode projection (NOT the raw bipartite graph).
+    # IMPORTANT: avg_clustering on any bipartite graph's undirected form is ALWAYS 0.0
+    # because triangles cannot exist in a bipartite graph (addr and tx nodes are disjoint
+    # sets, so no addr-addr-addr triangle can close). The one-mode projection connects
+    # address nodes that share at least one transaction, which CAN form triangles.
+    # B2 FIX: compute clustering on the address-to-address co-occurrence graph.
+    G_addr_proj = nx.Graph()
+    G_addr_proj.add_nodes_from(addr_nodes)
+    for tx_node in [n for n in G.nodes() if n.startswith("tx_")]:
+        coparticipants = (
+            [p for p in G.predecessors(tx_node) if p.startswith("addr_")] +
+            [s for s in G.successors(tx_node)   if s.startswith("addr_")]
+        )
+        for i in range(len(coparticipants)):
+            for j in range(i + 1, len(coparticipants)):
+                G_addr_proj.add_edge(coparticipants[i], coparticipants[j])
+    avg_clustering = (
+        nx.average_clustering(G_addr_proj)
+        if G_addr_proj.number_of_nodes() > 0
+        else 0.0
+    )
 
     # max_in_degree, max_out_degree — address nodes only (filter out tx_ nodes)
     addr_in_degrees  = [G.in_degree(n)  for n in addr_nodes if G.has_node(n)]
@@ -169,14 +191,20 @@ def process_split(bc_path: Path, split_name: str):
     return result
 
 
-train_graph = process_split(DATA / "train_blockchain.csv", "train")
-test_graph  = process_split(DATA / "test_blockchain.csv",  "test")
+def run_pipeline():
+    """Build and persist graph features for the train and test splits."""
+    train_graph = process_split(DATA / "train_blockchain.csv", "train")
+    test_graph  = process_split(DATA / "test_blockchain.csv", "test")
 
-train_path = DATA / "scenario_graph_features_train.csv"
-test_path  = DATA / "scenario_graph_features_test.csv"
-train_graph.to_csv(train_path, index=False)
-test_graph.to_csv(test_path,  index=False)
+    train_path = DATA / "scenario_graph_features_train.csv"
+    test_path  = DATA / "scenario_graph_features_test.csv"
+    train_graph.to_csv(train_path, index=False)
+    test_graph.to_csv(test_path, index=False)
 
-print(f"\nSaved: {train_path}  ({len(train_graph):,} rows)")
-print(f"Saved: {test_path}   ({len(test_graph):,} rows)")
-sep("DONE — 02b_graph_features.py")
+    print(f"\nSaved: {train_path}  ({len(train_graph):,} rows)")
+    print(f"Saved: {test_path}   ({len(test_graph):,} rows)")
+    sep("DONE — 02b_graph_features.py")
+
+
+if __name__ == "__main__":
+    run_pipeline()
