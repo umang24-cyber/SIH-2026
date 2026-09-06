@@ -1,0 +1,20 @@
+[build-system]
+requires = ["setuptools>=61.0"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "bitkaun"
+version = "0.1.0"
+description = "Terminal REPL and CLI for BitKaun Bitcoin AML Forensics Platform"
+readme = "README.md"
+requires-python = ">=3.9"
+dependencies = [
+    "rich>=13.0.0",
+    "requests>=2.28.0",
+]
+
+[project.optional-dependencies]
+prompt = ["prompt_toolkit>=3.0.0"]
+
+[project.scripts]
+bitkaun = "bitkaun_cli.main:run"

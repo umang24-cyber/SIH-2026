@@ -1,0 +1,2 @@
+[console_scripts]
+bitkaun = bitkaun_cli.main:run
