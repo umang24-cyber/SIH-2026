@@ -129,6 +129,36 @@ class TaintResponse(BaseModel):
     contaminated_wallets: List[TaintNode]
 
 # ==========================================
+# 5b. Anomaly Detection Schema (Isolation Forest)
+#     Separate from all XGBoost outputs.
+# ==========================================
+
+class AnomalyScoreResponse(BaseModel):
+    """
+    Isolation Forest Anomaly/Unusualness Score.
+    NOT a probability. NOT combined with risk_score or typology_confidence.
+    Score 0 = indistinguishable from normal licit activity.
+    Score 100 = maximally anomalous relative to licit reference distribution.
+    """
+    scenario_id: str
+    anomaly_score: float = Field(
+        description="0–100 Anomaly/Unusualness Score. Higher = more anomalous."
+    )
+    anomaly_label: str = Field(
+        description="HIGH (>=70), MEDIUM (>=40), or LOW (<40)."
+    )
+    anomaly_raw_if_score: float = Field(
+        description="Raw IsolationForest score_samples() output before normalization."
+    )
+    anomaly_high_threshold: float = Field(
+        default=70.0,
+        description="Threshold above which anomaly_label is HIGH."
+    )
+    anomaly_interpretation: str = Field(
+        description="Human-readable explanation of what this score represents."
+    )
+
+# ==========================================
 # 6. Alert & Explainable Evidence Schemas
 # ==========================================
 
@@ -136,13 +166,23 @@ class AlertSummary(BaseModel):
     candidate_id: str
     scenario_id: str
     predicted_pattern_type: str
-    confidence: float
+    binary_confidence: float = Field(
+        description="Binary XGBoost probability for the predicted is_illicit class."
+    )
+    typology_confidence: float = Field(
+        description="Top-class probability from the typology XGBoost model."
+    )
     severity: str = Field(description="CRITICAL, HIGH, MEDIUM, LOW")
     explanation: str
     primary_wallet: str
     member_txids: List[int]
     member_wallets: List[str]
     detected_at: str
+    is_ml_driven: bool = Field(
+        default=True,
+        description="True when label and confidence fields come from the ML model, not a hardcoded heuristic."
+    )
+    risk_score: float = Field(default=0.0, description="Binary model P(illicit) score from 0–1.")
 
 class AlertListResponse(BaseModel):
     total_alerts: int
@@ -158,8 +198,18 @@ class EvidenceResponse(BaseModel):
     candidate_id: str
     scenario_id: str
     predicted_pattern_type: str
-    confidence: float
+    binary_confidence: float = Field(
+        description="Binary XGBoost probability for the predicted is_illicit class."
+    )
+    typology_confidence: float = Field(
+        description="Top-class probability from the typology XGBoost model."
+    )
     typology_heuristic_match: Dict[str, Any]
+    # Binary model SHAP attributions (kept for backwards compatibility)
     ml_feature_attributions: List[FeatureAttribution]
+    # Typology model SHAP attributions for the predicted class
+    typology_shap_attributions: List[FeatureAttribution] = Field(default_factory=list)
+    # Human-readable explanation generated from typology SHAP
+    typology_explanation: str = ""
     telemetry_summary: Dict[str, Any]
     transactions: List[Dict[str, Any]]
