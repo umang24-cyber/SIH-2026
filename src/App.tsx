@@ -10,7 +10,7 @@ import { api } from './services/api';
 interface TerminalEntry {
   id: string;
   command?: string;
-  type: 'BANNER' | 'TEXT' | 'ERROR' | 'SUCCESS' | 'HELP' | 'INSPECT' | 'TRACE' | 'LOGS' | 'GRAPH' | 'STATUS' | 'ALERTS' | 'ALERT_DETAIL' | 'TAINT' | 'DOSSIER' | 'DOSSIER_LIST' | 'TOR' | 'INGEST' | 'INGEST_BATCH';
+  type: 'BANNER' | 'TEXT' | 'ERROR' | 'SUCCESS' | 'HELP' | 'INSPECT' | 'TRACE' | 'LOGS' | 'GRAPH' | 'STATUS' | 'ALERTS' | 'ALERT_DETAIL' | 'TAINT' | 'DOSSIER' | 'DOSSIER_LIST' | 'TOR' | 'INGEST' | 'INGEST_BATCH' | 'TWO_STREAM_UPLOAD';
   content?: any;
 }
 
@@ -276,55 +276,212 @@ export function App() {
               }
             ]);
           } else {
-            const entity = await api.getEntity(arg1);
-            let clusterId = 'UNCLUSTERED';
-            try {
-              const cl = await api.getEntityCluster(arg1);
-              clusterId = cl.cluster_id;
-            } catch {}
+            // Check whether arg1 is a scenario cluster or a Bitcoin address
+            let isScenario = false;
+            let scenarioData: any = null;
+            const looksLikeAddress = /^(1|3|bc1|0x)[a-zA-HJ-NP-Z0-9]{15,62}$/i.test(arg1);
 
-            let risk = entity.is_licit_exchange ? 5 : 15;
-            if (entity.associated_scenarios && entity.associated_scenarios.length > 0) {
-              const sc = entity.associated_scenarios[0];
+            if (!looksLikeAddress) {
               try {
-                const analysis = await api.getIngestScenarioAnalysis(sc);
+                scenarioData = await api.getScenario(arg1);
+                isScenario = !!scenarioData;
+              } catch {}
+            }
+
+            if (isScenario && scenarioData) {
+              let risk = Math.round(scenarioData.infrastructure_risk_score || 0);
+              let typology = scenarioData.dominant_typology || 'scenario_cluster';
+              let analysis: any = null;
+              try {
+                analysis = await api.getIngestScenarioAnalysis(arg1);
                 if (analysis.analysis_status === 'AVAILABLE' && typeof analysis.risk_score === 'number') {
                   risk = Math.round(analysis.risk_score * 100);
                 } else if (analysis.is_illicit) {
                   risk = 85;
                 }
-              } catch {
-                const isIllicit = entity.associated_scenarios.some((s: string) => !s.toLowerCase().startsWith('licit') && !s.toLowerCase().startsWith('normal'));
-                risk = isIllicit ? 85 : 15;
-              }
-            }
+                if (analysis.predicted_typology) {
+                  typology = analysis.predicted_typology;
+                }
+              } catch {}
 
-            setEntries(prev => [
-              ...prev,
-              {
-                id: `entry-${Date.now()}`,
-                command: trimmed,
-                type: 'INSPECT',
-                content: {
-                  id: arg1,
-                  raw: entity,
-                  node: {
-                    id: arg1,
-                    label: entity.address,
-                    type: entity.is_licit_exchange ? 'EXCHANGE' : 'WALLET',
-                    riskScore: risk,
-                    clusterId: clusterId,
-                    balanceBtc: entity.total_received_btc - entity.total_sent_btc,
-                    txCount: entity.tx_count,
-                    firstSeen: entity.first_seen,
-                    lastSeen: entity.last_seen,
-                    tags: entity.associated_scenarios,
-                    flags: entity.is_licit_exchange ? ['LICIT_EXCHANGE_WHITELIST'] : ['SUSPECT_P2P_WALLET'],
-                    isLicitExchange: entity.is_licit_exchange
+              const topWallets = scenarioData.top_hub_wallets?.map((h: any) => h.address) || [];
+              const memberTxids = scenarioData.member_txids || [];
+
+              setEntries(prev => [
+                ...prev,
+                {
+                  id: `entry-${Date.now()}`,
+                  command: trimmed,
+                  type: 'INSPECT',
+                  content: {
+                    id: `SCENARIO:${scenarioData.scenario_id}`,
+                    raw: scenarioData,
+                    node: {
+                      id: `SCENARIO:${scenarioData.scenario_id}`,
+                      label: `Scenario Cluster: ${scenarioData.scenario_id}`,
+                      type: 'SCENARIO',
+                      riskScore: risk,
+                      clusterId: scenarioData.scenario_id,
+                      balanceBtc: scenarioData.total_input_volume_btc || 0,
+                      txCount: scenarioData.transaction_count || memberTxids.length,
+                      firstSeen: scenarioData.time_window?.start || 'N/A',
+                      lastSeen: scenarioData.time_window?.end || 'N/A',
+                      tags: [typology, ...(scenarioData.origin_countries || [])],
+                      flags: risk >= 75 ? ['CRITICAL_THREAT_CLUSTER', 'SUSPICIOUS_ROUTING'] : ['INDEXED_SCENARIO'],
+                      isLicitExchange: typology.toLowerCase().includes('licit')
+                    },
+                    data: {
+                      scenario: scenarioData,
+                      analysis: analysis,
+                      scenario_id: scenarioData.scenario_id,
+                      dominant_typology: typology,
+                      member_txids: memberTxids,
+                      top_hub_wallets: scenarioData.top_hub_wallets || [],
+                      input_addresses: topWallets,
+                      output_addresses: topWallets.slice(1),
+                      input_amounts: topWallets.map(() => scenarioData.total_input_volume_btc || 0),
+                      fee_btc: scenarioData.total_fees_btc || 0,
+                      network: {
+                        node_type: Object.keys(scenarioData.infrastructure_breakdown || {})[0] || 'mixed',
+                        country_code: scenarioData.origin_countries?.join(', ') || 'US',
+                        asn: scenarioData.origin_asns?.join(', ') || 'N/A',
+                        isp: 'Scenario Telemetry Fabric',
+                        propagation_delta_ms: scenarioData.average_propagation_delta_ms || 0
+                      }
+                    }
                   }
                 }
+              ]);
+            } else {
+              // Address path with scenario fallback if entity is not found
+              let entity: any = null;
+              try {
+                entity = await api.getEntity(arg1);
+              } catch (entityErr: any) {
+                try {
+                  const fallbackSc = await api.getScenario(arg1);
+                  if (fallbackSc) {
+                    scenarioData = fallbackSc;
+                  }
+                } catch {}
+                if (!scenarioData) {
+                  throw entityErr;
+                }
               }
-            ]);
+
+              if (scenarioData) {
+                let risk = Math.round(scenarioData.infrastructure_risk_score || 0);
+                let typology = scenarioData.dominant_typology || 'scenario_cluster';
+                let analysis: any = null;
+                try {
+                  analysis = await api.getIngestScenarioAnalysis(arg1);
+                  if (analysis.analysis_status === 'AVAILABLE' && typeof analysis.risk_score === 'number') {
+                    risk = Math.round(analysis.risk_score * 100);
+                  }
+                  if (analysis.predicted_typology) {
+                    typology = analysis.predicted_typology;
+                  }
+                } catch {}
+
+                const topWallets = scenarioData.top_hub_wallets?.map((h: any) => h.address) || [];
+                const memberTxids = scenarioData.member_txids || [];
+
+                setEntries(prev => [
+                  ...prev,
+                  {
+                    id: `entry-${Date.now()}`,
+                    command: trimmed,
+                    type: 'INSPECT',
+                    content: {
+                      id: `SCENARIO:${scenarioData.scenario_id}`,
+                      raw: scenarioData,
+                      node: {
+                        id: `SCENARIO:${scenarioData.scenario_id}`,
+                        label: `Scenario Cluster: ${scenarioData.scenario_id}`,
+                        type: 'SCENARIO',
+                        riskScore: risk,
+                        clusterId: scenarioData.scenario_id,
+                        balanceBtc: scenarioData.total_input_volume_btc || 0,
+                        txCount: scenarioData.transaction_count || memberTxids.length,
+                        firstSeen: scenarioData.time_window?.start || 'N/A',
+                        lastSeen: scenarioData.time_window?.end || 'N/A',
+                        tags: [typology, ...(scenarioData.origin_countries || [])],
+                        flags: risk >= 75 ? ['CRITICAL_THREAT_CLUSTER', 'SUSPICIOUS_ROUTING'] : ['INDEXED_SCENARIO'],
+                        isLicitExchange: typology.toLowerCase().includes('licit')
+                      },
+                      data: {
+                        scenario: scenarioData,
+                        analysis: analysis,
+                        scenario_id: scenarioData.scenario_id,
+                        dominant_typology: typology,
+                        member_txids: memberTxids,
+                        top_hub_wallets: scenarioData.top_hub_wallets || [],
+                        input_addresses: topWallets,
+                        output_addresses: topWallets.slice(1),
+                        input_amounts: topWallets.map(() => scenarioData.total_input_volume_btc || 0),
+                        fee_btc: scenarioData.total_fees_btc || 0,
+                        network: {
+                          node_type: Object.keys(scenarioData.infrastructure_breakdown || {})[0] || 'mixed',
+                          country_code: scenarioData.origin_countries?.join(', ') || 'US',
+                          asn: scenarioData.origin_asns?.join(', ') || 'N/A',
+                          isp: 'Scenario Telemetry Fabric',
+                          propagation_delta_ms: scenarioData.average_propagation_delta_ms || 0
+                        }
+                      }
+                    }
+                  }
+                ]);
+              } else {
+                let clusterId = 'UNCLUSTERED';
+                try {
+                  const cl = await api.getEntityCluster(arg1);
+                  clusterId = cl.cluster_id;
+                } catch {}
+
+                let risk = entity.is_licit_exchange ? 5 : 15;
+                if (entity.associated_scenarios && entity.associated_scenarios.length > 0) {
+                  const sc = entity.associated_scenarios[0];
+                  try {
+                    const analysis = await api.getIngestScenarioAnalysis(sc);
+                    if (analysis.analysis_status === 'AVAILABLE' && typeof analysis.risk_score === 'number') {
+                      risk = Math.round(analysis.risk_score * 100);
+                    } else if (analysis.is_illicit) {
+                      risk = 85;
+                    }
+                  } catch {
+                    const isIllicit = entity.associated_scenarios.some((s: string) => !s.toLowerCase().startsWith('licit') && !s.toLowerCase().startsWith('normal'));
+                    risk = isIllicit ? 85 : 15;
+                  }
+                }
+
+                setEntries(prev => [
+                  ...prev,
+                  {
+                    id: `entry-${Date.now()}`,
+                    command: trimmed,
+                    type: 'INSPECT',
+                    content: {
+                      id: arg1,
+                      raw: entity,
+                      node: {
+                        id: arg1,
+                        label: entity.address,
+                        type: entity.is_licit_exchange ? 'EXCHANGE' : 'WALLET',
+                        riskScore: risk,
+                        clusterId: clusterId,
+                        balanceBtc: entity.total_received_btc - entity.total_sent_btc,
+                        txCount: entity.tx_count,
+                        firstSeen: entity.first_seen,
+                        lastSeen: entity.last_seen,
+                        tags: entity.associated_scenarios,
+                        flags: entity.is_licit_exchange ? ['LICIT_EXCHANGE_WHITELIST'] : ['SUSPECT_P2P_WALLET'],
+                        isLicitExchange: entity.is_licit_exchange
+                      }
+                    }
+                  }
+                ]);
+              }
+            }
           }
         } catch (err: any) {
           sound.playErrorChirp();
@@ -856,16 +1013,17 @@ export function App() {
         break;
 
       case 'upload':
-        {
-          setEntries(prev => [
-            ...prev,
-            {
-              id: `entry-${Date.now()}`,
-              command: trimmed,
-              type: 'TWO_STREAM_UPLOAD' as any,
-            }
-          ]);
-        }
+      case 'correlate':
+      case 'dualstream':
+        sound.playEnterSuccess();
+        setEntries(prev => [
+          ...prev,
+          {
+            id: `entry-${Date.now()}`,
+            command: trimmed,
+            type: 'TWO_STREAM_UPLOAD',
+          }
+        ]);
         break;
 
       case 'reboot':
@@ -1013,7 +1171,7 @@ export function App() {
           <ScrambledAsciiLogo active={!showSplash} />
 
           <div style={{ color: 'var(--fg-white)', fontSize: '15px', fontWeight: 600, marginBottom: '4px' }}>
-            Welcome to BitKaun? (Version 1.0.0 · Air-Gapped Engine)
+            Welcome to BitKaun (Version 8.0.0 · Dual-Stream Forensic Engine)
           </div>
           <div style={{ color: 'var(--fg-muted)', marginBottom: '16px', fontSize: '14px' }}>
             Bitcoin Cross-Layer AML Forensics &amp; Dual-Stream Telemetry Correlation.
@@ -1031,11 +1189,11 @@ export function App() {
             </div>
             <div>
               <span className="cmd-tag" onClick={() => handleRunCommand('graph')}>[graph]</span>
-              <span className="cmd-desc"> - 3D/2D visual graph explorer</span>
+              <span className="cmd-desc"> - 3D WebGL visual graph explorer</span>
             </div>
             <div>
               <span className="cmd-tag" onClick={() => handleRunCommand('alerts')}>[alerts]</span>
-              <span className="cmd-desc"> - Typology alert feed</span>
+              <span className="cmd-desc"> - Typology alert feed & SHAP</span>
             </div>
             <div>
               <span className="cmd-tag" onClick={() => handleRunCommand('tor')}>[tor]</span>
@@ -1046,8 +1204,8 @@ export function App() {
               <span className="cmd-desc"> - Live inject custom flow & ML</span>
             </div>
             <div>
-              <span className="cmd-tag" onClick={() => handleRunCommand('upload')}>[upload]</span>
-              <span className="cmd-desc"> - Batch ledger file upload (CSV/JSON/XML)</span>
+              <span className="cmd-tag" onClick={() => handleRunCommand('correlate')}>[correlate]</span>
+              <span className="cmd-desc"> - Dual-stream Ledger + P2P correlation</span>
             </div>
             <div>
               <span className="cmd-tag" onClick={() => handleRunCommand('help')}>[help]</span>

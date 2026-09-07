@@ -63,7 +63,7 @@ function formatStatusOutput(content: any): string {
 function formatHelpOutput(): string {
   return [
     '================================================================================',
-    ' BITKAUN HOLMES FORENSIC TERMINAL // COMMAND REFERENCE MANUAL',
+    ' BITKAUN V8 FORENSIC TERMINAL // COMMAND REFERENCE MANUAL',
     '================================================================================',
     '  graph [scenario_id]   - 3D WebGL force-directed graph with Bitcoin sprites & orbs',
     '  inspect <txid|addr>   - Deep audit of UTXO flows, fees, and P2P origin telemetry',
@@ -74,7 +74,7 @@ function formatHelpOutput(): string {
     '  tor [txid]            - Tor timing entropy analysis & exit node profiler',
     '  ingest sample [type]  - Dynamic injection of ransomware/peeling/mixing/licit flows',
     '  ingest <raw_json>     - Dynamic live-injection of custom TX with instant ML scoring',
-    '  upload                - Batch ledger ingestion via CSV / JSON / XML file upload',
+    '  correlate / upload    - Dual-stream Ledger & P2P Telemetry correlation & V8 ML scoring',
     '  logs                  - Live mempool & block ingestion event telemetry',
     '  status                - In-memory engine telemetry, loaded counts & health',
     '  sound [on|off]        - Toggle procedural mechanical keyboard & alert sounds',
@@ -101,7 +101,7 @@ export const CliOutputRenderer: React.FC<CliOutputRendererProps> = React.memo(({
   }, [onScrollRequested]);
 
   // Complex interactive subwindows mount directly
-  const isInteractive = ['GRAPH', 'INSPECT', 'TRACE', 'DOSSIER', 'TAINT', 'TOR', 'ALERTS', 'ALERT_DETAIL', 'INGEST', 'INGEST_BATCH'].includes(entry.type);
+  const isInteractive = ['GRAPH', 'INSPECT', 'TRACE', 'DOSSIER', 'TAINT', 'TOR', 'ALERTS', 'ALERT_DETAIL', 'INGEST', 'INGEST_BATCH', 'TWO_STREAM_UPLOAD'].includes(entry.type);
 
   // Prepare full terminal text stream
   const fullTextToStream = useMemo(() => {
@@ -532,6 +532,14 @@ export const CliOutputRenderer: React.FC<CliOutputRendererProps> = React.memo(({
             </div>
           </div>
         </div>
+      )}
+
+      {/* 7d. TWO-STREAM CORRELATION & UPLOAD VIEW */}
+      {entry.type === 'TWO_STREAM_UPLOAD' && (
+        <TwoStreamUploadView
+          onRunCommand={onRunCommand}
+          onClose={onCloseEntry ? () => onCloseEntry(entry.id) : undefined}
+        />
       )}
 
       {/* 8. AUTHENTIC CHARACTER-STREAMED LINUX TTY TERMINAL OUTPUT */}

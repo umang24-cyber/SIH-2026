@@ -3,7 +3,7 @@ export type ViewMode = 'BANNER' | 'GRAPH' | 'INSPECT' | 'LOGS' | 'HELP' | 'TRACE
 export interface ForensicNode {
   id: string;
   label: string;
-  type: 'WALLET' | 'MIXER' | 'EXCHANGE' | 'TRANSACTION' | 'SUSPECT' | 'IP' | 'SMART_CONTRACT' | 'MERCHANT' | 'PEELING_CHAIN' | 'LAYERING_HUB';
+  type: 'WALLET' | 'MIXER' | 'EXCHANGE' | 'TRANSACTION' | 'SUSPECT' | 'IP' | 'SMART_CONTRACT' | 'MERCHANT' | 'PEELING_CHAIN' | 'LAYERING_HUB' | 'SCENARIO';
   riskScore: number; // 0 - 100
   clusterId: string;
   balanceBtc: number;

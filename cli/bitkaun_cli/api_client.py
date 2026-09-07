@@ -7,7 +7,7 @@ from typing import Any, Optional
 import requests
 from .render import error_panel
 
-DEFAULT_BASE_URL = "http://localhost:8000"
+DEFAULT_BASE_URL = "http://127.0.0.1:8000"
 DEFAULT_TIMEOUT = 30.0  # seconds
 
 
@@ -93,6 +93,10 @@ class BitKaunApiClient:
     def get_alert_evidence(self, candidate_id: str) -> Optional[dict]:
         """GET /alerts/{candidate_id}/evidence - Deep forensic evidence dossier and SHAP values."""
         return self._request("GET", f"/alerts/{candidate_id}/evidence")
+
+    def get_scenario(self, scenario_id: str) -> Optional[dict]:
+        """GET /scenarios/{scenario_id} - Forensic profile of a scenario cluster."""
+        return self._request("GET", f"/scenarios/{scenario_id}")
 
 
 # Global singleton instance

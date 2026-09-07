@@ -190,14 +190,79 @@ def render_entity(entity: dict):
     console.print()
 
 
+def render_scenario(sc: dict):
+    """Render a comprehensive forensic scenario cluster dossier."""
+    sc_id = sc.get("scenario_id", "N/A")
+    typology = sc.get("dominant_typology", "normal")
+    infra_risk = sc.get("infrastructure_risk_score", 0.0)
+    tx_count = sc.get("transaction_count", 0)
+    in_vol = sc.get("total_input_volume_btc", 0.0)
+    fees = sc.get("total_fees_btc", 0.0)
+    time_win = sc.get("time_window") or {}
+    start_t = time_win.get("start", "N/A")
+    end_t = time_win.get("end", "N/A")
+    member_txs = sc.get("member_txids", [])
+    top_hubs = sc.get("top_hub_wallets", [])
+
+    risk_style = "bold white on red" if infra_risk >= 60 else ("bold black on yellow" if infra_risk >= 30 else "bold white on green")
+
+    console.print()
+    console.print(
+        Panel(
+            f"[bold white]Scenario ID:[/] [bold cyan]{sc_id}[/]   "
+            f"[dim]Dominant Typology:[/] [bold yellow]{typology.upper()}[/]   "
+            f"[dim]Infra Risk:[/] [{risk_style}] {infra_risk:.1f}% [/{risk_style}]\n"
+            f"[dim]Total Volume:[/] [yellow]{in_vol:.6f} BTC[/]   "
+            f"[dim]Transactions:[/] [white]{tx_count:,}[/]   "
+            f"[dim]Total Fees:[/] [white]{fees:.6f} BTC[/]\n"
+            f"[dim]Observed Window:[/] [white]{start_t}[/] -> [white]{end_t}[/]",
+            title="[bold green][*] SCENARIO FORENSIC CLUSTER PROFILE[/bold green]",
+            border_style="green",
+            box=box.ROUNDED,
+            padding=(1, 2),
+        )
+    )
+
+    if member_txs:
+        tx_table = Table(
+            title="[bold green][*] Linked Scenario Transactions[/bold green]",
+            box=box.ROUNDED,
+            border_style="green",
+            header_style="bold green on black",
+            expand=True
+        )
+        tx_table.add_column("TxID", style="bold yellow")
+        tx_table.add_column("Inspect Command", style="cyan")
+        for tid in member_txs[:10]:
+            tx_table.add_row(str(tid), f"inspect {tid}")
+        console.print(tx_table)
+
+    if top_hubs:
+        hub_table = Table(
+            title="[bold green][*] Dominant Hub Wallets[/bold green]",
+            box=box.ROUNDED,
+            border_style="green",
+            header_style="bold green on black",
+            expand=True
+        )
+        hub_table.add_column("Wallet Address", style="bold cyan")
+        hub_table.add_column("Degree / Connections", style="white", justify="right")
+        for hub in top_hubs[:8]:
+            hub_table.add_row(str(hub.get("address", "")), str(hub.get("degree", 1)))
+        console.print(hub_table)
+
+    console.print(f"[dim]To visualize in 3D graph:[/dim] [bold cyan]graph {sc_id}[/bold cyan]\n")
+
+
 def execute(args: list[str] = None):
     """Execute the inspect command."""
     if not args or len(args) == 0:
         warning_panel(
             "Missing Target",
-            "Usage: [bold green]inspect <address | txid>[/bold green]\n"
-            "Example address: [cyan]inspect 1jLgHKBTV4wPz8zugRhGrKfs6qcs[/cyan]\n"
-            "Example txid:    [cyan]inspect 187888339[/cyan]"
+            "Usage: [bold green]inspect <address | txid | scenario>[/bold green]\n"
+            "Example address:  [cyan]inspect 1AtB5eWkX36d4YtQ99vK8h7G4xN19mK7p[/cyan]\n"
+            "Example txid:     [cyan]inspect 881920041[/cyan]\n"
+            "Example scenario: [cyan]inspect live_ransomware_probe[/cyan]"
         )
         return
 
@@ -209,7 +274,6 @@ def execute(args: list[str] = None):
         if tx_data:
             render_transaction(tx_data)
             return
-        # If tx lookup failed, fall through to entity check in case numeric address
 
     # Check entity / address
     entity_data = client.get_entity(target)
@@ -217,8 +281,14 @@ def execute(args: list[str] = None):
         render_entity(entity_data)
         return
 
+    # Check scenario cluster
+    scenario_data = client.get_scenario(target)
+    if scenario_data:
+        render_scenario(scenario_data)
+        return
+
     # If neither found, report clear error
     error_panel(
         "Identifier Not Found",
-        f"Neither transaction nor wallet address '{target}' was found in the BitKaun ledger."
+        f"Neither transaction, wallet address, nor scenario cluster '{target}' was found in the BitKaun ledger."
     )

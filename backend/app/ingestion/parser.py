@@ -49,6 +49,13 @@ def normalize_transaction_dict(d: Dict[str, Any]) -> Dict[str, Any]:
     in_amts = [float(x) for x in raw_in_amts] if raw_in_amts else [1.0]
     out_amts = [float(x) for x in raw_out_amts] if raw_out_amts else [1.0]
 
+    # Satoshi-safe normalization: Bitcoin hard cap is 21,000,000 BTC.
+    # If values were recorded in satoshis (>= 21,000,000), convert to BTC (/ 1e8).
+    if any(a > 21_000_000 for a in in_amts):
+        in_amts = [round(a / 100_000_000.0, 8) for a in in_amts]
+    if any(a > 21_000_000 for a in out_amts):
+        out_amts = [round(a / 100_000_000.0, 8) for a in out_amts]
+
     # Calculate propagation delta if not present
     prop_delta = d.get("propagation_delta_ms")
     if prop_delta is None:
@@ -80,6 +87,18 @@ def normalize_transaction_dict(d: Dict[str, Any]) -> Dict[str, Any]:
         "propagation_delta_ms": float(prop_delta)
     }
 
+def _scale_satoshi_list(amts: Any) -> list:
+    """Scale satoshis to BTC if any amount exceeds Bitcoin max supply."""
+    if not isinstance(amts, list):
+        return amts
+    try:
+        float_amts = [float(x) for x in amts]
+        if any(a > 21_000_000 for a in float_amts):
+            return [round(a / 100_000_000.0, 8) for a in float_amts]
+        return float_amts
+    except Exception:
+        return amts
+
 def parse_and_enrich_dataframe(df: pd.DataFrame) -> pd.DataFrame:
     """
     Parses JSON array columns and computes dual-layer timing deltas for DataFrames.
@@ -89,6 +108,11 @@ def parse_and_enrich_dataframe(df: pd.DataFrame) -> pd.DataFrame:
         if col in df.columns:
             df[col] = df[col].apply(parse_json_column)
             
+    if "input_amounts" in df.columns:
+        df["input_amounts"] = df["input_amounts"].apply(_scale_satoshi_list)
+    if "output_amounts" in df.columns:
+        df["output_amounts"] = df["output_amounts"].apply(_scale_satoshi_list)
+
     if "timestamp" in df.columns:
         df["timestamp_dt"] = pd.to_datetime(df["timestamp"], utc=True)
     if "relay_timestamp" in df.columns:

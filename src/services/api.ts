@@ -323,6 +323,8 @@ export const api = {
     fetchJson<IngestScenarioAnalysis>(`/api/ingest/scenario/${encodeURIComponent(scenarioId)}/analysis`),
   getIngestSample: (typology = 'ransomware') =>
     fetchJson<any>(`/api/ingest/sample?typology=${encodeURIComponent(typology)}`),
+  getIngestSamplePair: () =>
+    fetchJson<{ status: string; sample_count: number; ledger_csv: string; network_csv: string }>('/api/ingest/sample-pair'),
   listSavedDossiers: () => fetchJson<any[]>('/api/dossier/saved/list'),
   correlateFiles: (ledgerFile: File, networkFile: File) => {
     const formData = new FormData();

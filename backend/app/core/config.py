@@ -9,7 +9,9 @@ from pydantic import BaseModel
 
 # Base directories
 BASE_DIR = Path(__file__).resolve().parent.parent.parent.parent
-DATA_PROCESSED_DIR = BASE_DIR / "data" / "processed"
+# Data directories with V8 priority
+DATA_PROCESSED_V8_DIR = BASE_DIR / "data" / "processed_v8"
+DATA_PROCESSED_DIR = DATA_PROCESSED_V8_DIR if DATA_PROCESSED_V8_DIR.exists() else (BASE_DIR / "data" / "processed")
 
 def get_app_data_dir() -> Path:
     """Returns the OS-specific local application data directory."""
@@ -26,7 +28,7 @@ def get_app_data_dir() -> Path:
 APP_DATA_DIR = get_app_data_dir()
 REPORTS_DIR = APP_DATA_DIR / "reports"
 
-# Master Data Files (v2.0)
+# Master Data Files (V8)
 BLOCKCHAIN_CSV_PATH = DATA_PROCESSED_DIR / "blockchain_transactions.csv"
 NETWORK_CSV_PATH = DATA_PROCESSED_DIR / "network_metadata.csv"
 
@@ -37,14 +39,14 @@ TEST_BLOCKCHAIN_PATH = DATA_PROCESSED_DIR / "test_blockchain.csv"
 TEST_NETWORK_PATH = DATA_PROCESSED_DIR / "test_network.csv"
 
 class Settings(BaseModel):
-    APP_NAME: str = "BitKaun AML Forensics API"
-    APP_VERSION: str = "2.0.0"
+    APP_NAME: str = "BitKaun AML Forensics API (v8.0 Forensic Engine)"
+    APP_VERSION: str = "8.0.0"
     HOST: str = "0.0.0.0"
     PORT: int = 8000
     DEBUG: bool = True
     CORS_ORIGINS: list[str] = ["*"]
     
-    # Expected record count
-    EXPECTED_TOTAL_ROWS: int = 96251
+    # Expected record count in V8 dataset (294,639 transactions across 5,440 scenarios)
+    EXPECTED_TOTAL_ROWS: int = 294639
 
 settings = Settings()

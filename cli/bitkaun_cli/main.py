@@ -79,6 +79,11 @@ def dispatch_command(cmd_line: str) -> bool:
         alerts.execute(args)
         return True
 
+    if command in ("correlate", "upload"):
+        from .commands import correlate
+        correlate.execute(args)
+        return True
+
     error_panel(
         "Unknown Command",
         f"'{command}' is not a recognized BitKaun command. Type [bold green]help[/bold green] for reference."

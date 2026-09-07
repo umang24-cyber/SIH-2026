@@ -33,7 +33,9 @@ from backend.app.core.config import BASE_DIR
 logger = logging.getLogger(__name__)
 
 ML_MODELS_DIR = BASE_DIR / "ml" / "models"
-MODEL_PATH  = ML_MODELS_DIR / "anomaly_model_v7.pkl"
+MODEL_PATH_V8 = ML_MODELS_DIR / "anomaly_model_v8.pkl"
+MODEL_PATH_V7 = ML_MODELS_DIR / "anomaly_model_v7.pkl"
+MODEL_PATH = MODEL_PATH_V8 if MODEL_PATH_V8.exists() else MODEL_PATH_V7
 PARAMS_PATH = ML_MODELS_DIR / "anomaly_norm_params.json"
 
 # Threshold above which a scenario is reported as "HIGH" anomaly
