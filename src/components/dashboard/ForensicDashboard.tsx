@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react';
-import { FORENSIC_SCENARIOS, GraphNode, ForensicAlert } from '../../data/forensicScenarios';
+import { FORENSIC_SCENARIOS, GraphNode, ForensicAlert, ShapAttribution } from '../../data/forensicScenarios';
+import { api, AlertSummary } from '../../services/api';
 import { GraphCanvasBackdrop } from './GraphCanvasBackdrop';
 import { AlertsSubwindow } from './AlertsSubwindow';
 import { TelemetrySubwindow } from './TelemetrySubwindow';
@@ -18,10 +19,45 @@ export const ForensicDashboard: React.FC<ForensicDashboardProps> = ({ onClose })
   const [scenarioId, setScenarioId] = useState<string>('peel_001');
   const scenario = FORENSIC_SCENARIOS[scenarioId] || FORENSIC_SCENARIOS.peel_001;
 
+  const [liveAlerts, setLiveAlerts] = useState<AlertSummary[]>([]);
   const [selectedNode, setSelectedNode] = useState<GraphNode | null>(null);
   const [graphMode, setGraphMode] =
   useState<GraphMode>("OVERVIEW");
-  const [selectedAlert, setSelectedAlert] = useState<ForensicAlert | null>(scenario.alerts[0] || null);
+  const [selectedAlert, setSelectedAlert] = useState<ForensicAlert | AlertSummary | null>(scenario.alerts[0] || null);
+  const [liveShapAttributions, setLiveShapAttributions] = useState<ShapAttribution[]>([]);
+
+  // Fetch live backend alerts on mount
+  useEffect(() => {
+    api.getAlerts(0.5, 50)
+      .then(res => {
+        if (res && Array.isArray(res.alerts) && res.alerts.length > 0) {
+          setLiveAlerts(res.alerts);
+          setSelectedAlert(res.alerts[0]);
+        }
+      })
+      .catch(() => {
+        // Fallback to static scenario alerts if backend offline
+      });
+  }, []);
+
+  // Fetch live TreeSHAP evidence whenever alert is selected
+  useEffect(() => {
+    if (selectedAlert && 'candidate_id' in selectedAlert && selectedAlert.candidate_id) {
+      api.getAlertEvidence(selectedAlert.candidate_id)
+        .then(ev => {
+          const list = ev.ml_feature_attributions || ev.typology_shap_attributions || [];
+          if (list.length > 0) {
+            setLiveShapAttributions(list.map((it: any) => ({
+              feature_name: it.feature_name,
+              shap_value: typeof it.shap_value === 'number' ? it.shap_value : parseFloat(it.shap_value || '0'),
+              direction: (it.direction && it.direction.includes('INCREASING')) || it.shap_value > 0 ? 'RISK_INCREASING' : 'RISK_DECREASING',
+              value: String(it.value ?? 'N/A')
+            })));
+          }
+        })
+        .catch(() => {});
+    }
+  }, [selectedAlert]);
 
   // Master Window Collapse/Expand
   const [isWindowCollapsed, setIsWindowCollapsed] = useState<boolean>(false);
@@ -39,8 +75,9 @@ export const ForensicDashboard: React.FC<ForensicDashboardProps> = ({ onClose })
   // Reset node selection when scenario changes
   useEffect(() => {
     setSelectedNode(null);
-    setSelectedAlert(scenario.alerts[0] || null);
-  }, [scenarioId]);
+    const availableAlerts = liveAlerts.length > 0 ? liveAlerts : scenario.alerts;
+    setSelectedAlert(availableAlerts[0] || null);
+  }, [scenarioId, liveAlerts]);
 
   // Keyboard shortcut listener: strictly ignore when user is typing in terminal input
   useEffect(() => {
@@ -85,7 +122,7 @@ export const ForensicDashboard: React.FC<ForensicDashboardProps> = ({ onClose })
     setMinTelemetry(false);
   };
 
-  const handleSelectAlert = (alert: ForensicAlert) => {
+  const handleSelectAlert = (alert: any) => {
     sound.playKeyClick();
     setSelectedAlert(alert);
     const primaryWallet = scenario.nodes.find(n => n.id === alert.primary_wallet);
@@ -256,7 +293,7 @@ export const ForensicDashboard: React.FC<ForensicDashboardProps> = ({ onClose })
           {/* Subwindow 1: Ranked Alerts Inbox (Top-Left) */}
           {showAlerts && !minAlerts && (
             <AlertsSubwindow
-              alerts={scenario.alerts}
+              alerts={liveAlerts.length > 0 ? liveAlerts : scenario.alerts}
               selectedAlertId={selectedAlert?.candidate_id || null}
               onSelectAlert={handleSelectAlert}
               onMinimize={() => setMinAlerts(true)}
@@ -280,8 +317,8 @@ export const ForensicDashboard: React.FC<ForensicDashboardProps> = ({ onClose })
           {/* Subwindow 3: Explainable AI SHAP Attribution HUD (Bottom-Left) */}
           {showShap && !minShap && (
             <ShapSubwindow
-              attributions={scenario.shap_attributions}
-              scenarioName={scenario.name}
+              attributions={liveShapAttributions.length > 0 ? liveShapAttributions : scenario.shap_attributions}
+              scenarioName={selectedAlert?.candidate_id || scenario.name}
               onMinimize={() => setMinShap(true)}
               onClose={() => setShowShap(false)}
               style={{ bottom: '16px', left: '20px' }}

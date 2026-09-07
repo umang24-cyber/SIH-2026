@@ -120,6 +120,22 @@ export const GraphCanvas: React.FC<GraphCanvasProps> = ({
   const [hoveredNode, setHoveredNode] = useState<GraphNode | null>(null);
   const [showOrbs, setShowOrbs] = useState<boolean>(true);
   const [autoRotate, setAutoRotate] = useState<boolean>(true);
+  const [isPanMode, setIsPanMode] = useState<boolean>(false);
+
+  const isPanModeRef = useRef<boolean>(false);
+  useEffect(() => {
+    isPanModeRef.current = isPanMode;
+  }, [isPanMode]);
+
+  const autoRotateRef = useRef<boolean>(true);
+  useEffect(() => {
+    autoRotateRef.current = autoRotate;
+  }, [autoRotate]);
+
+  const showOrbsRef = useRef<boolean>(true);
+  useEffect(() => {
+    showOrbsRef.current = showOrbs;
+  }, [showOrbs]);
 
   // Textures cache for high performance
   const textures = useMemo(() => {
@@ -150,10 +166,10 @@ export const GraphCanvas: React.FC<GraphCanvasProps> = ({
     // 1. Scene, Camera, Renderer
     const scene = new THREE.Scene();
     scene.background = new THREE.Color(0x020603);
-    scene.fog = new THREE.FogExp2(0x020603, 0.0018);
+    scene.fog = new THREE.Fog(0x020603, 1200, 4500);
 
-    const camera = new THREE.PerspectiveCamera(50, width / height, 1, 3000);
-    camera.position.set(0, 0, 320);
+    const camera = new THREE.PerspectiveCamera(50, width / height, 1, 5000);
+    camera.position.set(0, 0, 360);
 
     const renderer = new THREE.WebGLRenderer({ antialias: true, alpha: false, powerPreference: 'high-performance' });
     renderer.setSize(width, height);
@@ -162,50 +178,106 @@ export const GraphCanvas: React.FC<GraphCanvasProps> = ({
     container.innerHTML = '';
     container.appendChild(renderer.domElement);
 
-    // 2. Compute 3D Force-Directed Positions
+    // 2. Compute Dynamic 3D Force-Directed Positions with Balanced Spacing
     const nodes = data.nodes || [];
     const edges = data.edges || [];
     const nodeCount = nodes.length;
 
+    // Compact, balanced radius so graph is 100% visible and centered without flying into the void
+    const baseRadius = Math.max(90, Math.min(260, 65 + Math.sqrt(Math.max(1, nodeCount)) * 6.5));
+    const initialCamZ = Math.max(260, baseRadius * 1.55);
+    const minCamZ = 40;
+    const maxCamZ = 2400;
+
+    let camX = 0;
+    let camY = 0;
+    let camZ = initialCamZ;
+
+    camera.position.set(camX, camY, camZ);
+    camera.lookAt(0, 0, 0);
+    camera.far = 5000;
+    camera.updateProjectionMatrix();
+
     const nodePositions = new Map<string, THREE.Vector3>();
 
     if (nodeCount > 0) {
-      // Fibonacci sphere initialization with repulsive relaxation
+      // Golden spiral distribution with multi-shell radial stratification
       nodes.forEach((node, i) => {
         const phi = Math.acos(-1 + (2 * (i + 0.5)) / nodeCount);
         const theta = Math.sqrt(nodeCount * Math.PI) * phi;
-        const radius = 100 + (node.riskScore ? node.riskScore * 30 : 15);
+        const shellVariation = 0.85 + ((i * 7) % 11) * 0.03; // 0.85 to 1.15
+        const radius = baseRadius * shellVariation + (node.riskScore ? node.riskScore * 20 : 0);
         const x = radius * Math.cos(theta) * Math.sin(phi);
         const y = radius * Math.sin(theta) * Math.sin(phi);
-        const z = radius * Math.cos(phi) * 0.7; // slight flattening for better camera depth
+        const z = radius * Math.cos(phi) * 0.82; // slight flattening for depth
         nodePositions.set(node.id, new THREE.Vector3(x, y, z));
       });
 
-      // Simple fast 3D relaxation steps based on edges
-      const edgeWeight = 0.06;
+      // Iterative multi-step edge tension + spatial collision relaxation
+      const edgeWeight = 0.04;
+      const desiredDist = Math.max(25, Math.min(65, baseRadius * 0.22));
+      const minSeparation = Math.max(16, Math.min(32, baseRadius * 0.09));
+
       for (let step = 0; step < 25; step++) {
+        // Edge spring pull/push
         edges.forEach(edge => {
           const p1 = nodePositions.get(edge.source);
           const p2 = nodePositions.get(edge.target);
           if (p1 && p2) {
             const delta = new THREE.Vector3().subVectors(p2, p1);
             const dist = delta.length();
-            const desiredDist = 70;
             if (dist > 0.1) {
               const force = (dist - desiredDist) * edgeWeight;
-              delta.normalize().multiplyScalar(force * 0.5);
+              delta.normalize().multiplyScalar(force * 0.4);
               p1.add(delta);
               p2.sub(delta);
+            }
+          }
+        });
+
+        // Fast spatial repulsion: ensure nodes never clump on top of each other
+        // Grid binning for fast O(N) neighbor collision separation
+        const cellSize = minSeparation * 1.5;
+        const grid = new Map<string, string[]>();
+        nodes.forEach(n => {
+          const p = nodePositions.get(n.id);
+          if (p) {
+            const gx = Math.floor(p.x / cellSize);
+            const gy = Math.floor(p.y / cellSize);
+            const gz = Math.floor(p.z / cellSize);
+            const key = `${gx}_${gy}_${gz}`;
+            if (!grid.has(key)) grid.set(key, []);
+            grid.get(key)!.push(n.id);
+          }
+        });
+
+        grid.forEach(cellNodes => {
+          for (let a = 0; a < cellNodes.length; a++) {
+            for (let b = a + 1; b < cellNodes.length; b++) {
+              const pa = nodePositions.get(cellNodes[a]);
+              const pb = nodePositions.get(cellNodes[b]);
+              if (pa && pb) {
+                const diff = new THREE.Vector3().subVectors(pb, pa);
+                const d = diff.length();
+                if (d < minSeparation && d > 0.001) {
+                  const push = (minSeparation - d) * 0.5;
+                  diff.normalize().multiplyScalar(push);
+                  pb.add(diff);
+                  pa.sub(diff);
+                }
+              }
             }
           }
         });
       }
     }
 
-    // 3. Build Node Sprites
+    // 3. Build Node Sprites with Scaled Radii
     const spriteGroup = new THREE.Group();
     const hitMeshGroup = new THREE.Group();
     const nodeObjMap = new Map<string, { sprite: THREE.Sprite; pos: THREE.Vector3; node: GraphNode }>();
+
+    const baseScale = nodeCount > 500 ? 11 : nodeCount > 150 ? 14 : 18;
 
     nodes.forEach(node => {
       const pos = nodePositions.get(node.id) || new THREE.Vector3();
@@ -239,7 +311,7 @@ export const GraphCanvas: React.FC<GraphCanvasProps> = ({
       });
       const sprite = new THREE.Sprite(spriteMat);
       const isSelected = node.id === selectedNodeId;
-      const scale = isSelected ? 26 : 20;
+      const scale = isSelected ? baseScale * 1.4 : baseScale;
       sprite.scale.set(scale, scale, 1);
       sprite.position.copy(pos);
       spriteGroup.add(sprite);
@@ -249,12 +321,15 @@ export const GraphCanvas: React.FC<GraphCanvasProps> = ({
       const labelTex = createTextLabelTexture(`[${shortLabel}]`, colorHex);
       const labelMat = new THREE.SpriteMaterial({ map: labelTex, transparent: true, depthWrite: false });
       const labelSprite = new THREE.Sprite(labelMat);
-      labelSprite.scale.set(22, 5.5, 1);
-      labelSprite.position.set(pos.x, pos.y - 12, pos.z);
+      const labelW = baseScale * 1.15;
+      const labelH = baseScale * 0.29;
+      labelSprite.scale.set(labelW, labelH, 1);
+      labelSprite.position.set(pos.x, pos.y - baseScale * 0.65, pos.z);
       spriteGroup.add(labelSprite);
 
       // Invisible sphere mesh for accurate raycast click/hover hit detection
-      const hitGeo = new THREE.SphereGeometry(12, 8, 8);
+      const hitRadius = Math.max(8, baseScale * 0.65);
+      const hitGeo = new THREE.SphereGeometry(hitRadius, 8, 8);
       const hitMat = new THREE.MeshBasicMaterial({ visible: false });
       const hitMesh = new THREE.Mesh(hitGeo, hitMat);
       hitMesh.position.copy(pos);
@@ -321,9 +396,10 @@ export const GraphCanvas: React.FC<GraphCanvasProps> = ({
     scene.add(edgeLinesGroup);
     scene.add(orbsGroup);
 
-    // 5. Mouse & Touch Orbit Controls (Native WebGL event listener)
-    let isDragging = false;
-    let isRightDragging = false;
+    // 5. Mouse & Touch Orbit & Pan Controls (Native WebGL event listener)
+    let isRotating = false;
+    let isPanning = false;
+    let dragDist = 0;
     let prevMouse = { x: 0, y: 0 };
     const rotationSpeed = 0.005;
 
@@ -331,8 +407,16 @@ export const GraphCanvas: React.FC<GraphCanvasProps> = ({
     const mouse = new THREE.Vector2();
 
     const onMouseDown = (e: MouseEvent) => {
-      if (e.button === 0) isDragging = true;
-      if (e.button === 2) isRightDragging = true;
+      // Pan triggers: Middle Click (button 1), Right Click (button 2), Shift + Left Click, or when Pan Mode is enabled
+      const wantsPan = e.button === 1 || e.button === 2 || (e.button === 0 && (e.shiftKey || isPanModeRef.current));
+      if (wantsPan) {
+        isPanning = true;
+        isRotating = false;
+      } else if (e.button === 0) {
+        isRotating = true;
+        isPanning = false;
+      }
+      dragDist = 0;
       prevMouse = { x: e.clientX, y: e.clientY };
     };
 
@@ -341,38 +425,47 @@ export const GraphCanvas: React.FC<GraphCanvasProps> = ({
       mouse.x = ((e.clientX - rect.left) / rect.width) * 2 - 1;
       mouse.y = -((e.clientY - rect.top) / rect.height) * 2 + 1;
 
-      if (isDragging) {
-        const deltaX = e.clientX - prevMouse.x;
-        const deltaY = e.clientY - prevMouse.y;
+      const deltaX = e.clientX - prevMouse.x;
+      const deltaY = e.clientY - prevMouse.y;
+      dragDist += Math.abs(deltaX) + Math.abs(deltaY);
+
+      if (isRotating) {
         scene.rotation.y += deltaX * rotationSpeed;
         scene.rotation.x += deltaY * rotationSpeed;
-      } else if (isRightDragging) {
-        const deltaX = e.clientX - prevMouse.x;
-        const deltaY = e.clientY - prevMouse.y;
-        camera.position.x -= deltaX * 0.25;
-        camera.position.y += deltaY * 0.25;
+      } else if (isPanning) {
+        // Perspective screen-space panning: 1:1 pixel tracking
+        const panFactor = (2 * Math.tan((camera.fov * Math.PI) / 360) * Math.abs(camera.position.z)) / Math.max(1, height);
+        camX -= deltaX * panFactor;
+        camY += deltaY * panFactor;
+        camera.position.set(camX, camY, camera.position.z);
+        camera.lookAt(camX, camY, 0);
       }
 
       prevMouse = { x: e.clientX, y: e.clientY };
 
-      // Raycast for hover detection
-      raycaster.setFromCamera(mouse, camera);
-      const intersects = raycaster.intersectObjects(hitMeshGroup.children);
-      if (intersects.length > 0) {
-        const hitId = intersects[0].object.userData.nodeId;
-        const found = nodes.find(n => n.id === hitId) || null;
-        setHoveredNode(found);
-      } else {
-        setHoveredNode(null);
+      // Raycast for hover detection only when idle
+      if (!isRotating && !isPanning) {
+        raycaster.setFromCamera(mouse, camera);
+        const intersects = raycaster.intersectObjects(hitMeshGroup.children);
+        if (intersects.length > 0) {
+          const hitId = intersects[0].object.userData.nodeId;
+          const found = nodes.find(n => n.id === hitId) || null;
+          setHoveredNode(found);
+        } else {
+          setHoveredNode(null);
+        }
       }
     };
 
     const onMouseUp = () => {
-      isDragging = false;
-      isRightDragging = false;
+      isRotating = false;
+      isPanning = false;
     };
 
     const onClick = (e: MouseEvent) => {
+      // If user dragged to rotate or pan, ignore click to prevent accidental node selection
+      if (dragDist > 6) return;
+
       const rect = renderer.domElement.getBoundingClientRect();
       mouse.x = ((e.clientX - rect.left) / rect.width) * 2 - 1;
       mouse.y = -((e.clientY - rect.top) / rect.height) * 2 + 1;
@@ -387,8 +480,11 @@ export const GraphCanvas: React.FC<GraphCanvasProps> = ({
 
     const onWheel = (e: WheelEvent) => {
       e.preventDefault();
-      camera.position.z += e.deltaY * 0.2;
-      camera.position.z = Math.max(60, Math.min(650, camera.position.z));
+      const zoomStep = Math.max(18, baseRadius * 0.08);
+      camZ += Math.sign(e.deltaY) * zoomStep;
+      camZ = Math.max(minCamZ, Math.min(maxCamZ, camZ));
+      camera.position.set(camX, camY, camZ);
+      camera.lookAt(camX, camY, 0);
     };
 
     const dom = renderer.domElement;
@@ -415,13 +511,13 @@ export const GraphCanvas: React.FC<GraphCanvasProps> = ({
     const animate = () => {
       reqId = requestAnimationFrame(animate);
 
-      // Auto-rotation if enabled and user not dragging
-      if (autoRotate && !isDragging && !isRightDragging) {
-        scene.rotation.y += 0.0015;
+      // Auto-rotation if enabled and user not dragging or panning
+      if (autoRotateRef.current && !isRotating && !isPanning) {
+        scene.rotation.y += 0.0012;
       }
 
       // Animate directional transaction orbs
-      if (showOrbs) {
+      if (showOrbsRef.current) {
         orbsGroup.visible = true;
         for (let i = 0; i < orbs.length; i++) {
           const orb = orbs[i];
@@ -441,18 +537,32 @@ export const GraphCanvas: React.FC<GraphCanvasProps> = ({
     // Wire HUD controls
     controlsRef.current = {
       zoomIn: () => {
-        camera.position.z = Math.max(60, camera.position.z - 40);
+        const step = Math.max(25, baseRadius * 0.12);
+        camZ = Math.max(minCamZ, camZ - step);
+        camera.position.set(camX, camY, camZ);
+        camera.lookAt(camX, camY, 0);
       },
       zoomOut: () => {
-        camera.position.z = Math.min(650, camera.position.z + 40);
+        const step = Math.max(25, baseRadius * 0.12);
+        camZ = Math.min(maxCamZ, camZ + step);
+        camera.position.set(camX, camY, camZ);
+        camera.lookAt(camX, camY, 0);
       },
       resetView: () => {
+        camX = 0;
+        camY = 0;
+        camZ = initialCamZ;
         scene.rotation.set(0, 0, 0);
-        camera.position.set(0, 0, 320);
+        camera.position.set(0, 0, initialCamZ);
+        camera.lookAt(0, 0, 0);
       },
       fitView: () => {
+        camX = 0;
+        camY = 0;
+        camZ = Math.max(240, baseRadius * 1.5);
         scene.rotation.set(0, 0, 0);
-        camera.position.set(0, 0, 240);
+        camera.position.set(0, 0, camZ);
+        camera.lookAt(0, 0, 0);
       }
     };
 
@@ -468,12 +578,19 @@ export const GraphCanvas: React.FC<GraphCanvasProps> = ({
       window.removeEventListener('resize', handleResize);
       renderer.dispose();
     };
-  }, [data, selectedNodeId, textures, showOrbs, autoRotate]);
+  }, [data, selectedNodeId, textures]);
 
   return (
     <div style={{ position: 'relative', width: '100%', height: '520px', background: '#020603', overflow: 'hidden', border: '1px solid #004d20' }}>
       {/* Three.js Canvas mount container */}
-      <div ref={containerRef} style={{ width: '100%', height: '100%', cursor: 'grab' }} />
+      <div
+        ref={containerRef}
+        style={{
+          width: '100%',
+          height: '100%',
+          cursor: isPanMode ? 'move' : 'grab'
+        }}
+      />
 
       {/* 3D HUD Controls Toolbar */}
       <div
@@ -492,6 +609,14 @@ export const GraphCanvas: React.FC<GraphCanvasProps> = ({
           fontFamily: 'monospace',
         }}
       >
+        <button
+          className="cmd-tag"
+          onClick={() => setIsPanMode(prev => !prev)}
+          style={{ color: isPanMode ? '#00ffcc' : '#aaa', borderColor: isPanMode ? '#00ffcc' : undefined }}
+          title="Toggle Left-Click Pan / Revolve Mode (Or hold Shift / Right-Click to pan anytime)"
+        >
+          {isPanMode ? '[✋ MODE: PAN]' : '[⟳ MODE: REVOLVE]'}
+        </button>
         <button className="cmd-tag" onClick={() => controlsRef.current?.zoomIn()} title="Zoom In">
           [+]
         </button>
@@ -520,6 +645,24 @@ export const GraphCanvas: React.FC<GraphCanvasProps> = ({
         >
           {autoRotate ? '[⟳ ROTATE]' : '[PAUSED]'}
         </button>
+      </div>
+
+      {/* Panning & Navigation Hint Overlay */}
+      <div
+        style={{
+          position: 'absolute',
+          top: '46px',
+          right: '10px',
+          fontSize: '10px',
+          color: '#448855',
+          fontFamily: 'monospace',
+          pointerEvents: 'none',
+          background: 'rgba(0, 10, 4, 0.7)',
+          padding: '2px 6px',
+          borderRadius: '2px'
+        }}
+      >
+        Drag: {isPanMode ? 'Pan' : 'Revolve'} | Shift+Drag / Mid / Right: Pan | Wheel: Zoom
       </div>
 
       {/* Trust & Threat Legend HUD */}

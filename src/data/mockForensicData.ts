@@ -41,11 +41,11 @@ export const COMMAND_REGISTRY: CommandDescriptor[] = [
   {
     name: 'alerts',
     aliases: ['alert'],
-    usage: 'alerts',
-    summary: 'View real-time detected typology candidates.',
-    description: 'Fetches AI and heuristic alert queue for peeling chains, mixers, and layering.',
+    usage: 'alerts [--detail <candidate_id>] [--limit <n>]',
+    summary: 'Prioritized AML forensic alerts feed ranked by ML risk score and SHAP evidence.',
+    description: 'Queries live /alerts and /alerts/{id}/evidence endpoints. Displays prioritized queue of laundering typologies and deep explainable AI dossiers.',
     category: 'FORENSICS',
-    examples: ['alerts']
+    examples: ['alerts', 'alerts --limit 10', 'alerts --detail cand_ransom_ransomware_03287_187888339']
   },
   {
     name: 'dossier',

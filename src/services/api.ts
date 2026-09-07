@@ -173,6 +173,34 @@ export interface AlertSummary {
   member_txids: number[];
   member_wallets: string[];
   detected_at: string;
+  is_ml_driven?: boolean;
+  risk_score?: number;
+}
+
+export interface FeatureAttribution {
+  feature_name: string;
+  value: any;
+  shap_value: number;
+  direction: string;
+}
+
+export interface EvidenceResponse {
+  candidate_id: string;
+  scenario_id: string;
+  predicted_pattern_type: string;
+  binary_confidence: number;
+  typology_confidence: number;
+  typology_heuristic_match?: Record<string, any>;
+  ml_feature_attributions: FeatureAttribution[];
+  typology_shap_attributions: FeatureAttribution[];
+  typology_explanation: string;
+  telemetry_summary: {
+    origin_ips?: string[];
+    origin_asns?: string[];
+    countries?: string[];
+    infrastructure_distribution?: Record<string, number>;
+  };
+  transactions?: any[];
 }
 
 export interface ScenarioGraph {
@@ -257,9 +285,17 @@ export const api = {
     fetchJson<TraceResponse>(`/trace?src=${encodeURIComponent(source)}&dst=${encodeURIComponent(target)}&max_depth=${maxDepth}`),
   getTaint: (seedAddress: string, maxDepth = 4) =>
     fetchJson<TaintResponse>(`/taint?seed_address=${encodeURIComponent(seedAddress)}&max_depth=${maxDepth}`),
-  getAlerts: (minConfidence = 0.5, limit = 50) =>
-    fetchJson<{ total_alerts: number; alerts: AlertSummary[] }>(`/alerts?min_confidence=${minConfidence}&limit=${limit}`),
-  getAlertEvidence: (candidateId: string) => fetchJson<any>(`/alerts/${candidateId}/evidence`),
+  getAlerts: (minConfidence = 0.5, limit = 50, patternType?: string) => {
+    const params = new URLSearchParams({
+      min_confidence: String(minConfidence),
+      limit: String(limit),
+    });
+    if (patternType) {
+      params.append('pattern_type', patternType);
+    }
+    return fetchJson<{ total_alerts: number; alerts: AlertSummary[] }>(`/alerts?${params.toString()}`);
+  },
+  getAlertEvidence: (candidateId: string) => fetchJson<EvidenceResponse>(`/alerts/${encodeURIComponent(candidateId)}/evidence`),
   getScenarios: (limit = 50, offset = 0) => fetchJson<any>(`/scenarios?limit=${limit}&offset=${offset}`),
   getScenario: (scenarioId: string) => fetchJson<any>(`/scenarios/${scenarioId}`),
   getStatsOverview: () => fetchJson<any>('/stats/overview'),

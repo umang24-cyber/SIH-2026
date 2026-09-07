@@ -39,6 +39,24 @@ def _resolve_scenario_id(scenario_id: str) -> str:
         return next(iter(data_service.scenario_tx_map.keys()), scenario_id)
     return scenario_id
 
+import time
+from collections import defaultdict
+
+_graph_rate_limit: dict[str, list[float]] = defaultdict(list)
+_MAX_GRAPH_REQUESTS_PER_WINDOW = 12
+_RATE_WINDOW_SECONDS = 3.0
+
+def _check_graph_rate_limit(client_id: str = "global"):
+    now = time.time()
+    valid_times = [t for t in _graph_rate_limit[client_id] if now - t < _RATE_WINDOW_SECONDS]
+    if len(valid_times) >= _MAX_GRAPH_REQUESTS_PER_WINDOW:
+        raise HTTPException(
+            status_code=429,
+            detail="Rate limit exceeded for graph requests (max 12 requests per 3s). Please slow down."
+        )
+    valid_times.append(now)
+    _graph_rate_limit[client_id] = valid_times
+
 @router.get("/graph/{scenario_id}", response_model=GraphResponse)
 def get_scenario_graph(scenario_id: str):
     """
@@ -46,6 +64,7 @@ def get_scenario_graph(scenario_id: str):
     - Nodes: Wallet, Transaction, and IP nodes
     - Edges: SENT, RECEIVED, and BROADCAST edges
     """
+    _check_graph_rate_limit()
     resolved_id = _resolve_scenario_id(scenario_id)
     txids = data_service.get_scenario_txids(resolved_id)
     if not txids:

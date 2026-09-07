@@ -1,4 +1,4 @@
-export type ViewMode = 'BANNER' | 'GRAPH' | 'INSPECT' | 'LOGS' | 'HELP' | 'TRACE' | 'SYS' | 'ALERTS' | 'TAINT' | 'DOSSIER' | 'TOR' | 'SCENARIOS';
+export type ViewMode = 'BANNER' | 'GRAPH' | 'INSPECT' | 'LOGS' | 'HELP' | 'TRACE' | 'SYS' | 'ALERTS' | 'ALERT_DETAIL' | 'TAINT' | 'DOSSIER' | 'TOR' | 'SCENARIOS';
 
 export interface ForensicNode {
   id: string;
