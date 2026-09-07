@@ -335,12 +335,35 @@ async def ingest_file_upload(file: UploadFile = File(...)):
     if not records:
         raise HTTPException(status_code=400, detail="No valid transactions discovered in file.")
 
+    input_records = len(records)
+
+    # Calculate duplicates inside the uploaded file itself
+    unique_txids = set()
+    unique_records_list = []
+    duplicate_records_in_file = 0
+
+    for r in records:
+        tid = r["txid"]
+        if tid in unique_txids:
+            duplicate_records_in_file += 1
+        else:
+            unique_txids.add(tid)
+            unique_records_list.append(r)
+
+    unique_records = len(unique_records_list)
+
+    # Calculate duplicates already indexed
+    already_indexed = sum(1 for r in unique_records_list if r["txid"] in data_service.txid_map)
+
+    duplicate_records = duplicate_records_in_file + already_indexed
+    newly_indexed_records = unique_records - already_indexed
+
     wallets_before = len(data_service.unique_wallets)
-    indexed_count = data_service.add_transactions_batch(records)
+    indexed_count = data_service.add_transactions_batch(unique_records_list)
     wallets_after = len(data_service.unique_wallets)
 
     grouped_records: Dict[str, List[Dict[str, Any]]] = defaultdict(list)
-    for record in records:
+    for record in unique_records_list:
         grouped_records[str(record["scenario_id"])].append(record)
 
     scenario_results = []
@@ -368,6 +391,10 @@ async def ingest_file_upload(file: UploadFile = File(...)):
 
     return IngestBatchResponse(
         status="SUCCESS",
+        input_records=input_records,
+        unique_records=unique_records,
+        newly_indexed_records=newly_indexed_records,
+        duplicate_records=duplicate_records,
         total_ingested=indexed_count,
         scenario_ids=scenario_ids[:10],
         unique_wallets_added=max(0, wallets_after - wallets_before),
@@ -420,8 +447,27 @@ async def ingest_correlate(
     except Exception as exc:
         raise HTTPException(status_code=400, detail=f"Failed to parse files: {exc}")
 
-    ledger_map = {str(r["txid"]): r for r in ledger_records}
-    network_map = {str(r["txid"]): r for r in network_records}
+    ledger_input_records = len(ledger_records)
+    network_input_records = len(network_records)
+    input_records = ledger_input_records + network_input_records
+
+    ledger_map = {}
+    ledger_dups_in_file = 0
+    for r in ledger_records:
+        tid = str(r["txid"])
+        if tid in ledger_map:
+            ledger_dups_in_file += 1
+        else:
+            ledger_map[tid] = r
+
+    network_map = {}
+    network_dups_in_file = 0
+    for r in network_records:
+        tid = str(r["txid"])
+        if tid in network_map:
+            network_dups_in_file += 1
+        else:
+            network_map[tid] = r
 
     matched_txids = set(ledger_map.keys()) & set(network_map.keys())
     ledger_only = set(ledger_map.keys()) - matched_txids
@@ -440,9 +486,14 @@ async def ingest_correlate(
     # Add unmatched
     for txid in ledger_only:
         merged_records.append(ledger_map[txid])
-        
+
     for txid in network_only:
         merged_records.append(network_map[txid])
+
+    unique_records = len(merged_records)
+    already_indexed = sum(1 for r in merged_records if r["txid"] in data_service.txid_map)
+    duplicate_records = ledger_dups_in_file + network_dups_in_file + already_indexed
+    newly_indexed_records = unique_records - already_indexed
 
     # Index into data_service
     indexed_count = data_service.add_transactions_batch(merged_records)
@@ -467,9 +518,15 @@ async def ingest_correlate(
     return IngestCorrelationResponse(
         status="SUCCESS",
         message="Two-stream correlation complete.",
+        input_records=input_records,
+        unique_records=unique_records,
+        newly_indexed_records=newly_indexed_records,
+        duplicate_records=duplicate_records,
         ledger_records=len(ledger_map),
         network_records=len(network_map),
         matched_records=len(matched_txids),
+        ledger_only_records=len(ledger_only),
+        network_only_records=len(network_only),
         unmatched_ledger=len(ledger_only),
         unmatched_network=len(network_only),
         correlation_rate=round(correlation_rate, 4),

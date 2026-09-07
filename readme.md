@@ -271,3 +271,18 @@ npm run dev
 - [Graph Construction & Typologies: docs/graph_ml/GRAPH.md](file:///c:/Users/arora/SIH/SIH-2026/docs/graph_ml/GRAPH.md)
 - [Machine Learning & Explainability: docs/graph_ml/ML.md](file:///c:/Users/arora/SIH/SIH-2026/docs/graph_ml/ML.md)
 - [Frontend Dashboard & Visualizer: docs/frontend/FRONTEND.md](file:///c:/Users/arora/SIH/SIH-2026/docs/frontend/FRONTEND.md)
+
+## 9. Synthetic ML Performance Metrics
+
+The following metrics reflect the definitive evaluation of the 46-feature XGBoost models across three offline configurations. Note that these metrics represent synthetic generator performance and are not indicative of real-world generalization.
+
+| Metric | V7 Model on V7 Test | V8 Model on V8 Test | V8 Model on Shifted V8 |
+|---|---|---|---|
+| **Binary ROC-AUC** | 0.99918 | 0.99738 | 0.99732 |
+| **Binary PR-AUC** | 0.99888 | 0.99662 | 0.99650 |
+| **Binary Accuracy** | 0.98529 | 0.98070 | 0.97821 |
+| **Binary F1** | 0.98222 | 0.97685 | 0.97410 |
+| **Binary Balanced Acc** | 0.98549 | 0.98192 | 0.97985 |
+| **Typology Macro-F1** | 0.93666 | 0.95102 | 0.95011 |
+| **Typology Weighted-F1** | 0.96679 | 0.97348 | 0.97210 |
+| **Typology Accuracy** | 0.96652 | 0.97321 | 0.97155 |

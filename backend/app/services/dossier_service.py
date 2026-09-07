@@ -232,7 +232,7 @@ class DossierService:
     </tr>
 </table>
 
-<div class="section-title">3. SYNDICATE & ENTITY CLUSTER IDENTIFICATION (CIOH)</div>
+<div class="section-title">3. ENTITY CLUSTER ANALYSIS (CIOH)</div>
 <table class="data-table">
     <tr>
         <th style="width: 30%;">Entity Cluster ID</th>

@@ -59,7 +59,7 @@ def get_scenario_graph(scenario_id: str):
 def get_scenario_communities(scenario_id: str):
     """
     Community Detection on Transaction Graph:
-    Partitions nodes into modular syndicates / co-acting clusters using NetworkX greedy modularity.
+    Partitions nodes into modular entity clusters / co-acting clusters using NetworkX greedy modularity.
     """
     resolved_id = _resolve_scenario_id(scenario_id)
     txids = data_service.get_scenario_txids(resolved_id)

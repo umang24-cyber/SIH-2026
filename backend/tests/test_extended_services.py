@@ -26,7 +26,7 @@ class TestExtendedServices(unittest.TestCase):
         if not data_service.is_ready:
             data_service.initialize()
             clustering_service.build_clusters()
-            typology_detector.scan_all_typologies()
+            typology_detector.scan_all_typologies(max_candidates=20)
             ml_service.load_model()
         cls.client = TestClient(app)
 

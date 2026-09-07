@@ -20,7 +20,7 @@ export const BannerView: React.FC<BannerViewProps> = ({ onRunCommand }) => {
           <strong>[ BIT-KAUN? (बिट-कौन?) ]</strong> :: ON-CHAIN TRANSACTION FORENSICS &amp; ANOMALY SURVEILLANCE
         </div>
         <div style={{ fontSize: '13px', color: '#00aa44', marginTop: '2px' }}>
-          <em>"Kaun?" (Who?) — Unmasking anomalous crypto flows, mixer hops, and illicit wallet syndicates.</em>
+          <em>"Kaun?" (Who?) — Unmasking anomalous crypto flows, mixer hops, and illicit wallet clusters.</em>
         </div>
       </div>
 

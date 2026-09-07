@@ -109,7 +109,7 @@ class TorProfiler:
             "input_cluster_attribution": {
                 "entity_id": entity_id,
                 "cluster_size": len(cluster_wallets),
-                "syndicate_link": has_cluster_link
+                "cluster_link": has_cluster_link
             },
             "relay_telemetry_correlation_indicator": (
                 "HIGH (CIOH and recorded relay telemetry correlated)" if has_cluster_link

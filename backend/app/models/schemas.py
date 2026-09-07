@@ -308,6 +308,10 @@ class IngestScenarioAnalysis(BaseModel):
 
 class IngestBatchResponse(BaseModel):
     status: str = "SUCCESS"
+    input_records: int = 0
+    unique_records: int = 0
+    newly_indexed_records: int = 0
+    duplicate_records: int = 0
     total_ingested: int
     scenario_ids: List[str]
     unique_wallets_added: int
@@ -318,9 +322,15 @@ class IngestBatchResponse(BaseModel):
 class IngestCorrelationResponse(BaseModel):
     status: str
     message: str
+    input_records: int = 0
+    unique_records: int = 0
+    newly_indexed_records: int = 0
+    duplicate_records: int = 0
     ledger_records: int
     network_records: int
     matched_records: int
+    ledger_only_records: int = 0
+    network_only_records: int = 0
     unmatched_ledger: int
     unmatched_network: int
     correlation_rate: float

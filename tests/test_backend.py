@@ -26,7 +26,7 @@ class TestBackendAPI(unittest.TestCase):
         # Initialize in-memory data store, clustering, and typology scanner
         data_service.initialize()
         clustering_service.build_clusters()
-        typology_detector.scan_all_typologies()
+        typology_detector.scan_all_typologies(max_candidates=20)
         ml_service.load_model()
         cls.client = TestClient(app)
 
@@ -145,10 +145,10 @@ class TestBackendAPI(unittest.TestCase):
         self.assertEqual(res_stats.status_code, 200)
 
     def test_11_ml_feature_extractor_zero_leakage(self):
-        """Verify ML feature extractor strictly produces 15 features without ground-truth labels."""
+        """Verify ML feature extractor strictly produces 46 features without ground-truth labels."""
         sample_tx = next(iter(data_service.txid_map.values()))
-        features = ml_service.extract_features(sample_tx)
-        self.assertEqual(features.shape, (1, 15))
+        features = ml_service.extract_features([sample_tx])
+        self.assertEqual(features.shape, (1, 46))
         self.assertFalse(any(val != val for val in features[0]))
 
     def test_12_transaction_flow_decomposition(self):
@@ -163,7 +163,7 @@ class TestBackendAPI(unittest.TestCase):
         self.assertIn("fee_ratio_percent", data)
 
     def test_13_graph_community_detection(self):
-        """Verify GET /graph/{scenario_id}/communities partitions graph into syndicates."""
+        """Verify GET /graph/{scenario_id}/communities partitions graph into entity clusters."""
         sample_sc = next(iter(data_service.scenario_tx_map.keys()))
         response = self.client.get(f"/graph/{sample_sc}/communities")
         self.assertEqual(response.status_code, 200)

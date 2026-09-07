@@ -1,5 +1,5 @@
 """
-Community & Syndicate Detection Service.
+Community & Entity Cluster Detection Service.
 Partitions transaction subgraphs into modular communities using NetworkX algorithms.
 Runs 100% offline in-memory.
 """
@@ -14,7 +14,7 @@ class CommunityService:
     def detect_communities(self, scenario_id: str) -> Optional[Dict[str, Any]]:
         """
         Executes modularity-based community detection on the scenario's transaction graph.
-        Partitions wallets and transactions into distinct sub-clusters / syndicates.
+        Partitions wallets and transactions into distinct sub-clusters / entity clusters.
         """
         graph_resp = graph_service.build_scenario_graph(scenario_id)
         if not graph_resp.nodes:

@@ -365,7 +365,7 @@ export const CliOutputRenderer: React.FC<CliOutputRendererProps> = React.memo(({
         return (
           <div className="output-block" style={{ background: 'var(--bg-card)', border: '1px solid #00aa44', padding: '12px' }}>
             <div style={{ color: '#33ff88', fontWeight: 'bold', fontSize: '15px', marginBottom: '8px' }}>
-              DETECTED TYPOLOGY ALERTS &amp; SYNDICATE CANDIDATES ({alertList.length} ALERTS)
+              DETECTED TYPOLOGY ALERTS &amp; ENTITY CLUSTER CANDIDATES ({alertList.length} ALERTS)
             </div>
             <div style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
               {['CRITICAL', 'HIGH', 'MEDIUM', 'LOW'].map(severityLevel => {

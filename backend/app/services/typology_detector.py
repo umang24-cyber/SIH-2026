@@ -61,7 +61,7 @@ class TypologyDetector:
         self.tx_typology_map: Dict[int, List[str]] = defaultdict(list)
         self.is_scanned: bool = False
 
-    def scan_all_typologies(self):
+    def scan_all_typologies(self, max_candidates: Optional[int] = None):
         """
         Run structural candidate detectors, then score every candidate with the
         ML models.  Only candidates where binary model predicts is_illicit=True
@@ -95,6 +95,10 @@ class TypologyDetector:
         logger.info(f"Discovered {len(ransom_candidates)} ransomware structural candidates.")
 
         all_candidates = peel_candidates + layer_candidates + mix_candidates + ransom_candidates
+
+        if max_candidates is not None and len(all_candidates) > max_candidates:
+            logger.info("Limiting structural candidates to %d (test mode).", max_candidates)
+            all_candidates = all_candidates[:max_candidates]
 
         # 5. Score every candidate with the ML models
         logger.info(f"Scoring {len(all_candidates)} total candidates with ML models...")
@@ -485,9 +489,10 @@ class TypologyDetector:
         min_confidence: float = 0.50,
         pattern_type: Optional[str] = None,
         limit: int = 50,
+        max_candidates: Optional[int] = None,
     ) -> List[AlertSummary]:
         if not self.is_scanned:
-            self.scan_all_typologies()
+            self.scan_all_typologies(max_candidates=max_candidates)
         filtered = [
             a for a in self.detected_alerts
             if a.typology_confidence >= min_confidence
@@ -495,18 +500,18 @@ class TypologyDetector:
         ]
         return filtered[:limit]
 
-    def get_evidence(self, candidate_id: str) -> Optional[EvidenceResponse]:
+    def get_evidence(self, candidate_id: str, max_candidates: Optional[int] = None) -> Optional[EvidenceResponse]:
         """
         Return cached evidence.  Binary and typology SHAP are pre-computed at
         scan time and are always present — no lazy re-invocation needed.
         """
         if not self.is_scanned:
-            self.scan_all_typologies()
+            self.scan_all_typologies(max_candidates=max_candidates)
         return self.evidence_cache.get(candidate_id)
 
-    def get_typologies_for_tx(self, txid: int) -> List[str]:
+    def get_typologies_for_tx(self, txid: int, max_candidates: Optional[int] = None) -> List[str]:
         if not self.is_scanned:
-            self.scan_all_typologies()
+            self.scan_all_typologies(max_candidates=max_candidates)
         return self.tx_typology_map.get(int(txid), [])
 
 
