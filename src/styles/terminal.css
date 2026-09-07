@@ -155,10 +155,13 @@ html:active, body:active {
   flex: 1;
   padding: 20px 28px;
   overflow-y: auto;
+  overflow-x: hidden;
+  box-sizing: border-box;
   display: flex;
   flex-direction: column;
   gap: 8px;
   width: 100%;
+  max-width: 100vw;
   cursor: var(--cursor-default);
   position: relative;
   z-index: 2;
@@ -208,12 +211,15 @@ html:active, body:active {
 /* Prompt Line with Widescreen Flow */
 .prompt-line {
   display: flex;
-  align-items: center;
+  align-items: flex-start;
   flex-wrap: wrap;
   position: relative;
   width: 100%;
+  max-width: 100%;
   margin-top: 4px;
   cursor: var(--cursor-text);
+  word-break: break-all;
+  overflow-wrap: anywhere;
 }
 
 .prompt-prefix {
@@ -221,6 +227,7 @@ html:active, body:active {
   font-weight: 700;
   font-size: 20px;
   user-select: none;
+  flex-shrink: 0;
 }
 
 .prompt-char {
@@ -229,16 +236,21 @@ html:active, body:active {
   font-size: 20px;
   margin-right: 8px;
   user-select: none;
+  flex-shrink: 0;
 }
 
 /* Input Wrapper & Following Green Blinking Cursor */
 .input-cursor-wrapper {
-  display: inline-flex;
-  align-items: center;
+  display: inline-block;
   position: relative;
   flex: 1;
+  min-width: 120px;
+  max-width: 100%;
   min-height: 24px;
   cursor: var(--cursor-text);
+  word-break: break-all;
+  overflow-wrap: anywhere;
+  white-space: pre-wrap;
 }
 
 .typed-text {
@@ -247,8 +259,9 @@ html:active, body:active {
   font-size: 20px;
   font-weight: 700;
   line-height: 24px;
-  height: 24px;
-  white-space: pre;
+  white-space: pre-wrap;
+  word-break: break-all;
+  overflow-wrap: anywhere;
   letter-spacing: 0.5px;
   pointer-events: none;
 }
@@ -257,8 +270,8 @@ html:active, body:active {
 .cli-cursor {
   display: inline-block;
   min-width: 1ch;
-  height: 24px;
-  line-height: 24px;
+  height: 22px;
+  line-height: 22px;
   background-color: var(--fg-primary);
   color: #030805;
   font-family: var(--font-mono);

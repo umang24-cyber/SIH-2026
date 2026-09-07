@@ -3,6 +3,7 @@ Graph command for BitKaun CLI.
 Renders textual topology summary, node/edge census, and ASCII structural adjacency tree.
 """
 
+import time
 from collections import defaultdict
 from rich.panel import Panel
 from rich.table import Table
@@ -11,9 +12,20 @@ from rich import box
 from ..api_client import client
 from ..render import console, format_btc, warning_panel, error_panel
 
+_last_graph_request_time = 0.0
 
 def execute(args: list[str] = None):
-    """Execute the graph command."""
+    """Execute the graph command with client-side rate limit protection."""
+    global _last_graph_request_time
+    now = time.time()
+    if now - _last_graph_request_time < 1.0:
+        warning_panel(
+            "Rate Limit Exceeded",
+            "Please wait at least 1.0s between graph inspection requests to prevent engine flood."
+        )
+        return
+    _last_graph_request_time = now
+
     if not args or len(args) == 0:
         warning_panel(
             "Missing Scenario ID",

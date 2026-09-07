@@ -46,14 +46,28 @@ class GraphService:
             
             # 1. Transaction Node
             if tx_node_id not in nodes_map:
+                out_amounts = tx.get("output_amounts", [])
+                total_amt = round(float(sum(out_amounts)), 8) if out_amounts else 0.0
+                in_addrs = tx.get("input_addresses", [])
+                out_addrs = tx.get("output_addresses", [])
+                first_in = in_addrs[0] if in_addrs else None
+                tx_cluster = clustering_service.get_entity_id(first_in) if first_in else f"entity_{txid}"
+                pat_type = tx.get("pattern_type")
+                pat_tags = [str(pat_type).upper()] if pat_type and str(pat_type).lower() != "nan" and str(pat_type).lower() != "normal" else []
+
                 nodes_map[tx_node_id] = GraphNode(
                     id=tx_node_id,
                     type="Transaction",
                     properties={
                         "txid": txid,
                         "timestamp": str(tx["timestamp"]),
-                        "fee_btc": float(tx["fee_btc"]),
-                        "script_type": str(tx["script_type"]),
+                        "amount_btc": total_amt,
+                        "fee_btc": float(tx.get("fee_btc", 0.0001)),
+                        "input_count": len(in_addrs),
+                        "output_count": len(out_addrs),
+                        "cluster_id": tx_cluster,
+                        "pattern_tags": pat_tags,
+                        "script_type": str(tx.get("script_type", "P2PKH")),
                         "scenario_id": scenario_id
                     }
                 )
@@ -135,9 +149,10 @@ class GraphService:
                         properties={
                             "relay_ip": relay_ip,
                             "country_code": str(tx.get("country_code", "US")),
-                            "asn": str(tx.get("asn", "")),
-                            "isp": str(tx.get("isp", "")),
+                            "asn": str(tx.get("asn", "AS15169")),
+                            "isp": str(tx.get("isp", "Google LLC")),
                             "node_type": str(tx.get("node_type", "residential")),
+                            "latency": round(float(tx.get("propagation_delta_ms", 14.5)), 1),
                             "relay_port": int(tx.get("relay_port", 8333))
                         }
                     )
@@ -151,7 +166,7 @@ class GraphService:
                     properties={
                         "relay_timestamp": str(tx.get("relay_timestamp", "")),
                         "relay_port": int(tx.get("relay_port", 8333)),
-                        "user_agent": str(tx.get("user_agent", ""))
+                        "user_agent": str(tx.get("user_agent", "/Satoshi:22.0.0/"))
                     }
                 ))
 

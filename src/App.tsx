@@ -10,7 +10,7 @@ import { api } from './services/api';
 interface TerminalEntry {
   id: string;
   command?: string;
-  type: 'BANNER' | 'TEXT' | 'ERROR' | 'SUCCESS' | 'HELP' | 'INSPECT' | 'TRACE' | 'LOGS' | 'GRAPH' | 'STATUS' | 'ALERTS' | 'TAINT' | 'DOSSIER' | 'DOSSIER_LIST' | 'TOR' | 'INGEST' | 'INGEST_BATCH';
+  type: 'BANNER' | 'TEXT' | 'ERROR' | 'SUCCESS' | 'HELP' | 'INSPECT' | 'TRACE' | 'LOGS' | 'GRAPH' | 'STATUS' | 'ALERTS' | 'ALERT_DETAIL' | 'TAINT' | 'DOSSIER' | 'DOSSIER_LIST' | 'TOR' | 'INGEST' | 'INGEST_BATCH';
   content?: any;
 }
 
@@ -26,6 +26,8 @@ export function App() {
   const inputRef = useRef<HTMLInputElement>(null);
   const scrollBottomRef = useRef<HTMLDivElement>(null);
   const terminalBodyRef = useRef<HTMLDivElement>(null);
+  const lastGraphTimeRef = useRef<number>(0);
+  const commandBurstTimestampsRef = useRef<number[]>([]);
 
   const scrollToBottom = useCallback(() => {
     if (terminalBodyRef.current) {
@@ -40,7 +42,39 @@ export function App() {
   }, [entries]);
 
   useEffect(() => {
-    inputRef.current?.focus();
+    inputRef.current?.focus({ preventScroll: true });
+
+    const handleGlobalKeyDown = (e: KeyboardEvent) => {
+      // Don't intercept if user is already typing in an input, textarea, or select
+      if (
+        document.activeElement instanceof HTMLInputElement ||
+        document.activeElement instanceof HTMLTextAreaElement ||
+        document.activeElement instanceof HTMLSelectElement
+      ) {
+        return;
+      }
+
+      // Allow terminal shortcuts
+      if (e.ctrlKey && (e.key === 'l' || e.key === 'L')) {
+        e.preventDefault();
+        setEntries([]);
+        return;
+      }
+
+      // Ignore modifier keys, Escape, F-keys
+      if (
+        ['Shift', 'Control', 'Alt', 'Meta', 'Escape', 'Tab', 'CapsLock'].includes(e.key) ||
+        e.key.startsWith('F')
+      ) {
+        return;
+      }
+
+      // Refocus terminal input seamlessly without jumping scroll
+      inputRef.current?.focus({ preventScroll: true });
+    };
+
+    window.addEventListener('keydown', handleGlobalKeyDown);
+    return () => window.removeEventListener('keydown', handleGlobalKeyDown);
   }, []);
 
   const handleRunCommand = async (raw: string) => {
@@ -60,23 +94,123 @@ export function App() {
     const arg1 = tokens[1];
     const arg2 = tokens[2];
 
+    const now = Date.now();
+
+    // General burst command rate limiter (max 8 commands within 2 seconds)
+    commandBurstTimestampsRef.current = commandBurstTimestampsRef.current.filter(t => now - t < 2000);
+    if (commandBurstTimestampsRef.current.length >= 8) {
+      sound.playErrorChirp();
+      setEntries(prev => [
+        ...prev,
+        {
+          id: `entry-${Date.now()}`,
+          command: trimmed,
+          type: 'ERROR',
+          content: { message: '[RATE LIMIT] Command burst rate limit exceeded (>8 commands in 2s). Throttling execution to protect engine stability.' }
+        }
+      ]);
+      return;
+    }
+    commandBurstTimestampsRef.current.push(now);
+
     sound.playKeyClick();
+
+    // Direct candidate ID evidence lookup (e.g. cand_ransom_...)
+    if (root.startsWith('cand_')) {
+      sound.playEnterSuccess();
+      setPendingCommand(trimmed);
+      try {
+        const evidence = await api.getAlertEvidence(root);
+        setEntries(prev => [
+          ...prev,
+          {
+            id: `entry-${Date.now()}`,
+            command: trimmed,
+            type: 'ALERT_DETAIL',
+            content: evidence
+          }
+        ]);
+      } catch (err: any) {
+        sound.playErrorChirp();
+        setEntries(prev => [
+          ...prev,
+          {
+            id: `entry-${Date.now()}`,
+            command: trimmed,
+            type: 'ERROR',
+            content: { message: `Evidence dossier retrieval failed for candidate '${root}': ${err.message}` }
+          }
+        ]);
+      } finally {
+        setPendingCommand(null);
+      }
+      return;
+    }
 
     switch (root) {
       case 'graph':
       case 'dashboard':
       case 'g':
       case 'nodes':
-        sound.playEnterSuccess();
-        setEntries(prev => [
-          ...prev,
-          {
-            id: `entry-${Date.now()}`,
-            command: trimmed,
-            type: 'GRAPH',
-            content: { scenarioId: arg1 || 'normal_00002' }
+        {
+          const isGraphAlreadyActive = entries.some(e => e.type === 'GRAPH');
+          if (isGraphAlreadyActive) {
+            // Graph is already active: allow changing scenario if argument provided, or inform user
+            if (arg1) {
+              sound.playEnterSuccess();
+              setEntries(prev => prev.map(e => e.type === 'GRAPH' ? { ...e, content: { scenarioId: arg1 } } : e));
+            } else {
+              sound.playErrorChirp();
+              setEntries(prev => [
+                ...prev,
+                {
+                  id: `entry-${Date.now()}`,
+                  command: trimmed,
+                  type: 'ERROR',
+                  content: {
+                    message: '[!] 3D Visual Graph is already active on screen. Click [Close] on graph or enter other commands (alerts, status, tor, inspect, trace).'
+                  }
+                }
+              ]);
+            }
+            break;
           }
-        ]);
+
+          const GRAPH_COOLDOWN_MS = 1500;
+          const timeSinceLast = now - lastGraphTimeRef.current;
+          if (timeSinceLast < GRAPH_COOLDOWN_MS) {
+            const waitSec = ((GRAPH_COOLDOWN_MS - timeSinceLast) / 1000).toFixed(1);
+            sound.playErrorChirp();
+            setEntries(prev => [
+              ...prev,
+              {
+                id: `entry-${Date.now()}`,
+                command: trimmed,
+                type: 'ERROR',
+                content: {
+                  message: `[RATE LIMIT] 3D WebGL initialization throttled. Please wait ${waitSec}s before launching another 3D graph to protect WebGL GPU context.`
+                }
+              }
+            ]);
+            break;
+          }
+          lastGraphTimeRef.current = now;
+
+          sound.playEnterSuccess();
+          // ENFORCE SINGLETON 3D GRAPH: Close any prior active GRAPH canvas to prevent multi-WebGL context GPU crashes
+          setEntries(prev => {
+            const nonGraph = prev.filter(e => e.type !== 'GRAPH');
+            return [
+              ...nonGraph,
+              {
+                id: `entry-${Date.now()}`,
+                command: trimmed,
+                type: 'GRAPH',
+                content: { scenarioId: arg1 || 'normal_00002' }
+              }
+            ];
+          });
+        }
         break;
 
       case 'inspect':
@@ -101,8 +235,20 @@ export function App() {
           const isNumeric = /^\d+$/.test(arg1);
           if (isNumeric) {
             const tx = await api.getTransaction(arg1);
-            const isIllicit = tx.scenario_id && !tx.scenario_id.toLowerCase().startsWith('licit');
-            const risk = isIllicit ? (tx.scenario_id.includes('ransom') ? 92 : 78) : 15;
+            let risk = 10;
+            if (tx.scenario_id) {
+              try {
+                const analysis = await api.getIngestScenarioAnalysis(tx.scenario_id);
+                if (analysis.analysis_status === 'AVAILABLE' && typeof analysis.risk_score === 'number') {
+                  risk = Math.round(analysis.risk_score * 100);
+                } else if (analysis.is_illicit) {
+                  risk = 85;
+                }
+              } catch {
+                const isIllicit = !tx.scenario_id.toLowerCase().startsWith('licit') && !tx.scenario_id.toLowerCase().startsWith('normal');
+                risk = isIllicit ? 85 : 10;
+              }
+            }
 
             setEntries(prev => [
               ...prev,
@@ -137,8 +283,21 @@ export function App() {
               clusterId = cl.cluster_id;
             } catch {}
 
-            const isIllicit = entity.associated_scenarios?.some((sc: string) => !sc.toLowerCase().startsWith('licit'));
-            const risk = entity.is_licit_exchange ? 5 : isIllicit ? 85 : 20;
+            let risk = entity.is_licit_exchange ? 5 : 15;
+            if (entity.associated_scenarios && entity.associated_scenarios.length > 0) {
+              const sc = entity.associated_scenarios[0];
+              try {
+                const analysis = await api.getIngestScenarioAnalysis(sc);
+                if (analysis.analysis_status === 'AVAILABLE' && typeof analysis.risk_score === 'number') {
+                  risk = Math.round(analysis.risk_score * 100);
+                } else if (analysis.is_illicit) {
+                  risk = 85;
+                }
+              } catch {
+                const isIllicit = entity.associated_scenarios.some((s: string) => !s.toLowerCase().startsWith('licit') && !s.toLowerCase().startsWith('normal'));
+                risk = isIllicit ? 85 : 15;
+              }
+            }
 
             setEntries(prev => [
               ...prev,
@@ -275,16 +434,66 @@ export function App() {
         sound.playEnterSuccess();
         setPendingCommand(trimmed);
         try {
-          const alertsRes = await api.getAlerts(0.5, 20);
-          setEntries(prev => [
-            ...prev,
-            {
-              id: `entry-${Date.now()}`,
-              command: trimmed,
-              type: 'ALERTS',
-              content: alertsRes
+          // Check for detail inspection flags: alerts --detail <id>, alerts -d <id>, alerts cand_...
+          let targetCandidateId: string | null = null;
+          if (arg1 === '--detail' || arg1 === '-d') {
+            targetCandidateId = arg2 || null;
+          } else if (arg1 && arg1.startsWith('cand_')) {
+            targetCandidateId = arg1;
+          }
+
+          if (targetCandidateId) {
+            const evidence = await api.getAlertEvidence(targetCandidateId);
+            setEntries(prev => [
+              ...prev,
+              {
+                id: `entry-${Date.now()}`,
+                command: trimmed,
+                type: 'ALERT_DETAIL',
+                content: evidence
+              }
+            ]);
+          } else {
+            // Options parsing: limit, typology, min_confidence
+            let limit = 25;
+            let patternType: string | undefined = undefined;
+            let minConfidence = 0.50;
+
+            for (let i = 1; i < tokens.length; i++) {
+              const t = tokens[i].toLowerCase();
+              if ((t === '--limit' || t === '-l') && tokens[i + 1]) {
+                const parsed = parseInt(tokens[i + 1], 10);
+                if (!isNaN(parsed) && parsed > 0) limit = parsed;
+              } else if (/^\d+$/.test(t) && i === 1) {
+                limit = parseInt(t, 10);
+              } else if ((t === '--pattern' || t === '-p' || t === '--typology' || t === '-t') && tokens[i + 1]) {
+                patternType = tokens[i + 1];
+              } else if ((t === '--confidence' || t === '-c' || t === '--min-confidence') && tokens[i + 1]) {
+                const parsedConf = parseFloat(tokens[i + 1]);
+                if (!isNaN(parsedConf)) minConfidence = parsedConf;
+              }
             }
-          ]);
+
+            const alertsRes = await api.getAlerts(minConfidence, limit, patternType);
+            // Sort alerts descending by risk_score or binary_confidence like Python CLI
+            if (alertsRes && Array.isArray(alertsRes.alerts)) {
+              alertsRes.alerts = [...alertsRes.alerts].sort((a, b) => {
+                const scoreA = Number(a.risk_score ?? a.binary_confidence ?? 0);
+                const scoreB = Number(b.risk_score ?? b.binary_confidence ?? 0);
+                return scoreB - scoreA;
+              });
+            }
+
+            setEntries(prev => [
+              ...prev,
+              {
+                id: `entry-${Date.now()}`,
+                command: trimmed,
+                type: 'ALERTS',
+                content: alertsRes
+              }
+            ]);
+          }
         } catch (err: any) {
           sound.playErrorChirp();
           setEntries(prev => [
@@ -759,15 +968,29 @@ export function App() {
   const charAtCursor = inputVal.slice(safeCursorPos, safeCursorPos + 1);
   const textAfter = inputVal.slice(safeCursorPos + 1);
 
+  const handleTerminalWindowClick = (e: React.MouseEvent) => {
+    const target = e.target as HTMLElement | null;
+    if (!target) return;
+    // Don't steal focus if clicking interactive elements inside widgets
+    if (
+      target.closest(
+        'button, a, input, select, textarea, [role="button"], .cmd-tag, .cmd-clickable, .hud-pill, .window-ctrl-btn, .node-details-card'
+      )
+    ) {
+      return;
+    }
+    inputRef.current?.focus({ preventScroll: true });
+  };
+
   return (
-    <div className="terminal-window" onClick={() => inputRef.current?.focus()}>
+    <div className="terminal-window" onClick={handleTerminalWindowClick}>
       <AmbientBinaryRain />
 
       {showSplash && (
         <PacmanSplashScreen
           onComplete={() => {
             setShowSplash(false);
-            setTimeout(() => inputRef.current?.focus(), 80);
+            setTimeout(() => inputRef.current?.focus({ preventScroll: true }), 80);
           }}
         />
       )}
@@ -844,7 +1067,7 @@ export function App() {
               <div className="prompt-line" style={{ marginBottom: '4px' }}>
                 <span className="prompt-prefix">bitkaun@investigation</span>
                 <span className="prompt-char">:$</span>
-                <span style={{ color: 'var(--fg-white)' }}>{entry.command}</span>
+                <span style={{ color: 'var(--fg-white)', wordBreak: 'break-all', overflowWrap: 'anywhere' }}>{entry.command}</span>
               </div>
             )}
 

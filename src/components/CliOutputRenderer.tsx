@@ -5,11 +5,13 @@ import GraphView from '../graph/components/GraphView';
 import { InspectView } from './views/InspectView';
 import { TraceView } from './views/TraceView';
 import { TwoStreamUploadView } from './views/TwoStreamUploadView';
+import { AlertDetailView } from './views/AlertDetailView';
+import { AlertsListView } from './views/AlertsListView';
 
 export interface TerminalEntry {
   id: string;
   command?: string;
-  type: 'BANNER' | 'TEXT' | 'ERROR' | 'SUCCESS' | 'HELP' | 'INSPECT' | 'TRACE' | 'LOGS' | 'GRAPH' | 'STATUS' | 'ALERTS' | 'TAINT' | 'DOSSIER' | 'DOSSIER_LIST' | 'TOR' | 'INGEST' | 'INGEST_BATCH' | 'TWO_STREAM_UPLOAD';
+  type: 'BANNER' | 'TEXT' | 'ERROR' | 'SUCCESS' | 'HELP' | 'INSPECT' | 'TRACE' | 'LOGS' | 'GRAPH' | 'STATUS' | 'ALERTS' | 'ALERT_DETAIL' | 'TAINT' | 'DOSSIER' | 'DOSSIER_LIST' | 'TOR' | 'INGEST' | 'INGEST_BATCH' | 'TWO_STREAM_UPLOAD';
   content?: any;
 }
 
@@ -99,7 +101,7 @@ export const CliOutputRenderer: React.FC<CliOutputRendererProps> = React.memo(({
   }, [onScrollRequested]);
 
   // Complex interactive subwindows mount directly
-  const isInteractive = ['GRAPH', 'INSPECT', 'TRACE', 'DOSSIER', 'TAINT', 'TOR', 'ALERTS', 'INGEST', 'INGEST_BATCH'].includes(entry.type);
+  const isInteractive = ['GRAPH', 'INSPECT', 'TRACE', 'DOSSIER', 'TAINT', 'TOR', 'ALERTS', 'ALERT_DETAIL', 'INGEST', 'INGEST_BATCH'].includes(entry.type);
 
   // Prepare full terminal text stream
   const fullTextToStream = useMemo(() => {
@@ -357,62 +359,25 @@ export const CliOutputRenderer: React.FC<CliOutputRendererProps> = React.memo(({
         </div>
       )}
 
-      {/* 6. ALERTS VIEW */}
-      {entry.type === 'ALERTS' && entry.content && (() => {
-        const alertList: any[] = Array.isArray(entry.content)
-          ? entry.content
-          : (entry.content.alerts || []);
-        return (
-          <div className="output-block" style={{ background: 'var(--bg-card)', border: '1px solid #00aa44', padding: '12px' }}>
-            <div style={{ color: '#33ff88', fontWeight: 'bold', fontSize: '15px', marginBottom: '8px' }}>
-              DETECTED TYPOLOGY ALERTS &amp; ENTITY CLUSTER CANDIDATES ({alertList.length} ALERTS)
-            </div>
-            <div style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
-              {['CRITICAL', 'HIGH', 'MEDIUM', 'LOW'].map(severityLevel => {
-                const groupAlerts = alertList.filter((a: any) => a.severity === severityLevel);
-                if (groupAlerts.length === 0) return null;
+      {/* 6. ALERTS FEED */}
+      {entry.type === 'ALERTS' && entry.content && (
+        <AlertsListView
+          content={entry.content}
+          onRunCommand={onRunCommand}
+          onClose={onCloseEntry ? () => onCloseEntry(entry.id) : undefined}
+        />
+      )}
 
-                return (
-                  <div key={severityLevel}>
-                    {/* Divider Header */}
-                    <div style={{
-                      backgroundColor: severityLevel === 'CRITICAL' ? '#330000' : '#002211',
-                      color: severityLevel === 'CRITICAL' ? '#ff3344' : '#00ff66',
-                      padding: '4px 8px',
-                      fontSize: '12px',
-                      fontWeight: 'bold',
-                      borderBottom: `1px solid ${severityLevel === 'CRITICAL' ? '#ff3344' : '#005520'}`,
-                      marginBottom: '8px',
-                      letterSpacing: '1px'
-                    }}>
-                      ▼ {severityLevel} THREATS ({groupAlerts.length})
-                    </div>
-                    
-                    <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
-                      {groupAlerts.map((alt: any) => (
-                        <div key={alt.candidate_id} style={{ border: `1px solid ${severityLevel === 'CRITICAL' ? '#991122' : '#004d20'}`, padding: '8px', background: '#000c04' }}>
-                          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                            <span style={{ color: severityLevel === 'CRITICAL' ? '#ff3344' : severityLevel === 'HIGH' ? '#ffaa00' : '#33ff88', fontWeight: 'bold' }}>
-                              [{alt.severity}] {alt.predicted_pattern_type?.toUpperCase()}
-                            </span>
-                            <span style={{ color: '#33ff88', fontSize: '12px', fontWeight: 'bold' }}>
-                              Binary: {(Number(alt.binary_confidence ?? 0) * 100).toFixed(1)}% | Typology: {(Number(alt.typology_confidence ?? 0) * 100).toFixed(1)}%
-                            </span>
-                          </div>
-                          <div style={{ fontSize: '13px', color: '#aaffaa', margin: '4px 0' }}>{alt.explanation}</div>
-                          <div style={{ fontSize: '12px', color: '#66aa77' }}>
-                            Primary Wallet: <span className="cmd-clickable" onClick={() => onRunCommand(`inspect ${alt.primary_wallet}`)}>{alt.primary_wallet}</span> | Scenario: <span className="cmd-clickable" onClick={() => onRunCommand(`graph ${alt.scenario_id}`)}>{alt.scenario_id}</span>
-                          </div>
-                        </div>
-                      ))}
-                    </div>
-                  </div>
-                );
-              })}
-            </div>
-          </div>
-        );
-      })()}
+      {/* 6b. DEEP SHAP ALERT EVIDENCE DOSSIER */}
+      {entry.type === 'ALERT_DETAIL' && entry.content && (
+        <div className="output-block" style={{ background: 'var(--bg-card)', border: '1px solid #00aa44', padding: '14px' }}>
+          <AlertDetailView
+            evidence={entry.content}
+            onRunCommand={onRunCommand}
+            onClose={onCloseEntry ? () => onCloseEntry(entry.id) : undefined}
+          />
+        </div>
+      )}
 
       {/* 7. TOR INTELLIGENCE PROFILER */}
       {entry.type === 'TOR' && entry.content && (

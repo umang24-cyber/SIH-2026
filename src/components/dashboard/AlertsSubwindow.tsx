@@ -1,10 +1,11 @@
 import React, { useState } from 'react';
 import { ForensicAlert } from '../../data/forensicScenarios';
+import { AlertSummary } from '../../services/api';
 
 interface AlertsSubwindowProps {
-  alerts: ForensicAlert[];
+  alerts: (ForensicAlert | AlertSummary)[];
   selectedAlertId: string | null;
-  onSelectAlert: (alert: ForensicAlert) => void;
+  onSelectAlert: (alert: any) => void;
   onMinimize: () => void;
   onClose: () => void;
   style?: React.CSSProperties;
@@ -22,7 +23,13 @@ export const AlertsSubwindow: React.FC<AlertsSubwindowProps> = ({
 
   const filteredAlerts = alerts.filter(a => {
     if (filterType === 'ALL') return true;
-    return a.predicted_pattern_type.toLowerCase() === filterType.toLowerCase();
+    const pat = (a.predicted_pattern_type || '').toLowerCase();
+    const filter = filterType.toLowerCase();
+    if (filter === 'mixing') return pat.includes('mix') || pat.includes('coinjoin');
+    if (filter === 'peeling_chain') return pat.includes('peel');
+    if (filter === 'layering') return pat.includes('layer');
+    if (filter === 'ransomware') return pat.includes('ransom');
+    return pat === filter;
   });
 
   return (
@@ -112,13 +119,17 @@ export const AlertsSubwindow: React.FC<AlertsSubwindowProps> = ({
                       className={`alert-card-item ${isSelected ? 'selected' : ''}`}
                       onClick={() => onSelectAlert(alert)}
                     >
-                      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '4px', marginBottom: '6px' }}>
+                      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '4px', marginBottom: '4px' }}>
                         <span className={`severity-tag ${severityClass}`}>
-                          {alert.severity} • {alert.predicted_pattern_type.toUpperCase()}
+                          {alert.severity} • {(alert.predicted_pattern_type || '').toUpperCase()}
                         </span>
                         <span style={{ color: '#00ff66', fontWeight: 800, fontSize: '12px', whiteSpace: 'nowrap' }}>
-                          BIN {(alert.binary_confidence * 100).toFixed(1)}% · TYPO {(alert.typology_confidence * 100).toFixed(1)}%
+                          BIN {(Number(alert.binary_confidence || 0) * 100).toFixed(1)}% · TYPO {(Number(alert.typology_confidence || 0) * 100).toFixed(1)}%
                         </span>
+                      </div>
+
+                      <div style={{ fontSize: '11px', color: '#38bdf8', fontFamily: 'monospace', marginBottom: '4px' }}>
+                        {alert.candidate_id}
                       </div>
 
                       <div style={{ fontSize: '13px', color: '#f8fafc', marginBottom: '6px', lineHeight: '1.45' }}>
@@ -126,8 +137,8 @@ export const AlertsSubwindow: React.FC<AlertsSubwindowProps> = ({
                       </div>
 
                       <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '12px', color: '#94a3b8' }}>
-                        <span>Wallet: <strong style={{ color: '#ffffff' }}>{alert.primary_wallet.slice(0, 12)}...</strong></span>
-                        <span>{alert.member_txids.length} linked txns</span>
+                        <span>Wallet: <strong style={{ color: '#ffffff' }}>{alert.primary_wallet ? alert.primary_wallet.slice(0, 12) + '...' : 'N/A'}</strong></span>
+                        <span>{alert.member_txids?.length || 0} linked txns</span>
                       </div>
                     </div>
                   );
