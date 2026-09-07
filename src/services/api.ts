@@ -288,4 +288,13 @@ export const api = {
   getIngestSample: (typology = 'ransomware') =>
     fetchJson<any>(`/api/ingest/sample?typology=${encodeURIComponent(typology)}`),
   listSavedDossiers: () => fetchJson<any[]>('/api/dossier/saved/list'),
+  correlateFiles: (ledgerFile: File, networkFile: File) => {
+    const formData = new FormData();
+    formData.append('ledger_file', ledgerFile);
+    formData.append('network_file', networkFile);
+    return fetchJson<any>('/api/ingest/correlate', {
+      method: 'POST',
+      body: formData,
+    });
+  }
 };

@@ -4,11 +4,12 @@ import { sound } from '../audio/soundEngine';
 import GraphView from '../graph/components/GraphView';
 import { InspectView } from './views/InspectView';
 import { TraceView } from './views/TraceView';
+import { TwoStreamUploadView } from './views/TwoStreamUploadView';
 
 export interface TerminalEntry {
   id: string;
   command?: string;
-  type: 'BANNER' | 'TEXT' | 'ERROR' | 'SUCCESS' | 'HELP' | 'INSPECT' | 'TRACE' | 'LOGS' | 'GRAPH' | 'STATUS' | 'ALERTS' | 'TAINT' | 'DOSSIER' | 'DOSSIER_LIST' | 'TOR' | 'INGEST' | 'INGEST_BATCH';
+  type: 'BANNER' | 'TEXT' | 'ERROR' | 'SUCCESS' | 'HELP' | 'INSPECT' | 'TRACE' | 'LOGS' | 'GRAPH' | 'STATUS' | 'ALERTS' | 'TAINT' | 'DOSSIER' | 'DOSSIER_LIST' | 'TOR' | 'INGEST' | 'INGEST_BATCH' | 'TWO_STREAM_UPLOAD';
   content?: any;
 }
 

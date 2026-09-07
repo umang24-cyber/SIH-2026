@@ -10,6 +10,7 @@ from typing import List, Dict, Any, Optional, Union
 from fastapi import APIRouter, HTTPException, UploadFile, File, Query, Body
 
 from backend.app.models.schemas import (
+    IngestCorrelationResponse,
     IngestTransactionRequest,
     IngestResultResponse,
     IngestBatchResponse,
@@ -398,3 +399,80 @@ def get_uploaded_scenario_analysis(scenario_id: str):
     analysis = _analyze_uploaded_scenario(scenario_id, scenario_txs)
     scenario_ml_analysis[scenario_id] = analysis
     return analysis
+
+
+@router.post("/correlate", response_model=IngestCorrelationResponse)
+async def ingest_correlate(
+    ledger_file: UploadFile = File(...),
+    network_file: UploadFile = File(...)
+):
+    """
+    Dual-stream correlation endpoint (FULL OUTER JOIN).
+    Accepts explicit ledger and network streams, correlates by txid,
+    and indexes the unified graph.
+    """
+    try:
+        ledger_content = await ledger_file.read()
+        network_content = await network_file.read()
+
+        ledger_records = parse_csv_bytes(ledger_content)
+        network_records = parse_csv_bytes(network_content)
+    except Exception as exc:
+        raise HTTPException(status_code=400, detail=f"Failed to parse files: {exc}")
+
+    ledger_map = {str(r["txid"]): r for r in ledger_records}
+    network_map = {str(r["txid"]): r for r in network_records}
+
+    matched_txids = set(ledger_map.keys()) & set(network_map.keys())
+    ledger_only = set(ledger_map.keys()) - matched_txids
+    network_only = set(network_map.keys()) - matched_txids
+
+    merged_records = []
+    # Merge matches (network telemetry fields added to ledger)
+    for txid in matched_txids:
+        merged = ledger_map[txid].copy()
+        # Ensure we don't overwrite primary ledger keys accidentally, just add telemetry
+        for k, v in network_map[txid].items():
+            if k not in merged or merged[k] is None or str(merged[k]) == "":
+                merged[k] = v
+        merged_records.append(merged)
+
+    # Add unmatched
+    for txid in ledger_only:
+        merged_records.append(ledger_map[txid])
+        
+    for txid in network_only:
+        merged_records.append(network_map[txid])
+
+    # Index into data_service
+    indexed_count = data_service.add_transactions_batch(merged_records)
+
+    # Analyze scenarios
+    grouped_records = defaultdict(list)
+    for record in merged_records:
+        if record.get("scenario_id"):
+            grouped_records[str(record["scenario_id"])].append(record)
+
+    scenario_results = []
+    seen_scenarios = []
+    for scenario_id, scenario_txs in grouped_records.items():
+        seen_scenarios.append(scenario_id)
+        analysis = _analyze_uploaded_scenario(scenario_id, scenario_txs)
+        scenario_ml_analysis[scenario_id] = analysis
+        scenario_results.append(analysis)
+
+    total_uploaded = len(ledger_map) + len(network_map)
+    correlation_rate = (len(matched_txids) / max(len(ledger_map), len(network_map))) if total_uploaded > 0 else 0.0
+
+    return IngestCorrelationResponse(
+        status="SUCCESS",
+        message="Two-stream correlation complete.",
+        ledger_records=len(ledger_map),
+        network_records=len(network_map),
+        matched_records=len(matched_txids),
+        unmatched_ledger=len(ledger_only),
+        unmatched_network=len(network_only),
+        correlation_rate=round(correlation_rate, 4),
+        scenarios_analyzed=seen_scenarios[:10],
+        scenario_results=scenario_results
+    )

@@ -27,3 +27,20 @@ public/data/
 *.db
 *.db-wal
 *.db-shm
+
+# Generated V8 datasets
+data/processed_v8/
+
+# Real-world datasets
+real_data/
+
+# Scratch / forensic artifacts
+scratch/
+
+# Generated V8 models/manifests
+ml/models_v8/
+ml/manifests_v8/
+
+# Local V7 integrity snapshots
+v7_hashes_before.txt
+v7_hashes_after.txt

@@ -648,41 +648,14 @@ export function App() {
 
       case 'upload':
         {
-          const fileInput = document.createElement('input');
-          fileInput.type = 'file';
-          fileInput.accept = '.csv,.json,.xml';
-          fileInput.onchange = async (e: any) => {
-            const file = e.target.files?.[0];
-            if (!file) return;
-            sound.playEnterSuccess();
-            setPendingCommand(`upload ${file.name}`);
-            try {
-              const res = await api.ingestFile(file);
-              setEntries(prev => [
-                ...prev,
-                {
-                  id: `entry-${Date.now()}`,
-                  command: `upload ${file.name}`,
-                  type: 'INGEST_BATCH',
-                  content: res
-                }
-              ]);
-            } catch (err: any) {
-              sound.playErrorChirp();
-              setEntries(prev => [
-                ...prev,
-                {
-                  id: `entry-${Date.now()}`,
-                  command: `upload ${file.name}`,
-                  type: 'ERROR',
-                  content: { message: `File ingestion failed: ${err.message}` }
-                }
-              ]);
-            } finally {
-              setPendingCommand(null);
+          setEntries(prev => [
+            ...prev,
+            {
+              id: `entry-${Date.now()}`,
+              command: trimmed,
+              type: 'TWO_STREAM_UPLOAD' as any,
             }
-          };
-          fileInput.click();
+          ]);
         }
         break;
 

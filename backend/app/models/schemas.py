@@ -314,3 +314,15 @@ class IngestBatchResponse(BaseModel):
     sample_txids: List[int]
     message: str
     scenario_results: List[IngestScenarioAnalysis] = Field(default_factory=list)
+
+class IngestCorrelationResponse(BaseModel):
+    status: str
+    message: str
+    ledger_records: int
+    network_records: int
+    matched_records: int
+    unmatched_ledger: int
+    unmatched_network: int
+    correlation_rate: float
+    scenarios_analyzed: List[str]
+    scenario_results: List[IngestScenarioAnalysis]
