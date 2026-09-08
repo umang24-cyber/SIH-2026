@@ -153,9 +153,32 @@ class BitKaunApiClient:
         """POST /api/ingest/transaction - Live custom transaction ingestion."""
         return self._request("POST", "/api/ingest/transaction", json_body=payload)
 
-    def get_stream_batch(self, limit: int = 15, offset: int = 0) -> Optional[dict]:
-        """GET /api/stream/batch - Live mempool and telemetry event frames."""
-        return self._request("GET", "/api/stream/batch", params={"limit": limit, "offset": offset})
+    def ingest_file(self, file_path: Any) -> Optional[dict]:
+        """POST /api/ingest/file - Upload and ingest single bulk file (CSV, JSON, XML)."""
+        path = Path(file_path)
+        if not path.exists():
+            error_panel("File Not Found", f"File '{path}' does not exist.")
+            return None
+        url = f"{self.base_url}/api/ingest/file"
+        try:
+            with open(path, "rb") as f:
+                resp = requests.post(url, files={"file": (path.name, f, "application/octet-stream")}, timeout=self.timeout)
+            resp.raise_for_status()
+            return resp.json()
+        except requests.exceptions.ConnectionError:
+            error_panel("Connection Failed", f"Backend unreachable at {self.base_url}")
+            return None
+        except requests.exceptions.HTTPError as e:
+            detail = ""
+            try:
+                detail = resp.json().get("detail", str(e))
+            except Exception:
+                detail = resp.text
+            error_panel(f"HTTP {resp.status_code} Ingestion Error", detail)
+            return None
+        except Exception as e:
+            error_panel("Ingest Error", str(e))
+            return None
 
 
 # Global singleton instance

@@ -109,6 +109,25 @@ SAMPLE_TEMPLATES = {
         "isp": "Tor Relay Exit Operator",
         "propagation_delta_ms": 1420.0,
     },
+    "layering": {
+        "txid": 995001001,
+        "timestamp": "2026-09-06 18:00:00",
+        "relay_timestamp": "2026-09-06 17:59:58",
+        "input_addresses": ["1LayerHopSource01_9950"],
+        "output_addresses": ["1LayerIntermediary01_9950", "1LayerChange01_9950"],
+        "input_amounts": [18.5],
+        "output_amounts": [3.7, 14.7997],
+        "fee_btc": 0.0003,
+        "script_type": "P2PKH",
+        "scenario_id": "live_layering_structure",
+        "relay_ip": "185.220.101.44",
+        "relay_port": 8333,
+        "node_type": "vpn_proxy",
+        "country_code": "NL",
+        "asn": "AS49981",
+        "isp": "WorldStream B.V.",
+        "propagation_delta_ms": 520.0,
+    },
     "licit": {
         "txid": 551029482,
         "timestamp": "2026-09-06 17:00:15",
@@ -250,18 +269,90 @@ AUTHENTIC_CORRELATION_PAIRS = [
         "user_agent": "/Satoshi:22.0.0/",
         "propagation_delta_ms": 1420.0,
     },
-    # live_licit_purchase: Consumer retail purchase
+    # sample_licit_commerce: Authentic 5-tx licit peer-to-peer and commerce flow
     {
         "txid": 551029482,
         "timestamp": "2026-09-06 17:00:15",
-        "relay_timestamp": "2026-09-06 17:00:15",
-        "input_addresses": ["1LicitConsumerWallet88291kKx99"],
-        "output_addresses": ["1LicitMerchantStorefront77291aA", "1LicitChangeWallet88291kKx99"],
-        "input_amounts": [0.15],
-        "output_amounts": [0.045, 0.1049],
-        "fee_btc": 0.0001,
+        "relay_timestamp": "2026-09-06 16:59:59",
+        "input_addresses": ["1bs5iPLdFjEHkWzFAPTtMZmWAHF"],
+        "output_addresses": ["1GtTjrBX92L5RL4QjKmoeuNbs9cBEYcd"],
+        "input_amounts": [1572.10555491],
+        "output_amounts": [1572.10528742],
+        "fee_btc": 0.00026749,
         "script_type": "P2WPKH",
-        "scenario_id": "live_licit_purchase",
+        "scenario_id": "sample_licit_commerce",
+        "relay_ip": "120.144.43.62",
+        "relay_port": 8333,
+        "node_type": "residential",
+        "country_code": "GB",
+        "asn": "AS2856",
+        "isp": "British Telecommunications",
+        "protocol_version": 70015,
+        "user_agent": "/Satoshi:22.0.0/",
+        "propagation_delta_ms": 120.0,
+    },
+    {
+        "txid": 551029483,
+        "timestamp": "2026-09-06 17:05:00",
+        "relay_timestamp": "2026-09-06 17:04:59",
+        "input_addresses": ["1GtTjrBX92L5RL4QjKmoeuNbs9cBEYcd"],
+        "output_addresses": [
+            "1xB8Dj2FBAXbRT7eQH5nSgtKME1UWusEv",
+            "1UMVbFq2Pxw5qYchFs7XYTux5pdY",
+            "1VibkBxo6dxSbu8JtUWMvG1GPE",
+            "1xT9NrChtpqwQdEwVU4cRBF3TK8wqVef"
+        ],
+        "input_amounts": [1572.10528742],
+        "output_amounts": [322.95552869, 873.1272622, 339.92347716, 36.09822617],
+        "fee_btc": 0.0007932,
+        "script_type": "P2SH",
+        "scenario_id": "sample_licit_commerce",
+        "relay_ip": "120.144.43.62",
+        "relay_port": 8333,
+        "node_type": "residential",
+        "country_code": "GB",
+        "asn": "AS2856",
+        "isp": "British Telecommunications",
+        "protocol_version": 70015,
+        "user_agent": "/Satoshi:22.0.0/",
+        "propagation_delta_ms": 95.0,
+    },
+    {
+        "txid": 551029484,
+        "timestamp": "2026-09-06 17:10:00",
+        "relay_timestamp": "2026-09-06 17:09:59",
+        "input_addresses": ["1xB8Dj2FBAXbRT7eQH5nSgtKME1UWusEv"],
+        "output_addresses": ["1y8R7VY5P132SweHXBVa2GXaZrZqaH"],
+        "input_amounts": [322.95552869],
+        "output_amounts": [322.95499532],
+        "fee_btc": 0.00053337,
+        "script_type": "P2PKH",
+        "scenario_id": "sample_licit_commerce",
+        "relay_ip": "120.144.43.62",
+        "relay_port": 8333,
+        "node_type": "residential",
+        "country_code": "GB",
+        "asn": "AS2856",
+        "isp": "British Telecommunications",
+        "protocol_version": 70015,
+        "user_agent": "/Satoshi:22.0.0/",
+        "propagation_delta_ms": 110.0,
+    },
+    {
+        "txid": 551029485,
+        "timestamp": "2026-09-06 17:15:00",
+        "relay_timestamp": "2026-09-06 17:14:59",
+        "input_addresses": ["1UMVbFq2Pxw5qYchFs7XYTux5pdY"],
+        "output_addresses": [
+            "1yTSCa9dPpXBbjfcijpBYxAdvAU8RV",
+            "1HKVPRRXEkoN6RzVbkJp6kjS68Yj3xgAb",
+            "1C7qHcuqnGb6Qiz6rsG73EjW3pPh"
+        ],
+        "input_amounts": [873.1272622],
+        "output_amounts": [110.65228661, 523.80153197, 238.67267037],
+        "fee_btc": 0.00077325,
+        "script_type": "P2PKH",
+        "scenario_id": "sample_licit_commerce",
         "relay_ip": "73.189.44.201",
         "relay_port": 8333,
         "node_type": "residential",
@@ -271,6 +362,35 @@ AUTHENTIC_CORRELATION_PAIRS = [
         "protocol_version": 70015,
         "user_agent": "/Satoshi:22.0.0/",
         "propagation_delta_ms": 85.0,
+    },
+    {
+        "txid": 551029486,
+        "timestamp": "2026-09-06 17:20:00",
+        "relay_timestamp": "2026-09-06 17:19:59",
+        "input_addresses": ["1VibkBxo6dxSbu8JtUWMvG1GPE"],
+        "output_addresses": [
+            "1Rwkabd3FWPY3oPXF7EcJYA83iET",
+            "1L8RfHSkdvtbVtRvBcYttqkvSLLX",
+            "1EB3fw14YHPkHtVfs7kbsc1jgM6WLhG",
+            "1NhucNu22XYNgT3QPGkf7wbrqo9wnDw3Vj",
+            "1ufCP4SGyWWfUGrN2mz1UCE7Uwz1GQ7vQx",
+            "1BgEcdu1FyhUYaJwXSv8fAVkJauZQb2z",
+            "1gnaezUF6EbpTpARNt2dBcAKmPY"
+        ],
+        "input_amounts": [339.92347716],
+        "output_amounts": [15.73531123, 110.75560664, 17.41998495, 18.15967671, 75.14136022, 34.42161368, 68.28951686],
+        "fee_btc": 0.00040687,
+        "script_type": "P2SH",
+        "scenario_id": "sample_licit_commerce",
+        "relay_ip": "120.144.43.62",
+        "relay_port": 8333,
+        "node_type": "residential",
+        "country_code": "GB",
+        "asn": "AS2856",
+        "isp": "British Telecommunications",
+        "protocol_version": 70015,
+        "user_agent": "/Satoshi:22.0.0/",
+        "propagation_delta_ms": 105.0,
     }
 ]
 
@@ -386,8 +506,24 @@ def get_ingest_sample(
 def get_ingest_sample_pair():
     """
     Returns authentic dual-stream CSV strings (Stream 1: Blockchain Ledger, Stream 2: P2P Network Telemetry)
-    spanning real multi-hop scenarios (ransomware, peeling chain, CoinJoin, licit commerce).
+    spanning all 5 typologies (ransomware, layering, peeling chain, mixing, licit commerce).
     """
+    from pathlib import Path
+    base_dir = Path(__file__).resolve().parent.parent.parent.parent
+    ledger_path = base_dir / "test" / "sample_dual_stream_ledger.csv"
+    network_path = base_dir / "test" / "sample_dual_stream_network.csv"
+
+    if ledger_path.exists() and network_path.exists():
+        ledger_text = ledger_path.read_text(encoding="utf-8")
+        network_text = network_path.read_text(encoding="utf-8")
+        line_count = len([l for l in ledger_text.strip().split("\n") if l]) - 1
+        return {
+            "status": "SUCCESS",
+            "sample_count": line_count,
+            "ledger_csv": ledger_text,
+            "network_csv": network_text,
+        }
+
     import json
     ledger_lines = [
         "txid,timestamp,input_addresses,output_addresses,input_amounts,output_amounts,fee_btc,script_type,scenario_id"
@@ -397,7 +533,6 @@ def get_ingest_sample_pair():
     ]
 
     for item in AUTHENTIC_CORRELATION_PAIRS:
-        # Format JSON array fields with double quotes for CSV
         in_addrs_str = '"' + json.dumps(item["input_addresses"]).replace('"', '""') + '"'
         out_addrs_str = '"' + json.dumps(item["output_addresses"]).replace('"', '""') + '"'
         in_amts_str = '"' + json.dumps(item["input_amounts"]).replace('"', '""') + '"'

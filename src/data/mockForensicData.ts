@@ -113,11 +113,11 @@ export const COMMAND_REGISTRY: CommandDescriptor[] = [
   {
     name: 'correlate',
     aliases: ['upload', 'dualstream'],
-    usage: 'correlate',
-    summary: 'Dual-stream Ledger & P2P Telemetry correlation and V8 ML scoring view.',
-    description: 'Upload and merge on-chain UTXO transaction arrays with pre-block P2P network telemetry with instant SHAP attribution.',
+    usage: 'correlate | upload',
+    summary: 'Dual-stream correlation or single-file bulk ingestion with live V8 ML scoring.',
+    description: 'Upload and merge on-chain UTXO ledgers with P2P network telemetry, or ingest bulk CSV/JSON/XML transaction files with live XGBoost and Isolation Forest scoring.',
     category: 'FORENSICS',
-    examples: ['correlate', 'upload']
+    examples: ['upload', 'correlate', 'dualstream']
   },
   {
     name: 'ingest',
