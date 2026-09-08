@@ -1,4 +1,4 @@
-﻿# SIH PS146: AI-Powered Monitoring & Analysis of Bitcoin Transaction Traffic
+# SIH PS146: AI-Powered Monitoring & Analysis of Bitcoin Transaction Traffic
 
 [![Target OS: Linux / WSL2](https://img.shields.io/badge/OS-Ubuntu%2024.04%20LTS-E95420?logo=ubuntu&logoColor=white)](file:///c:/Users/arora/SIH/SIH-2026/docs/SETUP.md)
 [![Data Schema: v2.0 Finalized](https://img.shields.io/badge/Data%20Schema-v2.0%20(82%2C078%20txns)-blue)](file:///c:/Users/arora/SIH/SIH-2026/DATA_DICTIONARY.md)
@@ -264,9 +264,9 @@ npm run dev
 - [REST API Contract: docs/API_CONTRACT.md](file:///c:/Users/arora/SIH/SIH-2026/docs/API_CONTRACT.md)
 - [System Architecture: docs/ARCHITECTURE.md](file:///c:/Users/arora/SIH/SIH-2026/docs/ARCHITECTURE.md)
 - [Frontend Audit & Schema Reconciliation: docs/FRONTEND_AUDIT.md](file:///c:/Users/arora/SIH/SIH-2026/docs/FRONTEND_AUDIT.md)
-- [Task Tracking & Roadmap: docs/TODO.md](file:///c:/Users/arora/SIH/SIH-2026/docs/TODO.md)
-- [Environment Setup & WSL2 Guide: docs/SETUP.md](file:///c:/Users/arora/SIH/SIH-2026/docs/SETUP.md)
-- [Project Changelog: docs/CHANGELOG.md](file:///c:/Users/arora/SIH/SIH-2026/docs/CHANGELOG.md)
+- [Task Tracking & Roadmap: TODO.md](TODO.md)
+- [Environment Setup & WSL2 Guide: docs/SETUP.md](docs/SETUP.md)
+- [Project Changelog: CHANGELOG.md](CHANGELOG.md)
 - [Backend Specification: docs/backend/BACKEND.md](file:///c:/Users/arora/SIH/SIH-2026/docs/backend/BACKEND.md)
 - [Graph Construction & Typologies: docs/graph_ml/GRAPH.md](file:///c:/Users/arora/SIH/SIH-2026/docs/graph_ml/GRAPH.md)
 - [Machine Learning & Explainability: docs/graph_ml/ML.md](file:///c:/Users/arora/SIH/SIH-2026/docs/graph_ml/ML.md)
