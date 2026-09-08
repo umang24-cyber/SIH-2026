@@ -7,11 +7,18 @@ import { TraceView } from './views/TraceView';
 import { TwoStreamUploadView } from './views/TwoStreamUploadView';
 import { AlertDetailView } from './views/AlertDetailView';
 import { AlertsListView } from './views/AlertsListView';
+import { SearchView } from './views/SearchView';
+import { ScenariosListView } from './views/ScenariosListView';
+import { BenchmarkView } from './views/BenchmarkView';
+import { TelemetryStatsView } from './views/TelemetryStatsView';
+import { CommunitiesView } from './views/CommunitiesView';
+import { FlowView } from './views/FlowView';
+import { AnomalyView } from './views/AnomalyView';
 
 export interface TerminalEntry {
   id: string;
   command?: string;
-  type: 'BANNER' | 'TEXT' | 'ERROR' | 'SUCCESS' | 'HELP' | 'INSPECT' | 'TRACE' | 'LOGS' | 'GRAPH' | 'STATUS' | 'ALERTS' | 'ALERT_DETAIL' | 'TAINT' | 'DOSSIER' | 'DOSSIER_LIST' | 'TOR' | 'INGEST' | 'INGEST_BATCH' | 'TWO_STREAM_UPLOAD';
+  type: 'BANNER' | 'TEXT' | 'ERROR' | 'SUCCESS' | 'HELP' | 'INSPECT' | 'TRACE' | 'LOGS' | 'GRAPH' | 'STATUS' | 'ALERTS' | 'ALERT_DETAIL' | 'TAINT' | 'DOSSIER' | 'DOSSIER_LIST' | 'TOR' | 'INGEST' | 'INGEST_BATCH' | 'TWO_STREAM_UPLOAD' | 'SEARCH' | 'SCENARIOS' | 'BENCHMARK' | 'TELEMETRY' | 'COMMUNITIES' | 'FLOW' | 'ANOMALY';
   content?: any;
 }
 
@@ -60,25 +67,181 @@ function formatStatusOutput(content: any): string {
 }
 
 // Format HELP manual into authentic Linux shell manual
-function formatHelpOutput(): string {
+function formatHelpOutput(filter?: string | null): string {
+  if (filter) {
+    const f = filter.toLowerCase().trim();
+    const cmdInfo: Record<string, { usage: string; aliases: string[]; desc: string; examples: string[] }> = {
+      benchmark: {
+        usage: 'benchmark',
+        aliases: ['eval', 'metrics', 'accuracy'],
+        desc: 'Displays V8 quantitative model evaluation scorecard (Precision, Recall, F1 for Peeling Chains, Layering, Mixing, and Ransomware + 0.42ms inference latency).',
+        examples: ['benchmark', 'eval']
+      },
+      search: {
+        usage: 'search <query>',
+        aliases: ['find', 'query'],
+        desc: 'Universal multi-entity query across integer TxID, Bitcoin address, origin IP, ASN, or scenario cluster.',
+        examples: ['search 881920041', 'search 1PeelHeadWallet0001', 'search AS49981', 'search peeling_chain_04651']
+      },
+      scenarios: {
+        usage: 'scenarios [prefix] [page]',
+        aliases: ['clusters'],
+        desc: 'Paginated directory of scenario clusters with transaction counts, total BTC volumes, and relay node infrastructure.',
+        examples: ['scenarios', 'scenarios peel 1', 'scenarios mix 1', 'scenarios ransom 1']
+      },
+      telemetry: {
+        usage: 'telemetry',
+        aliases: ['stats', 'p2p'],
+        desc: 'Global P2P broadcast statistics across 82,078 transactions: node infrastructure distributions, propagation latency Δt, top ASNs and countries.',
+        examples: ['telemetry', 'stats']
+      },
+      communities: {
+        usage: 'communities [scenario_id]',
+        aliases: ['community', 'syndicates'],
+        desc: 'NetworkX greedy modularity community partition showing co-acting entity syndicates and wallet/transaction sub-clusters.',
+        examples: ['communities peeling_chain_04651', 'communities live_ransomware_probe']
+      },
+      flow: {
+        usage: 'flow <txid>',
+        aliases: ['decompose'],
+        desc: 'Financial UTXO input-to-output decomposition displaying CIOH entity cluster roots, miner fees, and broadcast relay network telemetry.',
+        examples: ['flow 881920041', 'flow 322596997']
+      },
+      anomaly: {
+        usage: 'anomaly [scenario_id]',
+        aliases: ['unusual'],
+        desc: 'Isolation Forest anomaly & unusualness score (0-100) relative to normal licit Bitcoin distribution (SIH PS146 compliant).',
+        examples: ['anomaly peeling_chain_04651', 'anomaly live_ransomware_probe']
+      },
+      correlate: {
+        usage: 'correlate',
+        aliases: ['upload', 'dualstream'],
+        desc: 'Dual-stream Ledger CSV & P2P Telemetry CSV correlation workspace with instant XGBoost inference and TreeSHAP attribution.',
+        examples: ['correlate', 'upload']
+      },
+      graph: {
+        usage: 'graph [scenario_id]',
+        aliases: ['dashboard', 'g', 'nodes'],
+        desc: '3D WebGL force-directed graph visualizer with Bitcoin medallion sprites, trust colors, and moving transaction particles.',
+        examples: ['graph', 'graph peeling_chain_04651', 'graph ransomware_03287']
+      },
+      inspect: {
+        usage: 'inspect <txid | address | scenario_id>',
+        aliases: ['i'],
+        desc: 'Deep forensic audit of multi-I/O UTXO arrays, miner fees, script type, and pre-block relay network telemetry.',
+        examples: ['inspect 881920041', 'inspect 18hvz1KnqUjLRr3KHifSbMDi6m', 'inspect peeling_chain_04651']
+      },
+      trace: {
+        usage: 'trace <source_address> <target_address>',
+        aliases: ['route'],
+        desc: 'Multi-hop BFS shortest path velocity tracer calculating the fastest flow of funds between two wallet addresses.',
+        examples: ['trace 18hvz1KnqUjLRr3KHifSbMDi6m 1A1zP1eP5QGefi2DMPTfTL5SLmv7DivfNa']
+      },
+      taint: {
+        usage: 'taint <seed_address>',
+        aliases: [],
+        desc: 'Forward dirty coin risk propagation and decay (FIFO / Haircut poisoning models) across downstream payment hops.',
+        examples: ['taint 18hvz1KnqUjLRr3KHifSbMDi6m']
+      },
+      alerts: {
+        usage: 'alerts [pattern_type] [--limit <n>]',
+        aliases: ['alert'],
+        desc: 'Real-time prioritized AML forensic alerts feed ranked by XGBoost risk score and SHAP feature evidence.',
+        examples: ['alerts', 'alerts peel', 'alerts ransomware', 'alerts --limit 10']
+      },
+      dossier: {
+        usage: 'dossier <txid | list>',
+        aliases: ['report'],
+        desc: 'Generates a confidential system investigative summary with transaction chronology and exportable report.',
+        examples: ['dossier 881920041', 'dossier list']
+      },
+      tor: {
+        usage: 'tor [txid]',
+        aliases: [],
+        desc: 'Passive multi-vantage Tor timing entropy profiler and relay de-anonymization metrics.',
+        examples: ['tor', 'tor 881920041']
+      },
+      ingest: {
+        usage: 'ingest sample [type] | ingest <raw_json>',
+        aliases: ['inject'],
+        desc: 'Dynamic live transaction injection with instant XGBoost risk scoring and TreeSHAP explainability.',
+        examples: ['ingest sample ransomware', 'ingest sample peeling_chain', 'ingest sample mixing']
+      },
+      logs: {
+        usage: 'logs',
+        aliases: ['log', 'stream'],
+        desc: 'Live mempool gossip telemetry and block ingestion event stream.',
+        examples: ['logs']
+      },
+      status: {
+        usage: 'status',
+        aliases: ['sys', 'health'],
+        desc: 'In-memory engine telemetry, loaded transaction counts, unique wallets, and system health.',
+        examples: ['status']
+      },
+      sound: {
+        usage: 'sound [on|off]',
+        aliases: ['audio'],
+        desc: 'Toggle procedural mechanical keyboard audio and alert chimes.',
+        examples: ['sound on', 'sound off']
+      },
+      clear: {
+        usage: 'clear',
+        aliases: ['cls'],
+        desc: 'Clear the terminal output screen buffer (Shortcut: Ctrl+L).',
+        examples: ['clear']
+      }
+    };
+
+    const target = Object.keys(cmdInfo).find(k => k === f || cmdInfo[k].aliases.includes(f));
+    if (target) {
+      const info = cmdInfo[target];
+      return [
+        '================================================================================',
+        ` BITKAUN-MAN(1) :: FORENSIC SYSCALL MANUAL :: ${target.toUpperCase()}`,
+        '================================================================================',
+        ` [COMMAND]     : ${target}`,
+        ` [USAGE]       : ${info.usage}`,
+        ` [ALIASES]     : ${info.aliases.length > 0 ? info.aliases.join(', ') : 'none'}`,
+        '--------------------------------------------------------------------------------',
+        ` [DESCRIPTION] : ${info.desc}`,
+        '--------------------------------------------------------------------------------',
+        ' [INVOCATION EXAMPLES] :',
+        ...info.examples.map(ex => `   > ${ex}`),
+        '================================================================================'
+      ].join('\n');
+    }
+  }
+
+  // Full manual index
   return [
     '================================================================================',
     ' BITKAUN V8 FORENSIC TERMINAL // COMMAND REFERENCE MANUAL',
     '================================================================================',
-    '  graph [scenario_id]   - 3D WebGL force-directed graph with Bitcoin sprites & orbs',
-    '  inspect <txid|addr>   - Deep audit of UTXO flows, fees, and P2P origin telemetry',
-    '  trace <src> <dst>     - Run multi-hop shortest path velocity trace',
-    '  taint <seed_address>  - Forward dirty coin risk propagation & decay',
-    '  alerts                - Real-time detected typology candidates & ML alerts',
-    '  dossier <txid|list>   - Generate a system investigative summary or list saved cases',
-    '  tor [txid]            - Tor timing entropy analysis & exit node profiler',
-    '  ingest sample [type]  - Dynamic injection of ransomware/peeling/mixing/licit flows',
-    '  ingest <raw_json>     - Dynamic live-injection of custom TX with instant ML scoring',
-    '  correlate / upload    - Dual-stream Ledger & P2P Telemetry correlation & V8 ML scoring',
-    '  logs                  - Live mempool & block ingestion event telemetry',
-    '  status                - In-memory engine telemetry, loaded counts & health',
-    '  sound [on|off]        - Toggle procedural mechanical keyboard & alert sounds',
-    '  clear                 - Clear terminal screen (Shortcut: Ctrl+L)',
+    '  graph [scenario_id]       - 3D WebGL force-directed graph with Bitcoin sprites & orbs',
+    '  inspect <txid|addr|sc_id> - Deep audit of UTXO flows, fees, and P2P origin telemetry',
+    '  trace <src> <dst>         - Run multi-hop shortest path velocity trace',
+    '  taint <seed_address>      - Forward dirty coin risk propagation & decay',
+    '  flow <txid>               - Financial UTXO flow decomposition & CIOH entity clusters',
+    '  communities <scenario_id> - Modularity-based entity syndicates & co-acting clusters',
+    '  anomaly <scenario_id>     - Isolation Forest structural & temporal unusualness score',
+    '  search <query>            - Universal search across TxID, wallet, IP, ASN, or scenario',
+    '  scenarios [prefix] [page] - Scenario cluster directory with volumes & node distributions',
+    '  alerts [pattern]          - Real-time detected typology candidates & ML alerts',
+    '  benchmark / eval          - Model evaluation scorecard (Precision, Recall, F1, Latency)',
+    '  telemetry / stats         - Global P2P broadcast telemetry & propagation latency stats',
+    '  dossier <txid|list>       - Generate LEA investigative summary or list saved cases',
+    '  tor [txid]                - Tor timing entropy analysis & exit node profiler',
+    '  ingest sample [type]      - Dynamic injection of ransomware/peeling/mixing/licit flows',
+    '  ingest <raw_json>         - Dynamic live-injection of custom TX with instant ML scoring',
+    '  correlate / upload        - Dual-stream Ledger & P2P Telemetry correlation & V8 ML scoring',
+    '  logs                      - Live mempool & block ingestion event telemetry',
+    '  status                    - In-memory engine telemetry, loaded counts & health',
+    '  sound [on|off]            - Toggle procedural mechanical keyboard & alert sounds',
+    '  clear                     - Clear terminal screen (Shortcut: Ctrl+L)',
+    '================================================================================',
+    '  SHORTCUTS: [Tab] Autocomplete | [Up/Down] History | [Ctrl+L] Clear Screen',
+    '  TIP: Type "help <command>" (e.g. "help flow", "help benchmark") for details',
     '================================================================================'
   ].join('\n');
 }
@@ -101,7 +264,11 @@ export const CliOutputRenderer: React.FC<CliOutputRendererProps> = React.memo(({
   }, [onScrollRequested]);
 
   // Complex interactive subwindows mount directly
-  const isInteractive = ['GRAPH', 'INSPECT', 'TRACE', 'DOSSIER', 'TAINT', 'TOR', 'ALERTS', 'ALERT_DETAIL', 'INGEST', 'INGEST_BATCH', 'TWO_STREAM_UPLOAD'].includes(entry.type);
+  const isInteractive = [
+    'GRAPH', 'INSPECT', 'TRACE', 'DOSSIER', 'TAINT', 'TOR', 'ALERTS', 'ALERT_DETAIL',
+    'INGEST', 'INGEST_BATCH', 'TWO_STREAM_UPLOAD', 'SEARCH', 'SCENARIOS', 'BENCHMARK',
+    'TELEMETRY', 'COMMUNITIES', 'FLOW', 'ANOMALY'
+  ].includes(entry.type);
 
   // Prepare full terminal text stream
   const fullTextToStream = useMemo(() => {
@@ -109,25 +276,37 @@ export const CliOutputRenderer: React.FC<CliOutputRendererProps> = React.memo(({
       return formatStatusOutput(entry.content);
     }
     if (entry.type === 'HELP') {
-      return formatHelpOutput();
+      return formatHelpOutput(entry.content?.filter);
     }
     if (entry.type === 'LOGS') {
-      const logItems: any[] = Array.isArray(entry.content) ? entry.content : [];
+      const logItems: any[] = Array.isArray(entry.content)
+        ? entry.content
+        : Array.isArray(entry.content?.events)
+        ? entry.content.events
+        : [];
       if (logItems.length === 0) {
         return '[STREAM] No active transactions in mempool buffer. Stream connection healthy.';
       }
       return [
-        '================================================================================',
+        '========================================================================================================',
         ` LIVE MEMPOOL & INGESTION TELEMETRY STREAM (${logItems.length} RECENT EVENTS)`,
-        '================================================================================',
+        '========================================================================================================',
         ...logItems.map((item, idx) => {
           const txid = item.txid || item.id || `TX_${idx}`;
-          const amt = item.amount_btc !== undefined ? `${item.amount_btc} BTC` : '0.00 BTC';
-          const ip = item.relay_ip || '127.0.0.1';
-          const flag = item.is_tor ? '[TOR_EXIT]' : item.typology ? `[${item.typology.toUpperCase()}]` : '[CLEAN]';
-          return ` [${idx + 1}] TX:${txid.toString().padEnd(10)} | ${amt.padEnd(12)} | IP: ${ip.padEnd(15)} | ${flag}`;
+          const amt = item.amount_btc !== undefined ? `${Number(item.amount_btc).toFixed(4)} BTC` : '0.0000 BTC';
+          const ip = item.ip_address || item.relay_ip || '127.0.0.1';
+          const country = item.country ? `[${item.country}]` : '[--]';
+          const nodeType = (item.node_type || 'residential').toUpperCase();
+          const flag = item.is_tor
+            ? '[TOR_EXIT]'
+            : item.risk_level === 'HIGH'
+            ? `[RISK_HIGH:${Math.round((item.risk_score || 0) * 100)}%]`
+            : item.typology
+            ? `[${item.typology.toUpperCase()}]`
+            : '[CLEAN]';
+          return ` [${(idx + 1).toString().padStart(2, ' ')}] TX:${txid.toString().padEnd(10)} | ${amt.padEnd(14)} | IP: ${ip.padEnd(15)} ${country.padEnd(5)} | ${flag.padEnd(16)} | NODE: ${nodeType}`;
         }),
-        '================================================================================'
+        '========================================================================================================'
       ].join('\n');
     }
     return entry.content?.message || (typeof entry.content === 'string' ? entry.content : '');
@@ -540,6 +719,92 @@ export const CliOutputRenderer: React.FC<CliOutputRendererProps> = React.memo(({
           onRunCommand={onRunCommand}
           onClose={onCloseEntry ? () => onCloseEntry(entry.id) : undefined}
         />
+      )}
+
+      {/* 7e. UNIVERSAL FORENSIC SEARCH VIEW */}
+      {entry.type === 'SEARCH' && entry.content && (
+        <div className="output-block" style={{ border: '1px solid #00aa44', padding: '12px', background: 'var(--bg-card)' }}>
+          <SearchView
+            query={entry.content.query || ''}
+            matchType={entry.content.match_type || 'UNKNOWN'}
+            matches={entry.content.matches || []}
+            onRunCommand={onRunCommand}
+            onClose={onCloseEntry ? () => onCloseEntry(entry.id) : undefined}
+          />
+        </div>
+      )}
+
+      {/* 7f. SCENARIO DIRECTORY & CLUSTER EXPLORER */}
+      {entry.type === 'SCENARIOS' && entry.content && (
+        <div className="output-block" style={{ border: '1px solid #00aa44', padding: '12px', background: 'var(--bg-card)' }}>
+          <ScenariosListView
+            scenarios={entry.content.scenarios || []}
+            totalScenarios={entry.content.total_scenarios || 0}
+            currentPage={entry.content.page || 1}
+            pageSize={entry.content.page_size || 20}
+            currentPrefix={entry.content.prefix || ''}
+            onRunCommand={onRunCommand}
+            onClose={onCloseEntry ? () => onCloseEntry(entry.id) : undefined}
+          />
+        </div>
+      )}
+
+      {/* 7g. MODEL EVALUATION BENCHMARK SCORECARD */}
+      {entry.type === 'BENCHMARK' && entry.content && (
+        <div className="output-block" style={{ border: '1px solid #00aa44', padding: '12px', background: 'var(--bg-card)' }}>
+          <BenchmarkView
+            benchmark={entry.content}
+            onRunCommand={onRunCommand}
+            onClose={onCloseEntry ? () => onCloseEntry(entry.id) : undefined}
+          />
+        </div>
+      )}
+
+      {/* 7h. GLOBAL NETWORK TELEMETRY & PROPAGATION STATS */}
+      {entry.type === 'TELEMETRY' && entry.content && (
+        <div className="output-block" style={{ border: '1px solid #00aa44', padding: '12px', background: 'var(--bg-card)' }}>
+          <TelemetryStatsView
+            stats={entry.content}
+            onRunCommand={onRunCommand}
+            onClose={onCloseEntry ? () => onCloseEntry(entry.id) : undefined}
+          />
+        </div>
+      )}
+
+      {/* 7i. GRAPH MODULARITY & COMMUNITY PARTITIONS */}
+      {entry.type === 'COMMUNITIES' && entry.content && (
+        <div className="output-block" style={{ border: '1px solid #00aa44', padding: '12px', background: 'var(--bg-card)' }}>
+          <CommunitiesView
+            data={entry.content}
+            scenarioId={entry.content.scenario_id || ''}
+            onRunCommand={onRunCommand}
+            onClose={onCloseEntry ? () => onCloseEntry(entry.id) : undefined}
+          />
+        </div>
+      )}
+
+      {/* 7j. FINANCIAL UTXO FLOW & CIOH ENTITY DECOMPOSITION */}
+      {entry.type === 'FLOW' && entry.content && (
+        <div className="output-block" style={{ border: '1px solid #00aa44', padding: '12px', background: 'var(--bg-card)' }}>
+          <FlowView
+            data={entry.content}
+            txid={entry.content.txid}
+            onRunCommand={onRunCommand}
+            onClose={onCloseEntry ? () => onCloseEntry(entry.id) : undefined}
+          />
+        </div>
+      )}
+
+      {/* 7k. ISOLATION FOREST ANOMALY & UNUSUALNESS VIEW */}
+      {entry.type === 'ANOMALY' && entry.content && (
+        <div className="output-block" style={{ border: '1px solid #00aa44', padding: '12px', background: 'var(--bg-card)' }}>
+          <AnomalyView
+            data={entry.content}
+            scenarioId={entry.content.scenario_id || ''}
+            onRunCommand={onRunCommand}
+            onClose={onCloseEntry ? () => onCloseEntry(entry.id) : undefined}
+          />
+        </div>
       )}
 
       {/* 8. AUTHENTIC CHARACTER-STREAMED LINUX TTY TERMINAL OUTPUT */}

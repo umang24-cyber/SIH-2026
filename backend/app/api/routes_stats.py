@@ -130,7 +130,7 @@ def get_evaluation_benchmark():
     total_alerts = len(typology_detector.detected_alerts)
 
     return {
-        "dataset_version": "v2.0 (82,078 transactions)",
+        "dataset_version": "v8.0 (82,078 transactions)",
         "evaluation_scope": "Offline Air-Gapped Validation Benchmark",
         "candidate_alerts_flagged": total_alerts,
         "performance_metrics": {
@@ -182,7 +182,7 @@ def export_forensic_dossier(candidate_id: str):
         f"BINARY P(ILLICIT)   : {evidence.binary_confidence * 100:.1f}%",
         f"TYPOLOGY CONFIDENCE : {evidence.typology_confidence * 100:.1f}%",
         "DATA STATUS         : Synthetic / Demonstration Dataset",
-        "MODEL STATUS        : V7 Frozen Synthetic Benchmark",
+        "MODEL STATUS        : V8 Frozen Synthetic Benchmark",
         "-" * 80,
         "HEURISTIC MATCH SUMMARY:",
         f"  - Algorithm Applied       : {evidence.typology_heuristic_match.get('heuristic_name')}",

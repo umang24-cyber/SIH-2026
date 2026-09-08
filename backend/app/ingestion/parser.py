@@ -37,17 +37,48 @@ def parse_json_column(val: Any) -> list:
 def normalize_transaction_dict(d: Dict[str, Any]) -> Dict[str, Any]:
     """Standardize transaction dictionary keys and types for ingestion."""
     txid = int(d.get("txid", 0))
+    if txid == 0:
+        import time
+        txid = int(time.time() * 1000) % 900000000 + 100000000
+
     ts = str(d.get("timestamp", "2026-09-06 12:00:00"))
     relay_ts = str(d.get("relay_timestamp") or ts)
 
-    in_addrs = parse_json_column(d.get("input_addresses", []))
-    out_addrs = parse_json_column(d.get("output_addresses", []))
+    raw_in = d.get("input_addresses") or d.get("inputs", [])
+    raw_out = d.get("output_addresses") or d.get("outputs", [])
 
-    raw_in_amts = parse_json_column(d.get("input_amounts", []))
-    raw_out_amts = parse_json_column(d.get("output_amounts", []))
+    in_addrs = []
+    in_amts = []
+    if isinstance(raw_in, list):
+        for item in raw_in:
+            if isinstance(item, dict):
+                in_addrs.append(str(item.get("address", "")))
+                if "amount" in item:
+                    in_amts.append(float(item["amount"]))
+            else:
+                in_addrs.append(str(item))
+    else:
+        in_addrs = parse_json_column(raw_in)
 
-    in_amts = [float(x) for x in raw_in_amts] if raw_in_amts else [1.0]
-    out_amts = [float(x) for x in raw_out_amts] if raw_out_amts else [1.0]
+    out_addrs = []
+    out_amts = []
+    if isinstance(raw_out, list):
+        for item in raw_out:
+            if isinstance(item, dict):
+                out_addrs.append(str(item.get("address", "")))
+                if "amount" in item:
+                    out_amts.append(float(item["amount"]))
+            else:
+                out_addrs.append(str(item))
+    else:
+        out_addrs = parse_json_column(raw_out)
+
+    if not in_amts:
+        raw_in_amts = parse_json_column(d.get("input_amounts", []))
+        in_amts = [float(x) for x in raw_in_amts] if raw_in_amts else [2.5]
+    if not out_amts:
+        raw_out_amts = parse_json_column(d.get("output_amounts", []))
+        out_amts = [float(x) for x in raw_out_amts] if raw_out_amts else [2.5]
 
     # Satoshi-safe normalization: Bitcoin hard cap is 21,000,000 BTC.
     # If values were recorded in satoshis (>= 21,000,000), convert to BTC (/ 1e8).

@@ -3,14 +3,15 @@ Universal Forensic Search Route.
 Allows investigators to query by address, txid, IP, ASN, or scenario.
 """
 from fastapi import APIRouter, Query
-from typing import List, Dict, Any
+from typing import List, Dict, Any, Optional
 from backend.app.services.data_service import data_service
 
 router = APIRouter(tags=["Search"])
 
 @router.get("/search")
 def search_ledger(
-    q: str = Query(..., min_length=2, description="Search query: Address, TxID, IP, ASN, or Scenario ID"),
+    q: Optional[str] = Query(None, description="Search query: Address, TxID, IP, ASN, or Scenario ID"),
+    query: Optional[str] = Query(None, description="Alternative param alias for search query"),
     limit: int = Query(20, ge=1, le=100)
 ):
     """
@@ -21,12 +22,15 @@ def search_ledger(
     - If q is an ASN (e.g. AS55836), returns infrastructure transactions
     - If q is a scenario ID (e.g. peel_001), returns scenario members
     """
-    query = q.strip()
+    term = (q or query or "").strip()
+    query = term
     results: Dict[str, Any] = {
         "query": query,
         "match_type": "UNKNOWN",
         "matches": []
     }
+    if not query:
+        return results
 
     # 1. Check if integer TxID
     if query.isdigit():

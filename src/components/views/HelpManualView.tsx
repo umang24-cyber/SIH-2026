@@ -75,22 +75,25 @@ export const HelpManualView: React.FC<HelpManualViewProps> = ({
         <div>
           <div className="man-section-title">NAME</div>
           <p style={{ paddingLeft: '16px' }}>
-            <strong>holmes-terminal</strong> - Interactive 3D graph cryptocurrency & blockchain forensic console.
+            <strong>bitkaun-terminal</strong> - Interactive 3D graph cryptocurrency & blockchain forensic console (V8 Air-Gapped Engine).
           </p>
 
           <div className="man-section-title">FORENSIC INVESTIGATION WORKFLOW (HOW TO USE)</div>
           <div style={{ paddingLeft: '16px', borderLeft: '2px solid #00ff66', marginLeft: '8px', paddingBottom: '4px' }}>
             <p style={{ marginBottom: '6px' }}>
-              <strong>Step 1: Discover Entity Topology</strong> — Type <span className="cmd-clickable" onClick={() => onRunCommand('graph')}>graph</span> or <span className="cmd-clickable" onClick={() => onRunCommand('g')}>g</span> to mount the 3D Force-Directed Graph canvas. Rotate and inspect wallet clusters.
+              <strong>Step 1: Explore Scenarios & Graph Topology</strong> — Type <span className="cmd-clickable" onClick={() => onRunCommand('scenarios')}>scenarios</span> or <span className="cmd-clickable" onClick={() => onRunCommand('graph')}>graph</span> to mount the 3D Force-Directed Graph canvas.
             </p>
             <p style={{ marginBottom: '6px' }}>
-              <strong>Step 2: Inspect Suspicious Nodes</strong> — Type <span className="cmd-clickable" onClick={() => onRunCommand('inspect 0x71C84A9E')}>inspect 0x71C84A9E</span> to audit bytecode, flags, balance, and risk score.
+              <strong>Step 2: Inspect Financial Flows & Entities</strong> — Type <span className="cmd-clickable" onClick={() => onRunCommand('inspect 881920041')}>inspect 881920041</span> or <span className="cmd-clickable" onClick={() => onRunCommand('flow 881920041')}>flow 881920041</span> to audit UTXO amounts, fees, and CIOH clusters.
             </p>
             <p style={{ marginBottom: '6px' }}>
-              <strong>Step 3: Trace Laundering Trails</strong> — Type <span className="cmd-clickable" onClick={() => onRunCommand('trace 0x5C8821FF 0xEE3388A1')}>trace 0x5C8821FF 0xEE3388A1</span> to compute shortest laundering paths and follow the flow of funds.
+              <strong>Step 3: Propagate Taint & Multi-Hop Trace</strong> — Type <span className="cmd-clickable" onClick={() => onRunCommand('taint 18hvz1KnqUjLRr3KHifSbMDi6m')}>taint 18hvz1KnqUjLRr3KHifSbMDi6m</span> to calculate dirty coin decay across hops.
             </p>
             <p style={{ marginBottom: '6px' }}>
-              <strong>Step 4: Monitor Live Intercepts</strong> — Type <span className="cmd-clickable" onClick={() => onRunCommand('dmesg')}>dmesg</span> to watch realtime kernel mempool intercepts.
+              <strong>Step 4: Audit Syndicates & Anomalies</strong> — Type <span className="cmd-clickable" onClick={() => onRunCommand('communities peeling_chain_04651')}>communities peeling_chain_04651</span> and <span className="cmd-clickable" onClick={() => onRunCommand('anomaly peeling_chain_04651')}>anomaly peeling_chain_04651</span>.
+            </p>
+            <p style={{ marginBottom: '6px' }}>
+              <strong>Step 5: Review ML Alerts & Benchmark</strong> — Type <span className="cmd-clickable" onClick={() => onRunCommand('alerts')}>alerts</span> or <span className="cmd-clickable" onClick={() => onRunCommand('benchmark')}>benchmark</span> for detection accuracy and SHAP explainability.
             </p>
           </div>
 

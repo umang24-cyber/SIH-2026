@@ -296,11 +296,65 @@ export const api = {
     return fetchJson<{ total_alerts: number; alerts: AlertSummary[] }>(`/alerts?${params.toString()}`);
   },
   getAlertEvidence: (candidateId: string) => fetchJson<EvidenceResponse>(`/alerts/${encodeURIComponent(candidateId)}/evidence`),
-  getScenarios: (limit = 50, offset = 0) => fetchJson<any>(`/scenarios?limit=${limit}&offset=${offset}`),
+  getScenarios: (prefix?: string, page = 1, pageSize = 20) => {
+    const params = new URLSearchParams({
+      page: String(page),
+      page_size: String(pageSize),
+    });
+    if (prefix) {
+      params.append('prefix', prefix);
+    }
+    return fetchJson<{
+      total_scenarios: number;
+      page: number;
+      page_size: number;
+      scenarios: Array<{
+        scenario_id: string;
+        transaction_count: number;
+        total_volume_btc: number;
+        primary_node_type: string;
+      }>;
+    }>(`/scenarios?${params.toString()}`);
+  },
   getScenario: (scenarioId: string) => fetchJson<any>(`/scenarios/${scenarioId}`),
   getStatsOverview: () => fetchJson<any>('/stats/overview'),
-  getStatsTelemetry: () => fetchJson<any>('/stats/telemetry'),
-  search: (query: string) => fetchJson<any>(`/search?query=${encodeURIComponent(query)}`),
+  getStatsTelemetry: () => fetchJson<{
+    total_transactions: number;
+    total_unique_wallets: number;
+    total_scenarios: number;
+    node_type_distribution: Record<string, number>;
+    top_asns: Record<string, number>;
+    top_countries: Record<string, number>;
+    script_type_distribution: Record<string, number>;
+    average_propagation_latency_ms: Record<string, number>;
+  }>('/stats/telemetry'),
+  getBenchmark: () => fetchJson<{
+    dataset_version: string;
+    evaluation_scope: string;
+    candidate_alerts_flagged: number;
+    performance_metrics: {
+      peeling_chain: { precision: number; recall: number; f1_score: number; detected_chains: number };
+      layering: { precision: number; recall: number; f1_score: number; detected_structures: number };
+      mixing_coinjoin: { precision: number; recall: number; f1_score: number; detected_rounds: number };
+      ransomware: { precision: number; recall: number; f1_score: number; detected_campaigns: number };
+    };
+    overall_macro_f1: number;
+    average_inference_latency_ms: number;
+  }>('/eval/benchmark'),
+  getAnomalyScore: (scenarioId: string) => fetchJson<{
+    scenario_id: string;
+    isolation_forest_score: number;
+    anomaly_level: 'LOW' | 'MEDIUM' | 'HIGH';
+    n_transactions: number;
+    mean_propagation_delta_ms: number;
+    suspicious_node_ratio: number;
+    message: string;
+  }>(`/anomaly/${encodeURIComponent(scenarioId)}`),
+  search: (query: string) => fetchJson<{
+    query: string;
+    match_type: 'TRANSACTION' | 'WALLET' | 'SCENARIO' | 'TELEMETRY' | 'UNKNOWN';
+    matches: any[];
+  }>(`/search?q=${encodeURIComponent(query)}`),
   getDossier: (txid: number | string) => fetchJson<DossierResponse>(`/api/dossier/${txid}`),
   getTorSummary: () => fetchJson<TorSummary>('/api/intel/tor-summary'),
   getTorProfiler: (txid: number | string) => fetchJson<any>(`/api/intel/tor-profiler/${txid}`),

@@ -48,6 +48,87 @@ export const COMMAND_REGISTRY: CommandDescriptor[] = [
     examples: ['alerts', 'alerts --limit 10', 'alerts --detail cand_ransom_ransomware_03287_187888339']
   },
   {
+    name: 'search',
+    aliases: ['find', 'query'],
+    usage: 'search <query>',
+    summary: 'Universal search across TxID, wallet address, IP, ASN, or scenario cluster.',
+    description: 'Searches all indexed transactions, entities, scenario clusters, and network relay infrastructure.',
+    category: 'FORENSICS',
+    examples: ['search 881920041', 'search 1PeelHeadWallet0001', 'search AS49981', 'search peeling_chain_04651']
+  },
+  {
+    name: 'scenarios',
+    aliases: ['clusters'],
+    usage: 'scenarios [prefix] [page]',
+    summary: 'Paginated scenario cluster explorer with transaction counts and financial volume.',
+    description: 'Browse scenario clusters partitioned by laundering typology (peeling, mixing, layering, ransomware, licit).',
+    category: 'FORENSICS',
+    examples: ['scenarios', 'scenarios peel 1', 'scenarios mix 1', 'scenarios ransom 1']
+  },
+  {
+    name: 'benchmark',
+    aliases: ['eval', 'metrics', 'accuracy'],
+    usage: 'benchmark',
+    summary: 'V8 model evaluation scorecard (Precision, Recall, F1, and Latency).',
+    description: 'Quantitative accuracy benchmark across peeling chains, layering hubs, mixing rounds, and ransomware campaigns.',
+    category: 'SYSTEM',
+    examples: ['benchmark', 'eval']
+  },
+  {
+    name: 'telemetry',
+    aliases: ['stats', 'p2p'],
+    usage: 'telemetry',
+    summary: 'Global network telemetry, propagation latency Δt, and relay distributions.',
+    description: 'Aggregates P2P origin node infrastructure (Tor, VPN, Datacenter, Residential), top ASNs, and countries.',
+    category: 'SYSTEM',
+    examples: ['telemetry', 'stats']
+  },
+  {
+    name: 'communities',
+    aliases: ['community', 'syndicates'],
+    usage: 'communities [scenario_id]',
+    summary: 'NetworkX greedy modularity partition showing co-acting entity syndicates.',
+    description: 'Discovers dense co-acting wallet and transaction clusters within a scenario subgraph.',
+    category: 'FORENSICS',
+    examples: ['communities peeling_chain_04651', 'communities live_ransomware_probe']
+  },
+  {
+    name: 'flow',
+    aliases: ['decompose'],
+    usage: 'flow <txid>',
+    summary: 'Financial UTXO input-to-output decomposition and CIOH entity clusters.',
+    description: 'Decomposes transaction inputs, entity cluster roots, miner fees, and broadcast network telemetry.',
+    category: 'FORENSICS',
+    examples: ['flow 881920041', 'flow 322596997']
+  },
+  {
+    name: 'anomaly',
+    aliases: ['unusual'],
+    usage: 'anomaly [scenario_id]',
+    summary: 'Isolation Forest anomaly & unusualness score (0-100).',
+    description: 'Evaluates structural and temporal deviation against normal licit Bitcoin reference distribution (SIH PS146).',
+    category: 'FORENSICS',
+    examples: ['anomaly peeling_chain_04651', 'anomaly live_ransomware_probe']
+  },
+  {
+    name: 'correlate',
+    aliases: ['upload', 'dualstream'],
+    usage: 'correlate',
+    summary: 'Dual-stream Ledger & P2P Telemetry correlation and V8 ML scoring view.',
+    description: 'Upload and merge on-chain UTXO transaction arrays with pre-block P2P network telemetry with instant SHAP attribution.',
+    category: 'FORENSICS',
+    examples: ['correlate', 'upload']
+  },
+  {
+    name: 'ingest',
+    aliases: ['inject'],
+    usage: 'ingest sample [type] | ingest <raw_json>',
+    summary: 'Dynamic live transaction injection with real-time ML risk scoring.',
+    description: 'Inject custom raw transaction JSON or benchmark samples (ransomware, peeling, mixing, licit) into in-memory engine.',
+    category: 'SYSTEM',
+    examples: ['ingest sample ransomware', 'ingest sample peeling', 'ingest sample mixing']
+  },
+  {
     name: 'dossier',
     aliases: ['report'],
     usage: 'dossier <txid>',

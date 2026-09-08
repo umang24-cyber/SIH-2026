@@ -19,6 +19,17 @@ export const InspectView: React.FC<InspectViewProps> = ({ node, data, onRunComma
   const isEntity = !isTx && !isScenario;
   const scenarioId = data?.scenario_id || (node.id.startsWith('SCENARIO:') ? node.id.replace('SCENARIO:', '') : node.id);
 
+  // Dynamically resolve target scenario cluster for 3D Graph viewing
+  const targetScenarioId =
+    (isScenario ? scenarioId : null) ||
+    data?.scenario_id ||
+    (Array.isArray(data?.associated_scenarios) && data.associated_scenarios.length > 0 ? data.associated_scenarios[0] : null) ||
+    (node.clusterId && !node.clusterId.startsWith('entity_') && node.clusterId !== 'UNCLUSTERED' ? node.clusterId : null) ||
+    (Array.isArray(node.tags) && node.tags.length > 0 && typeof node.tags[0] === 'string' && !node.tags[0].includes(' ') ? node.tags[0] : null) ||
+    'peeling_chain_04606';
+
+  const cleanTxId = data?.txid ? String(data.txid) : node.id.replace(/^TX:/, '');
+
   return (
     <div style={{ maxWidth: '1100px', margin: '0 auto', fontSize: '14px' }}>
       <div style={{ borderBottom: '1px solid #00ff66', paddingBottom: '6px', marginBottom: '14px', display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap' }}>
@@ -208,7 +219,7 @@ export const InspectView: React.FC<InspectViewProps> = ({ node, data, onRunComma
       {/* Quick Navigation Commands */}
       <div style={{ display: 'flex', gap: '12px', flexWrap: 'wrap', fontSize: '14px', marginTop: '14px' }}>
         <span style={{ color: '#007a33' }}>Available Actions:</span>
-        <span className="cmd-clickable" onClick={() => onRunCommand(isScenario ? `graph ${scenarioId}` : 'graph')}>
+        <span className="cmd-clickable" onClick={() => onRunCommand(`graph ${targetScenarioId}`)}>
           [{isScenario ? '🌐 View Scenario in 3D Graph' : 'Switch to 3D Graph'}]
         </span>
         {isEntity && (
@@ -217,7 +228,7 @@ export const InspectView: React.FC<InspectViewProps> = ({ node, data, onRunComma
           </span>
         )}
         {isTx && (
-          <span className="cmd-clickable" onClick={() => onRunCommand(`dossier ${node.id}`)}>
+          <span className="cmd-clickable" onClick={() => onRunCommand(`dossier ${cleanTxId}`)}>
             [Generate Investigation Summary]
           </span>
         )}

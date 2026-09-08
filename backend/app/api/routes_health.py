@@ -11,6 +11,7 @@ from backend.app.models.schemas import HealthResponse
 router = APIRouter(tags=["System"])
 
 @router.get("/health", response_model=HealthResponse)
+@router.get("/api/health", response_model=HealthResponse)
 def get_health():
     """Returns runtime system status, loaded transaction count, and uptime."""
     stats = data_service.get_stats()

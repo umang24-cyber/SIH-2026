@@ -10,7 +10,7 @@ import { api } from './services/api';
 interface TerminalEntry {
   id: string;
   command?: string;
-  type: 'BANNER' | 'TEXT' | 'ERROR' | 'SUCCESS' | 'HELP' | 'INSPECT' | 'TRACE' | 'LOGS' | 'GRAPH' | 'STATUS' | 'ALERTS' | 'ALERT_DETAIL' | 'TAINT' | 'DOSSIER' | 'DOSSIER_LIST' | 'TOR' | 'INGEST' | 'INGEST_BATCH' | 'TWO_STREAM_UPLOAD';
+  type: 'BANNER' | 'TEXT' | 'ERROR' | 'SUCCESS' | 'HELP' | 'INSPECT' | 'TRACE' | 'LOGS' | 'GRAPH' | 'STATUS' | 'ALERTS' | 'ALERT_DETAIL' | 'TAINT' | 'DOSSIER' | 'DOSSIER_LIST' | 'TOR' | 'INGEST' | 'INGEST_BATCH' | 'TWO_STREAM_UPLOAD' | 'SEARCH' | 'SCENARIOS' | 'BENCHMARK' | 'TELEMETRY' | 'COMMUNITIES' | 'FLOW' | 'ANOMALY';
   content?: any;
 }
 
@@ -792,7 +792,8 @@ export function App() {
         sound.playEnterSuccess();
         setPendingCommand(trimmed);
         try {
-          const batch = await api.getStreamBatch(15);
+          const streamLimit = Math.min(Math.max(parseInt(arg1, 10) || 15, 1), 100);
+          const batch = await api.getStreamBatch(streamLimit);
           setEntries(prev => [
             ...prev,
             {
@@ -1024,6 +1025,297 @@ export function App() {
             type: 'TWO_STREAM_UPLOAD',
           }
         ]);
+        break;
+
+      case 'search':
+      case 'find':
+      case 'query':
+        {
+          const query = trimmed.slice(root.length).trim();
+          if (!query) {
+            sound.playErrorChirp();
+            setEntries(prev => [
+              ...prev,
+              {
+                id: `entry-${Date.now()}`,
+                command: trimmed,
+                type: 'ERROR',
+                content: { message: "Usage: search <txid | address | IP | ASN | scenario_id>\nExamples:\n  search 881920041\n  search 1PeelHeadWallet0001\n  search AS49981\n  search peeling_chain_04651" }
+              }
+            ]);
+            return;
+          }
+          sound.playEnterSuccess();
+          setPendingCommand(trimmed);
+          try {
+            const res = await api.search(query);
+            setEntries(prev => [
+              ...prev,
+              {
+                id: `entry-${Date.now()}`,
+                command: trimmed,
+                type: 'SEARCH',
+                content: res
+              }
+            ]);
+          } catch (err: any) {
+            sound.playErrorChirp();
+            setEntries(prev => [
+              ...prev,
+              {
+                id: `entry-${Date.now()}`,
+                command: trimmed,
+                type: 'ERROR',
+                content: { message: `Forensic search failed: ${err.message}` }
+              }
+            ]);
+          } finally {
+            setPendingCommand(null);
+          }
+        }
+        break;
+
+      case 'scenarios':
+      case 'clusters':
+        {
+          sound.playEnterSuccess();
+          setPendingCommand(trimmed);
+          let prefix: string | undefined = undefined;
+          let page = 1;
+
+          if (arg1 && isNaN(Number(arg1))) {
+            prefix = arg1;
+            if (arg2 && !isNaN(Number(arg2))) {
+              page = Math.max(1, parseInt(arg2, 10));
+            }
+          } else if (arg1 && !isNaN(Number(arg1))) {
+            page = Math.max(1, parseInt(arg1, 10));
+          }
+
+          try {
+            const res = await api.getScenarios(prefix, page, 20);
+            setEntries(prev => [
+              ...prev,
+              {
+                id: `entry-${Date.now()}`,
+                command: trimmed,
+                type: 'SCENARIOS',
+                content: { ...res, prefix }
+              }
+            ]);
+          } catch (err: any) {
+            sound.playErrorChirp();
+            setEntries(prev => [
+              ...prev,
+              {
+                id: `entry-${Date.now()}`,
+                command: trimmed,
+                type: 'ERROR',
+                content: { message: `Scenario directory retrieval failed: ${err.message}` }
+              }
+            ]);
+          } finally {
+            setPendingCommand(null);
+          }
+        }
+        break;
+
+      case 'benchmark':
+      case 'eval':
+      case 'metrics':
+      case 'accuracy':
+        {
+          sound.playEnterSuccess();
+          setPendingCommand(trimmed);
+          try {
+            const res = await api.getBenchmark();
+            setEntries(prev => [
+              ...prev,
+              {
+                id: `entry-${Date.now()}`,
+                command: trimmed,
+                type: 'BENCHMARK',
+                content: res
+              }
+            ]);
+          } catch (err: any) {
+            sound.playErrorChirp();
+            setEntries(prev => [
+              ...prev,
+              {
+                id: `entry-${Date.now()}`,
+                command: trimmed,
+                type: 'ERROR',
+                content: { message: `Benchmark evaluation failed: ${err.message}` }
+              }
+            ]);
+          } finally {
+            setPendingCommand(null);
+          }
+        }
+        break;
+
+      case 'telemetry':
+      case 'stats':
+      case 'p2p':
+        {
+          sound.playEnterSuccess();
+          setPendingCommand(trimmed);
+          try {
+            const res = await api.getStatsTelemetry();
+            setEntries(prev => [
+              ...prev,
+              {
+                id: `entry-${Date.now()}`,
+                command: trimmed,
+                type: 'TELEMETRY',
+                content: res
+              }
+            ]);
+          } catch (err: any) {
+            sound.playErrorChirp();
+            setEntries(prev => [
+              ...prev,
+              {
+                id: `entry-${Date.now()}`,
+                command: trimmed,
+                type: 'ERROR',
+                content: { message: `Telemetry statistics retrieval failed: ${err.message}` }
+              }
+            ]);
+          } finally {
+            setPendingCommand(null);
+          }
+        }
+        break;
+
+      case 'communities':
+      case 'community':
+      case 'syndicates':
+        {
+          const targetScenario = arg1 || 'peeling_chain_04651';
+          sound.playEnterSuccess();
+          setPendingCommand(trimmed);
+          try {
+            const res = await api.getGraphCommunities(targetScenario);
+            setEntries(prev => [
+              ...prev,
+              {
+                id: `entry-${Date.now()}`,
+                command: trimmed,
+                type: 'COMMUNITIES',
+                content: { ...res, scenario_id: targetScenario }
+              }
+            ]);
+          } catch (err: any) {
+            sound.playErrorChirp();
+            setEntries(prev => [
+              ...prev,
+              {
+                id: `entry-${Date.now()}`,
+                command: trimmed,
+                type: 'ERROR',
+                content: { message: `Community detection failed for '${targetScenario}': ${err.message}` }
+              }
+            ]);
+          } finally {
+            setPendingCommand(null);
+          }
+        }
+        break;
+
+      case 'flow':
+      case 'decompose':
+        {
+          if (!arg1) {
+            sound.playErrorChirp();
+            setEntries(prev => [
+              ...prev,
+              {
+                id: `entry-${Date.now()}`,
+                command: trimmed,
+                type: 'ERROR',
+                content: { message: "Usage: flow <txid> (e.g. 'flow 881920041')" }
+              }
+            ]);
+            return;
+          }
+          const txidNum = parseInt(arg1, 10);
+          if (isNaN(txidNum)) {
+            sound.playErrorChirp();
+            setEntries(prev => [
+              ...prev,
+              {
+                id: `entry-${Date.now()}`,
+                command: trimmed,
+                type: 'ERROR',
+                content: { message: `Invalid TxID '${arg1}'. Flow command requires a numeric transaction ID.` }
+              }
+            ]);
+            return;
+          }
+          sound.playEnterSuccess();
+          setPendingCommand(trimmed);
+          try {
+            const res = await api.getTransactionFlow(txidNum);
+            setEntries(prev => [
+              ...prev,
+              {
+                id: `entry-${Date.now()}`,
+                command: trimmed,
+                type: 'FLOW',
+                content: res
+              }
+            ]);
+          } catch (err: any) {
+            sound.playErrorChirp();
+            setEntries(prev => [
+              ...prev,
+              {
+                id: `entry-${Date.now()}`,
+                command: trimmed,
+                type: 'ERROR',
+                content: { message: `Flow decomposition failed for TX #${txidNum}: ${err.message}` }
+              }
+            ]);
+          } finally {
+            setPendingCommand(null);
+          }
+        }
+        break;
+
+      case 'anomaly':
+      case 'unusual':
+        {
+          const targetScenario = arg1 || 'peeling_chain_04651';
+          sound.playEnterSuccess();
+          setPendingCommand(trimmed);
+          try {
+            const res = await api.getAnomalyScore(targetScenario);
+            setEntries(prev => [
+              ...prev,
+              {
+                id: `entry-${Date.now()}`,
+                command: trimmed,
+                type: 'ANOMALY',
+                content: res
+              }
+            ]);
+          } catch (err: any) {
+            sound.playErrorChirp();
+            setEntries(prev => [
+              ...prev,
+              {
+                id: `entry-${Date.now()}`,
+                command: trimmed,
+                type: 'ERROR',
+                content: { message: `Isolation Forest anomaly scoring failed for '${targetScenario}': ${err.message}` }
+              }
+            ]);
+          } finally {
+            setPendingCommand(null);
+          }
+        }
         break;
 
       case 'reboot':

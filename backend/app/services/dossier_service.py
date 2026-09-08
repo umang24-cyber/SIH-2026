@@ -71,7 +71,7 @@ class DossierService:
                 "legal_context": "This system issues no legal instrument. Applicable authorities and procedures require authorized investigator and legal review.",
                 "document_status": "System-generated recommendations — require authorized investigator/legal review.",
                 "data_status": "Synthetic / Demonstration Dataset",
-                "model_status": "V7 Frozen Synthetic Benchmark",
+                "model_status": "V8 Frozen Synthetic Benchmark",
                 "case_status": "CONFIDENTIAL // DEMONSTRATION OUTPUT"
             },
             "transaction_evidence": {
@@ -166,7 +166,7 @@ class DossierService:
     <div class="confidential-badge">CONFIDENTIAL // SYSTEM-GENERATED DEMONSTRATION</div>
     <h1>FORENSIC INVESTIGATIVE SUMMARY</h1>
     <p style="font-size: 13px; color: #64748b; margin: 0;">System-generated recommendations — require authorized investigator/legal review.</p>
-    <p style="font-size: 12px; color: #64748b; margin: 4px 0 0 0;">DATA STATUS: Synthetic / Demonstration Dataset · MODEL STATUS: V7 Frozen Synthetic Benchmark</p>
+    <p style="font-size: 12px; color: #64748b; margin: 4px 0 0 0;">DATA STATUS: Synthetic / Demonstration Dataset · MODEL STATUS: V8 Frozen Synthetic Benchmark</p>
 </div>
 
 <table class="meta-table">

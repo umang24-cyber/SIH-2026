@@ -68,7 +68,7 @@ export const TraceView: React.FC<TraceViewProps> = ({
         </div>
 
         <div style={{ display: 'flex', gap: '12px', flexWrap: 'wrap' }}>
-          <span className="cmd-clickable" onClick={() => onRunCommand('graph')}>
+          <span className="cmd-clickable" onClick={() => onRunCommand(`graph ${(hops[0] as any)?.scenario_id || 'peeling_chain_04606'}`)}>
             [Open Graph Visualizer]
           </span>
           <span className="cmd-clickable" onClick={() => onRunCommand(`taint ${sourceId}`)}>

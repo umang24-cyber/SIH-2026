@@ -162,7 +162,7 @@ class TorProfiler:
             "average_normal_propagation_delay_sec": round(avg_normal_delta, 2),
             "top_tor_exit_countries": [{"country": c, "tx_count": cnt} for c, cnt in top_countries],
             "methodology": "Passive Multi-Vantage Timing Entropy & CIOH Cross-Layer Triangulation",
-            "telemetry_source": "Observed Relay Telemetry (Synthetic V7 Ground-Truth Benchmark)"
+            "telemetry_source": "Observed Relay Telemetry (Synthetic V8 Ground-Truth Benchmark)"
         }
         return self._cached_summary
 
