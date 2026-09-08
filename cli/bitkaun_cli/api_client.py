@@ -29,10 +29,10 @@ class BitKaunApiClient:
         self.base_url = base_url.rstrip("/")
         self.timeout = timeout
 
-    def _request(self, method: str, path: str, params: Optional[dict] = None) -> Optional[dict]:
+    def _request(self, method: str, path: str, params: Optional[dict] = None, json_body: Optional[dict] = None) -> Optional[dict]:
         url = f"{self.base_url}/{path.lstrip('/')}"
         try:
-            resp = requests.request(method, url, params=params, timeout=self.timeout)
+            resp = requests.request(method, url, params=params, json=json_body, timeout=self.timeout)
             if resp.status_code == 404:
                 return None
             resp.raise_for_status()
@@ -97,6 +97,65 @@ class BitKaunApiClient:
     def get_scenario(self, scenario_id: str) -> Optional[dict]:
         """GET /scenarios/{scenario_id} - Forensic profile of a scenario cluster."""
         return self._request("GET", f"/scenarios/{scenario_id}")
+
+    def get_taint(self, address: str, decay_rate: float = 0.85, max_depth: int = 5) -> Optional[dict]:
+        """GET /taint - Forward dirty coin poisoning with FIFO decay."""
+        return self._request("GET", "/taint", params={"seed_address": address, "decay_rate": decay_rate, "max_depth": max_depth})
+
+    def get_flow(self, txid: Any) -> Optional[dict]:
+        """GET /transaction/{txid}/flow - Sankey UTXO flow decomposition."""
+        return self._request("GET", f"/transaction/{txid}/flow")
+
+    def get_communities(self, scenario_id: str) -> Optional[dict]:
+        """GET /graph/{scenario_id}/communities - Greedy modularity syndicate partitioning."""
+        return self._request("GET", f"/graph/{scenario_id}/communities")
+
+    def get_anomaly(self, scenario_id: str) -> Optional[dict]:
+        """GET /anomaly/{scenario_id} - Isolation Forest anomaly score and metrics."""
+        return self._request("GET", f"/anomaly/{scenario_id}")
+
+    def search(self, query: str) -> Optional[dict]:
+        """GET /search - Universal forensic search."""
+        return self._request("GET", "/search", params={"q": query})
+
+    def list_scenarios(self, prefix: Optional[str] = None, page: int = 1, page_size: int = 20) -> Optional[list]:
+        """GET /scenarios - Paginated cluster directory."""
+        params = {"page": page, "page_size": page_size}
+        if prefix:
+            params["prefix"] = prefix
+        return self._request("GET", "/scenarios", params=params)
+
+    def get_benchmark(self) -> Optional[dict]:
+        """GET /eval/benchmark - Quantitative model evaluation scorecard."""
+        return self._request("GET", "/eval/benchmark")
+
+    def get_telemetry(self) -> Optional[dict]:
+        """GET /stats - Global network and node infrastructure telemetry."""
+        return self._request("GET", "/stats")
+
+    def get_dossier(self, txid: Any) -> Optional[dict]:
+        """GET /api/dossier/{txid} - System-generated confidential LEA summary."""
+        return self._request("GET", f"/api/dossier/{txid}")
+
+    def get_tor_profiler(self, txid: Any) -> Optional[dict]:
+        """GET /api/intel/tor-profiler/{txid} - Timing entropy and evasion score."""
+        return self._request("GET", f"/api/intel/tor-profiler/{txid}")
+
+    def get_tor_summary(self) -> Optional[dict]:
+        """GET /api/intel/tor-summary - Tor infrastructure summary."""
+        return self._request("GET", "/api/intel/tor-summary")
+
+    def ingest_sample(self, sample_type: str) -> Optional[dict]:
+        """POST /api/ingest/sample/{sample_type} - Live synthetic model injection."""
+        return self._request("POST", f"/api/ingest/sample/{sample_type}")
+
+    def ingest_transaction(self, payload: dict) -> Optional[dict]:
+        """POST /api/ingest/transaction - Live custom transaction ingestion."""
+        return self._request("POST", "/api/ingest/transaction", json_body=payload)
+
+    def get_stream_batch(self, limit: int = 15, offset: int = 0) -> Optional[dict]:
+        """GET /api/stream/batch - Live mempool and telemetry event frames."""
+        return self._request("GET", "/api/stream/batch", params={"limit": limit, "offset": offset})
 
 
 # Global singleton instance

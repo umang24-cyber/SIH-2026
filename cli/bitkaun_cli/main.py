@@ -54,7 +54,7 @@ def dispatch_command(cmd_line: str) -> bool:
         return True
 
     # Lazy-loaded backend commands
-    if command == "status":
+    if command in ("status", "sys", "health"):
         from .commands import status
         status.execute(args)
         return True
@@ -82,6 +82,66 @@ def dispatch_command(cmd_line: str) -> bool:
     if command in ("correlate", "upload"):
         from .commands import correlate
         correlate.execute(args)
+        return True
+
+    if command == "taint":
+        from .commands import taint
+        taint.execute(args)
+        return True
+
+    if command == "flow":
+        from .commands import flow
+        flow.execute(args)
+        return True
+
+    if command == "communities":
+        from .commands import communities
+        communities.execute(args)
+        return True
+
+    if command == "anomaly":
+        from .commands import anomaly
+        anomaly.execute(args)
+        return True
+
+    if command in ("search", "find", "query"):
+        from .commands import search
+        search.execute(args)
+        return True
+
+    if command in ("scenarios", "clusters"):
+        from .commands import scenarios
+        scenarios.execute(args)
+        return True
+
+    if command in ("benchmark", "eval", "metrics"):
+        from .commands import benchmark
+        benchmark.execute(args)
+        return True
+
+    if command in ("telemetry", "stats"):
+        from .commands import telemetry
+        telemetry.execute(args)
+        return True
+
+    if command == "dossier":
+        from .commands import dossier
+        dossier.execute(args)
+        return True
+
+    if command == "tor":
+        from .commands import tor
+        tor.execute(args)
+        return True
+
+    if command == "ingest":
+        from .commands import ingest
+        ingest.execute(args)
+        return True
+
+    if command in ("logs", "log", "stream"):
+        from .commands import logs
+        logs.execute(args)
         return True
 
     error_panel(
