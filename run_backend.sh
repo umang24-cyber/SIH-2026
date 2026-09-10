@@ -15,6 +15,12 @@ echo "================================================================="
 # Export PYTHONPATH to include project root
 export PYTHONPATH="$SCRIPT_DIR:$PYTHONPATH"
 
+# Activate conda ml environment if available
+if [ -f "/home/param/miniforge3/etc/profile.d/conda.sh" ]; then
+    source /home/param/miniforge3/etc/profile.d/conda.sh
+    conda activate ml
+fi
+
 # Run Uvicorn server on localhost:8000
 echo "[+] Starting FastAPI server on http://0.0.0.0:8000 ..."
-python3 -m uvicorn backend.app.main:app --host 0.0.0.0 --port 8000 --reload
+python -m uvicorn backend.app.main:app --host 0.0.0.0 --port 8000 --reload
