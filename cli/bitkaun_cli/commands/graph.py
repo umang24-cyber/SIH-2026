@@ -12,11 +12,18 @@ from rich import box
 from ..api_client import client
 from ..render import console, format_btc, warning_panel, error_panel
 
+from ..case_context import save_to_active_case
+
 _last_graph_request_time = 0.0
 
 def execute(args: list[str] = None):
     """Execute the graph command with client-side rate limit protection."""
     global _last_graph_request_time
+    save_mode = False
+    if args:
+        save_mode = "--save" in args
+        args = [a for a in args if a != "--save"]
+
     now = time.time()
     if now - _last_graph_request_time < 1.0:
         warning_panel(
@@ -29,8 +36,8 @@ def execute(args: list[str] = None):
     if not args or len(args) == 0:
         warning_panel(
             "Missing Scenario ID",
-            "Usage: [bold green]graph <scenario_id>[/bold green]\n"
-            "Example: [cyan]graph ransomware_03287[/cyan] or [cyan]graph peel_0001[/cyan]"
+            "Usage: [bold green]graph <scenario_id> [--save][/bold green]\n"
+            "Example: [cyan]graph ransomware_03287 --save[/cyan] or [cyan]graph peel_0001[/cyan]"
         )
         return
 
@@ -153,3 +160,6 @@ def execute(args: list[str] = None):
     console.print()
     console.print(tree)
     console.print()
+
+    if save_mode:
+        save_to_active_case("graph", scenario_id, data, subfolder="reports")

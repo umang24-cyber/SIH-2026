@@ -254,14 +254,22 @@ def render_scenario(sc: dict):
     console.print(f"[dim]To visualize in 3D graph:[/dim] [bold cyan]graph {sc_id}[/bold cyan]\n")
 
 
+from ..case_context import save_to_active_case
+
+
 def execute(args: list[str] = None):
     """Execute the inspect command."""
+    save_mode = False
+    if args:
+        save_mode = "--save" in args
+        args = [a for a in args if a != "--save"]
+
     if not args or len(args) == 0:
         warning_panel(
             "Missing Target",
-            "Usage: [bold green]inspect <address | txid | scenario>[/bold green]\n"
+            "Usage: [bold green]inspect <address | txid | scenario> [--save][/bold green]\n"
             "Example address:  [cyan]inspect 1AtB5eWkX36d4YtQ99vK8h7G4xN19mK7p[/cyan]\n"
-            "Example txid:     [cyan]inspect 881920041[/cyan]\n"
+            "Example txid:     [cyan]inspect 881920041 --save[/cyan]\n"
             "Example scenario: [cyan]inspect live_ransomware_probe[/cyan]"
         )
         return
@@ -273,18 +281,24 @@ def execute(args: list[str] = None):
         tx_data = client.get_transaction(int(target))
         if tx_data:
             render_transaction(tx_data)
+            if save_mode:
+                save_to_active_case("inspect", f"tx_{target}", tx_data, subfolder="reports")
             return
 
     # Check entity / address
     entity_data = client.get_entity(target)
     if entity_data:
         render_entity(entity_data)
+        if save_mode:
+            save_to_active_case("inspect", f"entity_{target}", entity_data, subfolder="reports")
         return
 
     # Check scenario cluster
     scenario_data = client.get_scenario(target)
     if scenario_data:
         render_scenario(scenario_data)
+        if save_mode:
+            save_to_active_case("inspect", f"scenario_{target}", scenario_data, subfolder="reports")
         return
 
     # If neither found, report clear error

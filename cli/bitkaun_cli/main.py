@@ -40,6 +40,15 @@ def dispatch_command(cmd_line: str) -> bool:
     command = parts[0].lower()
     args = parts[1:]
 
+    # Handle redundant 'bitkaun' prefix when typed inside interactive REPL
+    if command == "bitkaun":
+        if args:
+            command = args[0].lower()
+            args = args[1:]
+        else:
+            print_banner()
+            return True
+
     if command in ("exit", "quit", "q"):
         console.print("[bold green]Session terminated. Exiting BitKaun forensics terminal.[/bold green]")
         return False
@@ -51,6 +60,22 @@ def dispatch_command(cmd_line: str) -> bool:
 
     if command in ("help", "?"):
         help_cmd.execute(args)
+        return True
+
+    # Case management commands (Git mental model)
+    if command == "init":
+        from .commands import init_case
+        init_case.execute(args)
+        return True
+
+    if command in ("cd", "case", "cases", "checkout", "use"):
+        from .commands import cd_cmd
+        cd_cmd.execute(command, args)
+        return True
+
+    if command in ("ls", "list"):
+        from .commands import ls_cmd
+        ls_cmd.execute(args)
         return True
 
     # Lazy-loaded backend commands
@@ -178,10 +203,16 @@ def run():
     if HAS_PROMPT_TOOLKIT and sys.stdin.isatty():
         session = PromptSession(history=InMemoryHistory())
 
-    prompt_str = "bitkaun@investigation:~$ "
+    from .case_context import find_active_case
 
     while True:
         try:
+            active_info = find_active_case()
+            if active_info and active_info.get("case_name"):
+                prompt_str = f"bitkaun@investigation ({active_info['case_name']}):~$ "
+            else:
+                prompt_str = "bitkaun@investigation:~$ "
+
             if session and sys.stdin.isatty():
                 line = session.prompt(prompt_str)
             elif sys.stdin.isatty():

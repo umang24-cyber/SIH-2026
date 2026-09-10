@@ -388,5 +388,24 @@ export const api = {
       method: 'POST',
       body: formData,
     });
-  }
+  },
+  listCases: () => fetchJson<any>('/cases'),
+  getActiveCase: () => fetchJson<any>('/cases/active'),
+  setActiveCase: (caseName: string) =>
+    fetchJson<any>('/cases/active', {
+      method: 'POST',
+      body: JSON.stringify({ case_name: caseName }),
+    }),
+  initCase: (caseName: string) =>
+    fetchJson<any>('/cases/init', {
+      method: 'POST',
+      body: JSON.stringify({ case_name: caseName }),
+    }),
+  getCaseLs: (caseName = 'active') =>
+    fetchJson<any>(`/cases/${encodeURIComponent(caseName)}/ls`),
+  saveCaseArtifact: (payload: { command_name: string; identifier: string; data: any; subfolder?: string; case_name?: string }) =>
+    fetchJson<any>(`/cases/${encodeURIComponent(payload.case_name || 'active')}/save`, {
+      method: 'POST',
+      body: JSON.stringify(payload),
+    })
 };

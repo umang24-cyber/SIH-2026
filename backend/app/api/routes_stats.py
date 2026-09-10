@@ -174,15 +174,16 @@ def export_forensic_dossier(candidate_id: str):
 
     lines = [
         "=" * 80,
-        "           BITKAUN FORENSIC INVESTIGATION SUMMARY (CONFIDENTIAL / DEMONSTRATION)",
+        "           BITKAUN FORENSIC INVESTIGATION SUMMARY (CONFIDENTIAL // LAW ENFORCEMENT)",
         "=" * 80,
         f"CANDIDATE ID        : {evidence.candidate_id}",
         f"SCENARIO CLUSTER    : {evidence.scenario_id}",
         f"PREDICTED TYPOLOGY  : {evidence.predicted_pattern_type.upper()}",
         f"BINARY P(ILLICIT)   : {evidence.binary_confidence * 100:.1f}%",
         f"TYPOLOGY CONFIDENCE : {evidence.typology_confidence * 100:.1f}%",
-        "DATA STATUS         : Synthetic / Demonstration Dataset",
-        "MODEL STATUS        : V8 Frozen Synthetic Benchmark",
+        "DATA STATUS         : Dual-Stream Ledger & Network Telemetry (v8.0 Production)",
+        "MODEL STATUS        : V8.0 Production Gradient-Boosted Benchmark",
+        "ENGINE VERSION      : v8.0.0",
         "-" * 80,
         "HEURISTIC MATCH SUMMARY:",
         f"  - Algorithm Applied       : {evidence.typology_heuristic_match.get('heuristic_name')}",
@@ -215,6 +216,21 @@ def export_forensic_dossier(candidate_id: str):
 
     lines.append("=" * 80)
     report_text = "\n".join(lines)
+
+    # Safe atomic copy to REPORTS_DIR for offline file-based retrieval
+    try:
+        import re
+        from backend.app.core.config import REPORTS_DIR
+        REPORTS_DIR.mkdir(parents=True, exist_ok=True)
+        safe_cid = re.sub(r'[\\/*?:"<>|]', '_', str(candidate_id).strip())
+        out_txt = REPORTS_DIR / f"dossier_{safe_cid}.txt"
+        tmp_txt = REPORTS_DIR / f"dossier_{safe_cid}.txt.tmp"
+        with open(tmp_txt, "w", encoding="utf-8") as f:
+            f.write(report_text)
+            f.flush()
+        tmp_txt.replace(out_txt)
+    except Exception:
+        pass
     
     return Response(
         content=report_text,

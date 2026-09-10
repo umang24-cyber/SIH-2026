@@ -23,6 +23,15 @@ def _resolve_scenario_id(scenario_id: str) -> str:
     if scenario_id in SCENARIO_ALIASES and SCENARIO_ALIASES[scenario_id] in data_service.scenario_tx_map:
         return SCENARIO_ALIASES[scenario_id]
     low = scenario_id.lower()
+    clean = low.replace("sample_", "").replace("live_", "").replace("test_", "")
+
+    # 1. Fuzzy substring match against indexed scenario keys
+    for real_s in data_service.scenario_tx_map:
+        real_low = real_s.lower()
+        if low in real_low or clean in real_low or real_low in low:
+            return real_s
+
+    # 2. Fallback prefix resolution
     prefix_map = {
         "licit": "normal_",
         "ransom": "ransomware_",
@@ -31,10 +40,11 @@ def _resolve_scenario_id(scenario_id: str) -> str:
         "layer": "normal_",
     }
     for p, target_p in prefix_map.items():
-        if low.startswith(p):
+        if low.startswith(p) or clean.startswith(p):
             for real_s in data_service.scenario_tx_map:
                 if real_s.startswith(target_p):
                     return real_s
+
     if low in ["default", "root", "sample", "0", "1", ""]:
         return next(iter(data_service.scenario_tx_map.keys()), scenario_id)
     return scenario_id

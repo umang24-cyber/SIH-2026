@@ -18,7 +18,7 @@ import { AnomalyView } from './views/AnomalyView';
 export interface TerminalEntry {
   id: string;
   command?: string;
-  type: 'BANNER' | 'TEXT' | 'ERROR' | 'SUCCESS' | 'HELP' | 'INSPECT' | 'TRACE' | 'LOGS' | 'GRAPH' | 'STATUS' | 'ALERTS' | 'ALERT_DETAIL' | 'TAINT' | 'DOSSIER' | 'DOSSIER_LIST' | 'TOR' | 'INGEST' | 'INGEST_BATCH' | 'TWO_STREAM_UPLOAD' | 'SEARCH' | 'SCENARIOS' | 'BENCHMARK' | 'TELEMETRY' | 'COMMUNITIES' | 'FLOW' | 'ANOMALY';
+  type: 'BANNER' | 'TEXT' | 'ERROR' | 'SUCCESS' | 'HELP' | 'INSPECT' | 'TRACE' | 'LOGS' | 'GRAPH' | 'STATUS' | 'ALERTS' | 'ALERT_DETAIL' | 'TAINT' | 'DOSSIER' | 'DOSSIER_LIST' | 'TOR' | 'INGEST' | 'INGEST_BATCH' | 'TWO_STREAM_UPLOAD' | 'SEARCH' | 'SCENARIOS' | 'BENCHMARK' | 'TELEMETRY' | 'COMMUNITIES' | 'FLOW' | 'ANOMALY' | 'CASE_INIT' | 'CASE_LS' | 'CASE_LIST' | 'CASE_SWITCH';
   content?: any;
 }
 
@@ -46,7 +46,20 @@ function formatStatusOutput(content: any): string {
   const clusters = content.cluster_count ?? content.clustering?.total_clusters;
   const alertsCount = content.alert_count ?? content.typologies?.total_alerts;
 
+  const activeCaseLines = (content.active_case && content.active_case.status === 'success') ? [
+    '================================================================================',
+    ' [*] ACTIVE INVESTIGATION CASE (CENTRAL CASES REPOSITORY)',
+    '================================================================================',
+    ` [ACTIVE CASE]            : ${content.active_case.case_name}`,
+    ` [INITIALIZED AT]         : ${content.active_case.created_at}`,
+    ` [CASE DIRECTORY]         : ${content.active_case.location}`,
+    ` [STORED ARTIFACTS]       : ${content.active_case.counts?.reports ?? 0} reports | ${content.active_case.counts?.dossiers ?? 0} dossiers | ${content.active_case.counts?.evidence ?? 0} evidence`,
+    '--------------------------------------------------------------------------------',
+    ''
+  ] : [];
+
   return [
+    ...activeCaseLines,
     '================================================================================',
     ' BITKAUN ENGINE INTERNAL SYSTEM STATUS & TELEMETRY',
     '================================================================================',
@@ -62,6 +75,161 @@ function formatStatusOutput(content: any): string {
     ` [ILLICIT TX RATIO]       : ${illicitRatio}`,
     ` [TOPOLOGY ENGINE]        : ONLINE (Ransomware, Peeling, Mixing, Layering)`,
     ` [ML INFERENCE PIPELINE]  : XGBOOST BINARY + MULTI-CLASS + SHAP EXPLAINER`,
+    '================================================================================'
+  ].join('\n');
+}
+
+// Format CASE_INIT into authentic Linux terminal stdout
+function formatCaseInitOutput(content: any): string {
+  if (!content) return '[CASE] No initialization payload returned.';
+  const name = content.case_name || 'unnamed_case';
+  const loc = content.location || `cases/${name}`;
+  return [
+    '================================================================================',
+    ' [*] FORENSIC INVESTIGATION CASE INITIALIZED',
+    '================================================================================',
+    `  Case Name:        ${name}`,
+    `  Location:         ${loc}`,
+    '  Initialized Structure:',
+    '    ├── .bitkaun/case.json  (Case metadata & chain-of-custody config)',
+    '    ├── reports/           (Saved command outputs & analytical queries)',
+    '    ├── dossiers/          (Courtroom dossiers & FIU-IND disclosures)',
+    '    └── evidence/          (Case-specific ingested CSVs & network logs)',
+    '',
+    `  Active case set to: [${name}] (All terminals and web UI synchronized)`,
+    '  Run commands with --save (e.g. inspect 881920041 --save) to record evidence.',
+    '================================================================================'
+  ].join('\n');
+}
+
+// Format CASE_LS into authentic Linux terminal stdout
+function formatCaseLsOutput(content: any): string {
+  if (!content || content.status === 'no_case' || content.status === 'no_active_case') {
+    return [
+      '================================================================================',
+      ' [!] No Active Case',
+      '================================================================================',
+      ' You are not currently inside an active BitKaun forensic case directory.',
+      '',
+      ' To start an investigation case, run:',
+      '   init <case_name>',
+      '================================================================================'
+    ].join('\n');
+  }
+
+  const artifacts: any[] = content.artifacts || [];
+  const name = content.case_name || 'active_case';
+  const dir = content.case_dir || `cases/${name}`;
+
+  if (artifacts.length === 0) {
+    return [
+      '================================================================================',
+      ` [*] CASE REPOSITORY CONTENTS: ${name}`,
+      ` Root: ${dir}`,
+      ' Total Tracked Artifacts: 0',
+      '================================================================================',
+      ' No saved artifacts in this case yet.',
+      ' Run commands with --save (e.g. inspect 881920041 --save, alerts --save) to preserve evidence.',
+      '================================================================================'
+    ].join('\n');
+  }
+
+  const header = [
+    '================================================================================',
+    ` [*] CASE REPOSITORY CONTENTS: ${name}`,
+    ` Root: ${dir}`,
+    ` Total Tracked Artifacts: ${artifacts.length}`,
+    '================================================================================',
+    ' Filename                                Type                Folder     Size     Saved Date',
+    '--------------------------------------------------------------------------------'
+  ];
+
+  const rows = artifacts.map(art => {
+    const fn = (art.filename || '').padEnd(38, ' ').slice(0, 38);
+    const type = (art.type || 'REPORT').padEnd(19, ' ').slice(0, 19);
+    const folder = (art.folder || 'reports/').padEnd(10, ' ');
+    const size = (art.size || '0 B').padStart(8, ' ');
+    const dt = art.saved_date || 'N/A';
+    return ` ${fn} ${type} ${folder} ${size}  ${dt}`;
+  });
+
+  return [
+    ...header,
+    ...rows,
+    '================================================================================'
+  ].join('\n');
+}
+
+// Format CASE_LIST into authentic Linux terminal stdout
+function formatCaseListOutput(content: any): string {
+  if (!content || !content.cases || content.cases.length === 0) {
+    return [
+      '================================================================================',
+      ' [*] INVESTIGATION CASES STORE',
+      '================================================================================',
+      ' No investigation cases found.',
+      ' Run \'init <case_name>\' to initialize a new case.',
+      '================================================================================'
+    ].join('\n');
+  }
+
+  const activeName = content.active_case;
+  const header = [
+    '================================================================================',
+    ' [*] REGISTERED INVESTIGATION CASES',
+    ` Root Store: ${content.cases_root || 'AppData/Local/BitKaun/cases'}`,
+    ` Total Cases: ${content.total_cases || content.cases.length}`,
+    '================================================================================',
+    ' Status      Case Name              Created At           Reports Dossiers Total',
+    '--------------------------------------------------------------------------------'
+  ];
+
+  const rows = content.cases.map((c: any) => {
+    const isActive = c.is_active || (c.case_name === activeName);
+    const status = isActive ? '* [ACTIVE] ' : '  INACTIVE ';
+    const name = (c.case_name || '').padEnd(22, ' ').slice(0, 22);
+    const dt = String(c.created_at || 'N/A').slice(0, 19).replace('T', ' ').padEnd(20, ' ');
+    const rep = String(c.reports_count ?? 0).padStart(7, ' ');
+    const dos = String(c.dossiers_count ?? 0).padStart(8, ' ');
+    const tot = String(c.total_artifacts ?? 0).padStart(5, ' ');
+    return ` ${status} ${name} ${dt} ${rep} ${dos} ${tot}`;
+  });
+
+  return [
+    ...header,
+    ...rows,
+    '================================================================================',
+    ' Switch case: cd <case_name>  •  Exit case: cd ..',
+    '================================================================================'
+  ].join('\n');
+}
+
+// Format CASE_SWITCH into authentic Linux terminal stdout
+function formatCaseSwitchOutput(content: any): string {
+  if (!content) return '';
+  if (!content.case_name) {
+    return [
+      '================================================================================',
+      ' [*] EXITED INVESTIGATION CASE',
+      '================================================================================',
+      '  Returned to master workspace.',
+      '  No active case currently selected.',
+      '',
+      '  To select a case: cd <case_name> or type \'cases\'',
+      '================================================================================'
+    ].join('\n');
+  }
+
+  return [
+    '================================================================================',
+    ' [*] ACTIVE CASE SWITCHED',
+    '================================================================================',
+    `  Active Case:     ${content.case_name}`,
+    `  Location:        ${content.location || `cases/${content.case_name}`}`,
+    `  Artifacts:       ${content.reports_count ?? 0} reports  •  ${content.dossiers_count ?? 0} dossiers  •  ${content.evidence_count ?? 0} evidence items`,
+    '',
+    '  All future commands (--save, ls) now target this case.',
+    '  To return to master workspace: cd ..',
     '================================================================================'
   ].join('\n');
 }
@@ -308,6 +476,18 @@ export const CliOutputRenderer: React.FC<CliOutputRendererProps> = React.memo(({
         }),
         '========================================================================================================'
       ].join('\n');
+    }
+    if (entry.type === 'CASE_INIT') {
+      return formatCaseInitOutput(entry.content);
+    }
+    if (entry.type === 'CASE_LS') {
+      return formatCaseLsOutput(entry.content);
+    }
+    if (entry.type === 'CASE_LIST') {
+      return formatCaseListOutput(entry.content);
+    }
+    if (entry.type === 'CASE_SWITCH') {
+      return formatCaseSwitchOutput(entry.content);
     }
     return entry.content?.message || (typeof entry.content === 'string' ? entry.content : '');
   }, [entry]);
@@ -808,7 +988,7 @@ export const CliOutputRenderer: React.FC<CliOutputRendererProps> = React.memo(({
       )}
 
       {/* 8. AUTHENTIC CHARACTER-STREAMED LINUX TTY TERMINAL OUTPUT */}
-      {(entry.type === 'STATUS' || entry.type === 'HELP' || entry.type === 'LOGS' || entry.type === 'TEXT' || entry.type === 'ERROR' || entry.type === 'SUCCESS') && (
+      {(entry.type === 'STATUS' || entry.type === 'HELP' || entry.type === 'LOGS' || entry.type === 'TEXT' || entry.type === 'ERROR' || entry.type === 'SUCCESS' || entry.type === 'CASE_INIT' || entry.type === 'CASE_LS' || entry.type === 'CASE_LIST' || entry.type === 'CASE_SWITCH') && (
         <div
           onClick={handleSkipTyping}
           style={{

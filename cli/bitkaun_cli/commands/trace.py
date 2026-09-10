@@ -11,13 +11,21 @@ from ..api_client import client
 from ..render import console, format_btc, format_severity, warning_panel, error_panel
 
 
+from ..case_context import save_to_active_case
+
+
 def execute(args: list[str] = None):
     """Execute the trace command."""
+    save_mode = False
+    if args:
+        save_mode = "--save" in args
+        args = [a for a in args if a != "--save"]
+
     if not args or len(args) < 2:
         warning_panel(
             "Missing Trace Endpoints",
-            "Usage: [bold green]trace <src_address> <dst_address>[/bold green]\n"
-            "Example: [cyan]trace 1jLgHKBTV4wPz8zugRhGrKfs6qcs 1wyjiCSKUZtym1hXSXRPnCgbHi6rhqU[/cyan]"
+            "Usage: [bold green]trace <src_address> <dst_address> [--save][/bold green]\n"
+            "Example: [cyan]trace 1jLgHKBTV4wPz8zugRhGrKfs6qcs 1wyjiCSKUZtym1hXSXRPnCgbHi6rhqU --save[/cyan]"
         )
         return
 
@@ -98,3 +106,6 @@ def execute(args: list[str] = None):
 
     console.print(table)
     console.print()
+
+    if save_mode:
+        save_to_active_case("trace", f"{src[:12]}_to_{dst[:12]}", data, subfolder="reports")
