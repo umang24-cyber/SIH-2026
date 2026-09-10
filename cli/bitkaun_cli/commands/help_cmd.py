@@ -9,18 +9,38 @@ from ..render import console
 
 COMMAND_REGISTRY = [
     {
+        "command": "init",
+        "syntax": "init <case_name>",
+        "description": "Initialize a new forensic investigation case directory (.bitkaun/, reports/, dossiers/, evidence/).",
+    },
+    {
+        "command": "cd",
+        "syntax": "cd <case_name> | cd ..",
+        "description": "Switch active investigation case (or cd .. to return to master workspace).",
+    },
+    {
+        "command": "cases",
+        "syntax": "cases",
+        "description": "List all investigation cases stored in private local AppData with artifact counts.",
+    },
+    {
+        "command": "ls",
+        "syntax": "ls",
+        "description": "List all saved forensic reports, dossiers, and evidence artifacts in the active case.",
+    },
+    {
         "command": "graph",
-        "syntax": "graph <scenario_id>",
-        "description": "Render textual topology summary, node/edge hierarchy and high-risk syndicate components.",
+        "syntax": "graph <scenario_id> [--save]",
+        "description": "Render textual topology summary, node/edge hierarchy, and optional case export.",
     },
     {
         "command": "inspect",
-        "syntax": "inspect <address | txid | sc_id>",
+        "syntax": "inspect <address | txid | sc_id> [--save]",
         "description": "Inspect a Bitcoin address dossier or detailed on-chain transaction UTXO flow.",
     },
     {
         "command": "trace",
-        "syntax": "trace <src_address> <dst_address>",
+        "syntax": "trace <src> <dst> [--save]",
         "description": "Compute multi-hop shortest transaction flow between source and destination wallets.",
     },
     {

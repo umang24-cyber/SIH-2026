@@ -274,6 +274,18 @@ AUTHENTIC_CORRELATION_PAIRS = [
     }
 ]
 
+# Pre-index authentic correlation template scenarios into live data_service
+for _item in AUTHENTIC_CORRELATION_PAIRS:
+    _sc = _item.get("scenario_id")
+    _tid = int(_item["txid"])
+    if _sc and _tid:
+        if _sc not in data_service.scenario_tx_map:
+            data_service.scenario_tx_map[_sc] = []
+        if _tid not in data_service.scenario_tx_map[_sc]:
+            data_service.scenario_tx_map[_sc].append(_tid)
+        if _tid in data_service.txid_map:
+            data_service.txid_map[_tid].update({k: v for k, v in _item.items() if v is not None})
+
 
 def _analyze_uploaded_scenario(
     scenario_id: str,
@@ -550,6 +562,19 @@ async def ingest_file_upload(file: UploadFile = File(...)):
 
     scenario_results = []
     for scenario_id, scenario_txs in grouped_records.items():
+        sc_key = str(scenario_id)
+        data_service.scenario_tx_map[sc_key] = [int(tx["txid"]) for tx in scenario_txs]
+        for tx in scenario_txs:
+            tid = int(tx["txid"])
+            if tid not in data_service.txid_map:
+                data_service._index_transaction_memory(tx)
+            else:
+                data_service.txid_map[tid].update({k: v for k, v in tx.items() if v is not None and str(v) != ""})
+        try:
+            from backend.app.services.graph_service import graph_service
+            graph_service._scenario_cache.pop(sc_key, None)
+        except Exception:
+            pass
         analysis = _analyze_uploaded_scenario(scenario_id, scenario_txs)
         scenario_ml_analysis[scenario_id] = analysis
         scenario_results.append(analysis)
@@ -698,6 +723,19 @@ async def ingest_correlate(
     seen_scenarios = []
     for scenario_id, scenario_txs in grouped_records.items():
         seen_scenarios.append(scenario_id)
+        sc_key = str(scenario_id)
+        data_service.scenario_tx_map[sc_key] = [int(tx["txid"]) for tx in scenario_txs]
+        for tx in scenario_txs:
+            tid = int(tx["txid"])
+            if tid not in data_service.txid_map:
+                data_service._index_transaction_memory(tx)
+            else:
+                data_service.txid_map[tid].update({k: v for k, v in tx.items() if v is not None and str(v) != ""})
+        try:
+            from backend.app.services.graph_service import graph_service
+            graph_service._scenario_cache.pop(sc_key, None)
+        except Exception:
+            pass
         analysis = _analyze_uploaded_scenario(scenario_id, scenario_txs)
         scenario_ml_analysis[scenario_id] = analysis
         scenario_results.append(analysis)

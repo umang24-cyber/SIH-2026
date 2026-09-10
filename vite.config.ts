@@ -23,7 +23,8 @@ export default defineConfig({
       '/anomaly': 'http://localhost:8000',
       '/dossier': 'http://localhost:8000',
       '/intel': 'http://localhost:8000',
-      '/stream': 'http://localhost:8000'
+      '/stream': 'http://localhost:8000',
+      '/cases': 'http://localhost:8000'
     }
   }
 });

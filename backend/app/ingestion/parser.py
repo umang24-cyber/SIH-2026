@@ -34,9 +34,58 @@ def parse_json_column(val: Any) -> list:
             return [s]
     return []
 
-def normalize_transaction_dict(d: Dict[str, Any]) -> Dict[str, Any]:
-    """Standardize transaction dictionary keys and types for ingestion."""
-    txid = int(d.get("txid", 0))
+def _clean_str_key(s: Any) -> str:
+    import re
+    return re.sub(r'[^a-z0-9]', '', str(s).lower())
+
+def _normalize_dict_keys(d: Dict[str, Any]) -> Dict[str, Any]:
+    """Map arbitrary column headers / keys to standardized BitKaun field names."""
+    clean_d = {_clean_str_key(k): v for k, v in d.items()}
+
+    ALIAS_MAP = {
+        "txid": ["txid", "tx_id", "hash", "tx_hash", "transaction_id", "transaction_hash", "tx", "id", "trans_id"],
+        "timestamp": ["timestamp", "time", "date", "block_time", "block_timestamp", "datetime", "created_at", "ts"],
+        "relay_timestamp": ["relay_timestamp", "p2p_time", "first_seen", "observed_time", "network_time", "received_at"],
+        "input_addresses": ["input_addresses", "inputs", "from_address", "from", "sender", "source", "senders", "src", "input_address", "input", "vin", "from_addr"],
+        "output_addresses": ["output_addresses", "outputs", "to_address", "to", "recipient", "receiver", "destination", "dst", "output_address", "output", "vout", "to_addr"],
+        "input_amounts": ["input_amounts", "input_amount", "amount_in", "in_amounts", "value_in", "in_amount"],
+        "output_amounts": ["output_amounts", "output_amount", "amount_out", "out_amounts", "value_out", "value", "amount", "btc", "total_btc", "out_amount", "val"],
+        "fee_btc": ["fee_btc", "fee", "miner_fee", "fees", "tx_fee", "transaction_fee"],
+        "script_type": ["script_type", "script", "type_script", "script_family", "address_type"],
+        "scenario_id": ["scenario_id", "scenario", "cluster", "case", "cluster_id", "group"],
+        "relay_ip": ["relay_ip", "ip", "ip_address", "origin_ip", "node_ip", "client_ip", "host_ip", "broadcast_ip"],
+        "relay_port": ["relay_port", "port", "node_port"],
+        "node_type": ["node_type", "type", "server_type", "node_class", "relay_type"],
+        "country_code": ["country_code", "country", "geo", "location", "nation"],
+        "asn": ["asn", "asn_number", "as_number", "as", "origin_asn"],
+        "isp": ["isp", "isp_name", "provider", "carrier", "network_operator", "org"],
+        "user_agent": ["user_agent", "sub_version", "client_version", "agent", "version"],
+        "propagation_delta_ms": ["propagation_delta_ms", "propagation_latency", "delta_ms", "latency", "latency_ms", "delay_ms"]
+    }
+
+    normalized = dict(d)
+    for standard_key, aliases in ALIAS_MAP.items():
+        if standard_key not in normalized or normalized[standard_key] is None or normalized[standard_key] == "":
+            for alias in aliases:
+                clean_alias = _clean_str_key(alias)
+                if clean_alias in clean_d and clean_d[clean_alias] is not None and clean_d[clean_alias] != "":
+                    normalized[standard_key] = clean_d[clean_alias]
+                    break
+    return normalized
+
+
+def normalize_transaction_dict(raw_d: Dict[str, Any]) -> Dict[str, Any]:
+    """Standardize transaction dictionary keys and types for ingestion with flexible header support."""
+    d = _normalize_dict_keys(raw_d)
+
+    raw_txid = d.get("txid", 0)
+    txid = 0
+    try:
+        txid = int(raw_txid)
+    except Exception:
+        import hashlib
+        txid = int(hashlib.md5(str(raw_txid).encode()).hexdigest()[:8], 16) % 900000000 + 100000000
+
     if txid == 0:
         import time
         txid = int(time.time() * 1000) % 900000000 + 100000000
@@ -73,12 +122,16 @@ def normalize_transaction_dict(d: Dict[str, Any]) -> Dict[str, Any]:
     else:
         out_addrs = parse_json_column(raw_out)
 
+    # Fallback for single/scalar amounts from CSV
+    single_amount = d.get("amount") or d.get("value") or d.get("btc")
+    default_amt = [float(single_amount)] if single_amount is not None else [2.5]
+
     if not in_amts:
         raw_in_amts = parse_json_column(d.get("input_amounts", []))
-        in_amts = [float(x) for x in raw_in_amts] if raw_in_amts else [2.5]
+        in_amts = [float(x) for x in raw_in_amts] if raw_in_amts else default_amt
     if not out_amts:
         raw_out_amts = parse_json_column(d.get("output_amounts", []))
-        out_amts = [float(x) for x in raw_out_amts] if raw_out_amts else [2.5]
+        out_amts = [float(x) for x in raw_out_amts] if raw_out_amts else default_amt
 
     # Satoshi-safe normalization: Bitcoin hard cap is 21,000,000 BTC.
     # If values were recorded in satoshis (>= 21,000,000), convert to BTC (/ 1e8).

@@ -9,9 +9,10 @@ from rich.table import Table
 from rich import box
 from ..api_client import client
 from ..render import console, format_severity, warning_panel, error_panel
+from ..case_context import save_to_active_case
 
 
-def render_alert_evidence(candidate_id: str):
+def render_alert_evidence(candidate_id: str, save_mode: bool = False):
     """Render deep SHAP evidence dossier for a specific alert candidate."""
     evidence = client.get_alert_evidence(candidate_id)
     if not evidence:
@@ -58,34 +59,48 @@ def render_alert_evidence(candidate_id: str):
         shap_table.add_column("Forensic Feature", style="cyan")
         shap_table.add_column("Feature Value", justify="right", style="white")
         shap_table.add_column("SHAP Impact Score", justify="right", style="yellow")
-        shap_table.add_column("Direction / Risk Influence", justify="center")
+        shap_table.add_column("Risk Influence Direction", justify="center")
 
-        for item in shap_list[:10]:
-            if isinstance(item, dict):
-                feat = item.get("feature_name", "")
-                val = item.get("value", "")
-                sval = float(item.get("shap_value", 0.0))
-                direction = item.get("direction", "RISK_INCREASING")
-            elif isinstance(item, (list, tuple)):
-                feat, sval = item[0], float(item[1])
-                val = ""
-                direction = "RISK_INCREASING" if sval > 0 else "RISK_DECREASING"
-            else:
-                continue
+        for attr in shap_list:
+            fname = attr.get("feature_name", "")
+            val = attr.get("value", "")
+            sval = attr.get("shap_value", 0.0)
+            direct = attr.get("direction", "NEUTRAL")
 
-            dir_badge = (
-                "[bold red]▲ ELEVATES RISK[/bold red]"
-                if "INCREASING" in str(direction).upper() or sval > 0
-                else "[bold green]▼ LOWERS RISK[/bold green]"
-            )
-            shap_table.add_row(
-                feat,
-                f"{val:.4f}" if isinstance(val, (int, float)) else str(val),
-                f"{sval:+.4f}",
-                dir_badge,
-            )
+            val_str = f"{val:.4f}" if isinstance(val, (int, float)) else str(val)
+            dir_badge = f"[bold green]{direct}[/bold green]"
+            if "INCREASING" in direct or "HIGH" in direct:
+                dir_badge = f"[bold red]{direct}[/bold red]"
+
+            shap_table.add_row(fname, val_str, f"{sval:+.4f}", dir_badge)
 
         console.print(shap_table)
+
+    # Transactions List Table
+    txs = evidence.get("transactions", [])
+    if txs:
+        tx_table = Table(
+            title=f"[bold green][*] Member Transactions in Alert Candidate ({len(txs)} total)[/bold green]",
+            box=box.ROUNDED,
+            border_style="green",
+            header_style="bold green on black",
+            expand=True,
+        )
+        tx_table.add_column("TxID", style="bold yellow")
+        tx_table.add_column("Timestamp", style="white")
+        tx_table.add_column("Inflows (BTC)", justify="right", style="cyan")
+        tx_table.add_column("Outflows (BTC)", justify="right", style="cyan")
+        tx_table.add_column("Relay IP / Node", style="magenta")
+
+        for t in txs[:15]:
+            t_id = str(t.get("txid", ""))
+            ts = str(t.get("timestamp", ""))
+            in_amt = sum(t.get("input_amounts", []))
+            out_amt = sum(t.get("output_amounts", []))
+            rip = f"{t.get('relay_ip', 'N/A')} ({t.get('node_type', 'node')})"
+            tx_table.add_row(t_id, ts, f"{in_amt:.4f}", f"{out_amt:.4f}", rip)
+
+        console.print(tx_table)
 
     # Telemetry Summary
     telem = evidence.get("telemetry_summary") or {}
@@ -111,16 +126,24 @@ def render_alert_evidence(candidate_id: str):
 
     console.print()
 
+    if save_mode:
+        save_to_active_case("alerts", candidate_id, evidence, subfolder="dossiers")
+
 
 def execute(args: list[str] = None):
     """Execute the alerts command."""
+    save_mode = False
+    if args:
+        save_mode = "--save" in args
+        args = [a for a in args if a != "--save"]
+
     # Check for --detail or -d flag
     if args:
         if args[0] in ("--detail", "-d") and len(args) > 1:
-            render_alert_evidence(args[1].strip())
+            render_alert_evidence(args[1].strip(), save_mode=save_mode)
             return
         elif args[0].startswith("cand_"):
-            render_alert_evidence(args[0].strip())
+            render_alert_evidence(args[0].strip(), save_mode=save_mode)
             return
 
     # Fetch alerts
@@ -201,3 +224,6 @@ def execute(args: list[str] = None):
 
     console.print(table)
     console.print()
+
+    if save_mode:
+        save_to_active_case("alerts", f"feed_top{len(sorted_alerts)}", data, subfolder="reports")

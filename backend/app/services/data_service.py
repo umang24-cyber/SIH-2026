@@ -186,8 +186,20 @@ class DataService:
     def add_transaction(self, record: Dict[str, Any]) -> bool:
         """Dynamically indexes a new transaction into memory and persists to SQLite."""
         txid = int(record["txid"])
+        sc_id = str(record.get("scenario_id") or "")
+        if sc_id:
+            if sc_id not in self.scenario_tx_map:
+                self.scenario_tx_map[sc_id] = []
+            if txid not in self.scenario_tx_map[sc_id]:
+                self.scenario_tx_map[sc_id].append(txid)
+
         if txid in self.txid_map:
-            return False
+            existing = self.txid_map[txid]
+            for k, v in record.items():
+                if v is not None and str(v) != "":
+                    existing[k] = v
+            return True
+
         self._index_transaction_memory(record)
         try:
             db_service.save_transaction(record, is_custom=True)
@@ -200,8 +212,20 @@ class DataService:
         new_records = []
         for r in records:
             txid = int(r["txid"])
+            sc_id = str(r.get("scenario_id") or "")
+            if sc_id:
+                if sc_id not in self.scenario_tx_map:
+                    self.scenario_tx_map[sc_id] = []
+                if txid not in self.scenario_tx_map[sc_id]:
+                    self.scenario_tx_map[sc_id].append(txid)
+
             if txid in self.txid_map:
+                existing = self.txid_map[txid]
+                for k, v in r.items():
+                    if v is not None and str(v) != "":
+                        existing[k] = v
                 continue
+
             self._index_transaction_memory(r)
             new_records.append(r)
         try:

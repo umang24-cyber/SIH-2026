@@ -10,7 +10,7 @@ import { api } from './services/api';
 interface TerminalEntry {
   id: string;
   command?: string;
-  type: 'BANNER' | 'TEXT' | 'ERROR' | 'SUCCESS' | 'HELP' | 'INSPECT' | 'TRACE' | 'LOGS' | 'GRAPH' | 'STATUS' | 'ALERTS' | 'ALERT_DETAIL' | 'TAINT' | 'DOSSIER' | 'DOSSIER_LIST' | 'TOR' | 'INGEST' | 'INGEST_BATCH' | 'TWO_STREAM_UPLOAD' | 'SEARCH' | 'SCENARIOS' | 'BENCHMARK' | 'TELEMETRY' | 'COMMUNITIES' | 'FLOW' | 'ANOMALY';
+  type: 'BANNER' | 'TEXT' | 'ERROR' | 'SUCCESS' | 'HELP' | 'INSPECT' | 'TRACE' | 'LOGS' | 'GRAPH' | 'STATUS' | 'ALERTS' | 'ALERT_DETAIL' | 'TAINT' | 'DOSSIER' | 'DOSSIER_LIST' | 'TOR' | 'INGEST' | 'INGEST_BATCH' | 'TWO_STREAM_UPLOAD' | 'SEARCH' | 'SCENARIOS' | 'BENCHMARK' | 'TELEMETRY' | 'COMMUNITIES' | 'FLOW' | 'ANOMALY' | 'CASE_INIT' | 'CASE_LS' | 'CASE_LIST' | 'CASE_SWITCH';
   content?: any;
 }
 
@@ -22,6 +22,7 @@ export function App() {
   const [historyIdx, setHistoryIdx] = useState<number>(-1);
   const [entries, setEntries] = useState<TerminalEntry[]>([]);
   const [pendingCommand, setPendingCommand] = useState<string | null>(null);
+  const [activeCaseName, setActiveCaseName] = useState<string | null>(null);
 
   const inputRef = useRef<HTMLInputElement>(null);
   const scrollBottomRef = useRef<HTMLDivElement>(null);
@@ -77,6 +78,19 @@ export function App() {
     return () => window.removeEventListener('keydown', handleGlobalKeyDown);
   }, []);
 
+  // Fetch initial active case to sync web prompt
+  useEffect(() => {
+    api.getActiveCase()
+      .then(res => {
+        if (res && res.case_name && res.status === 'success') {
+          setActiveCaseName(res.case_name);
+        } else {
+          setActiveCaseName(null);
+        }
+      })
+      .catch(() => setActiveCaseName(null));
+  }, []);
+
   const handleRunCommand = async (raw: string) => {
     const trimmed = raw.trim();
     if (!trimmed) {
@@ -89,7 +103,10 @@ export function App() {
     scrollToBottom();
     requestAnimationFrame(scrollToBottom);
 
-    const tokens = trimmed.split(/\s+/);
+    let tokens = trimmed.split(/\s+/);
+    if (tokens[0].toLowerCase() === 'bitkaun' && tokens.length > 1) {
+      tokens = tokens.slice(1);
+    }
     const root = tokens[0].toLowerCase();
     const arg1 = tokens[1];
     const arg2 = tokens[2];
@@ -210,6 +227,14 @@ export function App() {
               }
             ];
           });
+
+          if (tokens.includes('--save')) {
+            const scId = (arg1 && !arg1.startsWith('-')) ? arg1 : 'normal_00002';
+            api.getGraph(scId)
+              .then(g => api.saveCaseArtifact({ command_name: 'graph', identifier: scId, data: g }))
+              .then(res => setEntries(prev => [...prev, { id: `entry-${Date.now()}`, type: 'SUCCESS', content: `[✓] Saved graph artifact to active case: ${res.relative_path || res.filename}` }]))
+              .catch(() => setEntries(prev => [...prev, { id: `entry-${Date.now()}`, type: 'ERROR', content: { message: `[X] No active case — run 'init <name>' first` } }]));
+          }
         }
         break;
 
@@ -275,6 +300,12 @@ export function App() {
                 }
               }
             ]);
+
+            if (tokens.includes('--save')) {
+              api.saveCaseArtifact({ command_name: 'inspect', identifier: `tx_${arg1}`, data: tx })
+                .then(res => setEntries(prev => [...prev, { id: `entry-${Date.now()}`, type: 'SUCCESS', content: `[✓] Saved inspect artifact to active case: ${res.relative_path || res.filename}` }]))
+                .catch(() => setEntries(prev => [...prev, { id: `entry-${Date.now()}`, type: 'ERROR', content: { message: `[X] No active case — run 'init <name>' first` } }]));
+            }
           } else {
             // Check whether arg1 is a scenario cluster or a Bitcoin address
             let isScenario = false;
@@ -431,6 +462,12 @@ export function App() {
                     }
                   }
                 ]);
+
+                if (tokens.includes('--save')) {
+                  api.saveCaseArtifact({ command_name: 'inspect', identifier: `scenario_${scenarioData.scenario_id}`, data: scenarioData })
+                    .then(res => setEntries(prev => [...prev, { id: `entry-${Date.now()}`, type: 'SUCCESS', content: `[✓] Saved inspect artifact to active case: ${res.relative_path || res.filename}` }]))
+                    .catch(() => setEntries(prev => [...prev, { id: `entry-${Date.now()}`, type: 'ERROR', content: { message: `[X] No active case — run 'init <name>' first` } }]));
+                }
               } else {
                 let clusterId = 'UNCLUSTERED';
                 try {
@@ -480,6 +517,12 @@ export function App() {
                     }
                   }
                 ]);
+
+                if (tokens.includes('--save')) {
+                  api.saveCaseArtifact({ command_name: 'inspect', identifier: `entity_${arg1}`, data: entity })
+                    .then(res => setEntries(prev => [...prev, { id: `entry-${Date.now()}`, type: 'SUCCESS', content: `[✓] Saved inspect artifact to active case: ${res.relative_path || res.filename}` }]))
+                    .catch(() => setEntries(prev => [...prev, { id: `entry-${Date.now()}`, type: 'ERROR', content: { message: `[X] No active case — run 'init <name>' first` } }]));
+                }
               }
             }
           }
@@ -527,6 +570,12 @@ export function App() {
               content: { source: arg1, target: arg2, traceResult }
             }
           ]);
+
+          if (tokens.includes('--save')) {
+            api.saveCaseArtifact({ command_name: 'trace', identifier: `${arg1}_to_${arg2}`, data: traceResult })
+              .then(res => setEntries(prev => [...prev, { id: `entry-${Date.now()}`, type: 'SUCCESS', content: `[✓] Saved trace artifact to active case: ${res.relative_path || res.filename}` }]))
+              .catch(() => setEntries(prev => [...prev, { id: `entry-${Date.now()}`, type: 'ERROR', content: { message: `[X] No active case — run 'init <name>' first` } }]));
+          }
         } catch (err: any) {
           sound.playErrorChirp();
           setEntries(prev => [
@@ -610,6 +659,12 @@ export function App() {
                 content: evidence
               }
             ]);
+
+            if (tokens.includes('--save')) {
+              api.saveCaseArtifact({ command_name: 'alerts', identifier: targetCandidateId, data: evidence, subfolder: 'dossiers' })
+                .then(res => setEntries(prev => [...prev, { id: `entry-${Date.now()}`, type: 'SUCCESS', content: `[✓] Saved alert dossier to active case: ${res.relative_path || res.filename}` }]))
+                .catch(() => setEntries(prev => [...prev, { id: `entry-${Date.now()}`, type: 'ERROR', content: { message: `[X] No active case — run 'init <name>' first` } }]));
+            }
           } else {
             // Options parsing: limit, typology, min_confidence
             let limit = 25;
@@ -650,6 +705,12 @@ export function App() {
                 content: alertsRes
               }
             ]);
+
+            if (tokens.includes('--save')) {
+              api.saveCaseArtifact({ command_name: 'alerts', identifier: 'queue', data: alertsRes })
+                .then(res => setEntries(prev => [...prev, { id: `entry-${Date.now()}`, type: 'SUCCESS', content: `[✓] Saved alerts artifact to active case: ${res.relative_path || res.filename}` }]))
+                .catch(() => setEntries(prev => [...prev, { id: `entry-${Date.now()}`, type: 'ERROR', content: { message: `[X] No active case — run 'init <name>' first` } }]));
+            }
           }
         } catch (err: any) {
           sound.playErrorChirp();
@@ -727,6 +788,12 @@ export function App() {
               content: dossierRes
             }
           ]);
+
+          if (tokens.includes('--save')) {
+            api.saveCaseArtifact({ command_name: 'dossier', identifier: arg1, data: dossierRes, subfolder: 'dossiers' })
+              .then(res => setEntries(prev => [...prev, { id: `entry-${Date.now()}`, type: 'SUCCESS', content: `[✓] Saved dossier artifact to active case: ${res.relative_path || res.filename}` }]))
+              .catch(() => setEntries(prev => [...prev, { id: `entry-${Date.now()}`, type: 'ERROR', content: { message: `[X] No active case — run 'init <name>' first` } }]));
+          }
         } catch (err: any) {
           sound.playErrorChirp();
           setEntries(prev => [
@@ -819,20 +886,181 @@ export function App() {
         }
         break;
 
+      case 'init':
+        if (!arg1) {
+          sound.playErrorChirp();
+          setEntries(prev => [
+            ...prev,
+            {
+              id: `entry-${Date.now()}`,
+              command: trimmed,
+              type: 'ERROR',
+              content: { message: "Usage: init <case_name> (e.g. 'init operation_black_lotus' or 'init test1')" }
+            }
+          ]);
+          return;
+        }
+        sound.playEnterSuccess();
+        setPendingCommand(trimmed);
+        try {
+          const caseName = tokens.slice(1).join('_').replace(/["']/g, '');
+          const res = await api.initCase(caseName);
+          if (res && res.case_name) {
+            setActiveCaseName(res.case_name);
+          }
+          setEntries(prev => [
+            ...prev,
+            {
+              id: `entry-${Date.now()}`,
+              command: trimmed,
+              type: 'CASE_INIT',
+              content: res
+            }
+          ]);
+        } catch (err: any) {
+          sound.playErrorChirp();
+          setEntries(prev => [
+            ...prev,
+            {
+              id: `entry-${Date.now()}`,
+              command: trimmed,
+              type: 'ERROR',
+              content: { message: `Failed to initialize case: ${err.message}` }
+            }
+          ]);
+        } finally {
+          setPendingCommand(null);
+        }
+        break;
+
+      case 'cd':
+      case 'case':
+      case 'checkout':
+      case 'use':
+      case 'cases':
+        sound.playEnterSuccess();
+        setPendingCommand(trimmed);
+        try {
+          if (root === 'cases' || ((root === 'cd' || root === 'case') && (!arg1 || arg1 === 'ls'))) {
+            const listRes = await api.listCases();
+            setEntries(prev => [
+              ...prev,
+              {
+                id: `entry-${Date.now()}`,
+                command: trimmed,
+                type: 'CASE_LIST',
+                content: listRes
+              }
+            ]);
+            break;
+          }
+
+          const target = arg1?.replace(/["']/g, '').trim();
+          if (['..', '~', '/', 'main', 'none', 'unset', 'exit'].includes(target)) {
+            await api.setActiveCase('');
+            setActiveCaseName(null);
+            setEntries(prev => [
+              ...prev,
+              {
+                id: `entry-${Date.now()}`,
+                command: trimmed,
+                type: 'CASE_SWITCH',
+                content: { case_name: null }
+              }
+            ]);
+            break;
+          }
+
+          await api.setActiveCase(target);
+          setActiveCaseName(target);
+          const activeDetails = await api.getActiveCase().catch(() => null);
+          setEntries(prev => [
+            ...prev,
+            {
+              id: `entry-${Date.now()}`,
+              command: trimmed,
+              type: 'CASE_SWITCH',
+              content: {
+                case_name: target,
+                location: activeDetails?.location,
+                reports_count: activeDetails?.counts?.reports ?? 0,
+                dossiers_count: activeDetails?.counts?.dossiers ?? 0,
+                evidence_count: activeDetails?.counts?.evidence ?? 0
+              }
+            }
+          ]);
+        } catch (err: any) {
+          sound.playErrorChirp();
+          setEntries(prev => [
+            ...prev,
+            {
+              id: `entry-${Date.now()}`,
+              command: trimmed,
+              type: 'ERROR',
+              content: { message: `Case '${arg1}' not found. Type 'cases' to list existing cases, or 'init ${arg1}' to create it.` }
+            }
+          ]);
+        } finally {
+          setPendingCommand(null);
+        }
+        break;
+
+      case 'ls':
+      case 'list':
+        sound.playEnterSuccess();
+        setPendingCommand(trimmed);
+        try {
+          const res = await api.getCaseLs(arg1 || 'active');
+          setEntries(prev => [
+            ...prev,
+            {
+              id: `entry-${Date.now()}`,
+              command: trimmed,
+              type: 'CASE_LS',
+              content: res
+            }
+          ]);
+        } catch (err: any) {
+          sound.playErrorChirp();
+          setEntries(prev => [
+            ...prev,
+            {
+              id: `entry-${Date.now()}`,
+              command: trimmed,
+              type: 'CASE_LS',
+              content: {
+                status: 'no_case',
+                message: "No active forensic case directory found. Run 'init <case_name>' to create an active case."
+              }
+            }
+          ]);
+        } finally {
+          setPendingCommand(null);
+        }
+        break;
+
       case 'status':
       case 'sys':
       case 'health':
         sound.playEnterSuccess();
         setPendingCommand(trimmed);
         try {
-          const health = await api.getHealth();
+          const [health, activeCase] = await Promise.all([
+            api.getHealth(),
+            api.getActiveCase().catch(() => null)
+          ]);
+          if (activeCase && activeCase.case_name && activeCase.status === 'success') {
+            setActiveCaseName(activeCase.case_name);
+          } else {
+            setActiveCaseName(null);
+          }
           setEntries(prev => [
             ...prev,
             {
               id: `entry-${Date.now()}`,
               command: trimmed,
               type: 'STATUS',
-              content: health
+              content: { ...health, active_case: activeCase }
             }
           ]);
         } catch (err: any) {
@@ -1452,7 +1680,7 @@ export function App() {
           <span className="window-dot dot-yellow" />
           <span className="window-dot dot-green" />
         </div>
-        <div style={{ fontWeight: 500 }}>bitkaun@investigation: ~ (bash)</div>
+        <div style={{ fontWeight: 500 }}>bitkaun@investigation{activeCaseName ? ` (${activeCaseName})` : ''}: ~ (bash)</div>
         <div style={{ fontSize: '12px', color: '#555555' }}>x86_64 tty1 [FASTAPI LINKED]</div>
       </div>
 
@@ -1504,6 +1732,10 @@ export function App() {
               <span className="cmd-desc"> - Detailed command manual</span>
             </div>
             <div>
+              <span className="cmd-tag" onClick={() => handleRunCommand('cases')}>[cases]</span>
+              <span className="cmd-desc"> - List & switch active cases</span>
+            </div>
+            <div>
               <span className="cmd-tag" onClick={() => handleRunCommand('clear')}>[clear]</span>
               <span className="cmd-desc"> - Clear screen (Ctrl+L)</span>
             </div>
@@ -1515,7 +1747,7 @@ export function App() {
           <div key={entry.id}>
             {entry.command !== undefined && (
               <div className="prompt-line" style={{ marginBottom: '4px' }}>
-                <span className="prompt-prefix">bitkaun@investigation</span>
+                <span className="prompt-prefix">bitkaun@investigation{activeCaseName ? ` (${activeCaseName})` : ''}</span>
                 <span className="prompt-char">:$</span>
                 <span style={{ color: 'var(--fg-white)', wordBreak: 'break-all', overflowWrap: 'anywhere' }}>{entry.command}</span>
               </div>
@@ -1539,7 +1771,7 @@ export function App() {
 
         {/* Current Active Input Prompt */}
         <div className="prompt-line">
-          <span className="prompt-prefix">bitkaun@investigation</span>
+          <span className="prompt-prefix">bitkaun@investigation{activeCaseName ? ` (${activeCaseName})` : ''}</span>
           <span className="prompt-char">:$</span>
           <div className="input-cursor-wrapper">
             <span className="typed-text">{textBefore}</span>

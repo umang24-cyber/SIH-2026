@@ -20,7 +20,9 @@ class ScenarioService:
         - Dominant heuristic typology
         - Hub wallets (highest transaction degree)
         """
-        txids = data_service.get_scenario_txids(scenario_id)
+        from backend.app.api.routes_graph import _resolve_scenario_id
+        resolved_id = _resolve_scenario_id(scenario_id)
+        txids = data_service.get_scenario_txids(resolved_id)
         if not txids:
             return None
 
