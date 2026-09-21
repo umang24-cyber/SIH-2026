@@ -1,0 +1,343 @@
+{
+  "phase": "Phase 5 Step 4",
+  "evaluation_type": "FINAL FROZEN-TEST EVALUATION \u2014 ONE TIME ONLY",
+  "evaluation_start": "2026-09-21T15:41:04Z",
+  "evaluation_end": "2026-09-21T15:41:13Z",
+  "dataset": {
+    "version": "V9.0 corrected",
+    "seed": 20260921,
+    "total_scenarios": 5440,
+    "train_scenarios": 4352,
+    "frozen_test_scenarios": 1088,
+    "train_transactions": 132997,
+    "test_transactions": 34752,
+    "total_transactions": 167749,
+    "frozen_test_illicit": 448,
+    "frozen_test_licit": 640,
+    "scenario_overlap": 0,
+    "txid_overlap": 0
+  },
+  "models": {
+    "binary": {
+      "path": "ml/models/binary_model_v9.ubj",
+      "timestamp": "2026-09-21T15:26:15.342618+00:00",
+      "size_bytes": 294788
+    },
+    "typology": {
+      "path": "ml/models/typology_model_v9.ubj",
+      "timestamp": "2026-09-21T15:32:04.938269+00:00",
+      "size_bytes": 1466843
+    }
+  },
+  "feature_schema": {
+    "count": 46,
+    "forbidden_excluded": true
+  },
+  "all_pre_evaluation_checks": "PASS (16/16)",
+  "binary_evaluation": {
+    "threshold": 0.5,
+    "roc_auc": 0.997684,
+    "pr_auc": 0.996915,
+    "balanced_accuracy": 0.976674,
+    "f1": 0.97407,
+    "precision": 0.984055,
+    "recall": 0.964286,
+    "accuracy": 0.97886,
+    "confusion_matrix": {
+      "TN": 633,
+      "FP": 7,
+      "FN": 16,
+      "TP": 432
+    },
+    "predicted_illicit": 439,
+    "actual_illicit": 448,
+    "predicted_licit": 649,
+    "actual_licit": 640
+  },
+  "gate_a_binary": {
+    "roc_auc_pass": true,
+    "pr_auc_pass": true,
+    "bacc_pass": true
+  },
+  "calibration_gate_b": {
+    "note": "GATE B IS REPORTING/DIAGNOSTIC ONLY \u2014 not a formal acceptance gate",
+    "raw_ece_10bin": 0.012712,
+    "adaptive_ece_10bin": 0.010753,
+    "brier_score": 0.017688,
+    "cox_slope": 0.0915,
+    "cox_intercept": 0.4926
+  },
+  "size_only_audit": {
+    "roc_auc": 0.870089,
+    "pr_auc": 0.844102,
+    "max_mi": 0.091894,
+    "gate_a_size_roc_pass": false,
+    "gate_a_size_pr_pass": false,
+    "gate_a_size_mi_pass": false,
+    "note": "Size-only audit FAILED \u2014 size features alone achieve high AUC, indicating that transaction count/amount correlates strongly with illicit patterns in the synthetic dataset. This is a synthetic data artifact, not real-world signal. See interpretation section."
+  },
+  "size_controlled": {
+    "retained_n": 888,
+    "illicit": 444,
+    "licit": 444,
+    "roc_auc": 0.997859,
+    "pr_auc": 0.997954,
+    "balanced_accuracy": 0.977477,
+    "f1": 0.977169,
+    "gate_a_sc_roc_pass": true,
+    "gate_a_sc_pr_pass": true,
+    "gate_a_sc_bacc_pass": true
+  },
+  "moderate_shift": {
+    "baseline_auc": 0.997684,
+    "shifted_auc": 0.990245,
+    "delta_auc": 0.007439,
+    "gate_a_shift_pass": true
+  },
+  "adversarial_inversion": {
+    "note": "DIAGNOSTIC ONLY \u2014 not a formal acceptance criterion",
+    "adversarial_auc": 0.926302,
+    "corrected_auc": 0.997684,
+    "delta_auc": 0.071382
+  },
+  "typology_evaluation": {
+    "illicit_scenarios": 448,
+    "class_counts_actual": {
+      "layering": 115,
+      "mixing": 101,
+      "peeling_chain": 115,
+      "ransomware": 117
+    },
+    "macro_f1": 0.995546,
+    "weighted_f1": 0.995544,
+    "accuracy": 0.995536,
+    "balanced_accuracy": 0.995351,
+    "ovr_roc_auc": 0.999986,
+    "per_class": {
+      "layering": {
+        "precision": 1.0,
+        "recall": 0.991,
+        "f1": 0.996,
+        "n_actual": 115,
+        "n_predicted": 114
+      },
+      "mixing": {
+        "precision": 1.0,
+        "recall": 0.99,
+        "f1": 0.995,
+        "n_actual": 101,
+        "n_predicted": 100
+      },
+      "peeling_chain": {
+        "precision": 1.0,
+        "recall": 1.0,
+        "f1": 1.0,
+        "n_actual": 115,
+        "n_predicted": 115
+      },
+      "ransomware": {
+        "precision": 0.983,
+        "recall": 1.0,
+        "f1": 0.992,
+        "n_actual": 117,
+        "n_predicted": 119
+      }
+    },
+    "confusion_matrix": [
+      [
+        114,
+        0,
+        0,
+        1
+      ],
+      [
+        0,
+        100,
+        0,
+        1
+      ],
+      [
+        0,
+        0,
+        115,
+        0
+      ],
+      [
+        0,
+        0,
+        0,
+        117
+      ]
+    ],
+    "confusion_matrix_classes": [
+      "layering",
+      "mixing",
+      "peeling_chain",
+      "ransomware"
+    ],
+    "gate_a_typ_pass": true
+  },
+  "typology_determinism": {
+    "dev_macro_f1": 1.0,
+    "frozen_macro_f1": 0.995546,
+    "drop": 0.004454,
+    "interpretation": "Generator remains highly deterministic on unseen synthetic scenarios. Drop of 0.004 is negligible. Generalization demonstrated only within synthetic distribution \u2014 does NOT imply real-world typology separability."
+  },
+  "error_analysis": {
+    "fp_count": 7,
+    "fn_count": 16,
+    "fp_by_typology": {
+      "normal": 7
+    },
+    "fn_by_typology": {
+      "layering": 16
+    },
+    "layering_fn_fraction": 1.0,
+    "fn_prob_mean": 0.248,
+    "fn_prob_min": 0.026,
+    "fn_prob_max": 0.474,
+    "fp_prob_mean": 0.7,
+    "fp_prob_min": 0.516,
+    "fp_prob_max": 0.964,
+    "observation": "100% of FNs are layering. FN probability mean=0.248 is well below threshold, not borderline ambiguity. All FPs are normal (licit) scenarios."
+  },
+  "gate_table": [
+    {
+      "gate": "A",
+      "metric": "ROC-AUC",
+      "requirement": ">=0.985",
+      "actual": "0.997684",
+      "result": "PASS",
+      "type": "FORMAL"
+    },
+    {
+      "gate": "A",
+      "metric": "PR-AUC",
+      "requirement": ">=0.980",
+      "actual": "0.996915",
+      "result": "PASS",
+      "type": "FORMAL"
+    },
+    {
+      "gate": "A",
+      "metric": "BAcc",
+      "requirement": ">=0.940",
+      "actual": "0.976674",
+      "result": "PASS",
+      "type": "FORMAL"
+    },
+    {
+      "gate": "A",
+      "metric": "Size-only ROC-AUC",
+      "requirement": "<=0.580",
+      "actual": "0.870089",
+      "result": "FAIL",
+      "type": "FORMAL"
+    },
+    {
+      "gate": "A",
+      "metric": "Size-only PR-AUC",
+      "requirement": "<=0.450",
+      "actual": "0.844102",
+      "result": "FAIL",
+      "type": "FORMAL"
+    },
+    {
+      "gate": "A",
+      "metric": "Size-only max MI",
+      "requirement": "<=0.010",
+      "actual": "0.091894",
+      "result": "FAIL",
+      "type": "FORMAL"
+    },
+    {
+      "gate": "A",
+      "metric": "Size-ctrl ROC-AUC",
+      "requirement": ">=0.960",
+      "actual": "0.997859",
+      "result": "PASS",
+      "type": "FORMAL"
+    },
+    {
+      "gate": "A",
+      "metric": "Size-ctrl PR-AUC",
+      "requirement": ">=0.960",
+      "actual": "0.997954",
+      "result": "PASS",
+      "type": "FORMAL"
+    },
+    {
+      "gate": "A",
+      "metric": "Size-ctrl BAcc",
+      "requirement": ">=0.880",
+      "actual": "0.977477",
+      "result": "PASS",
+      "type": "FORMAL"
+    },
+    {
+      "gate": "A",
+      "metric": "Moderate shift \u0394AUC",
+      "requirement": "<=0.035",
+      "actual": "0.007439",
+      "result": "PASS",
+      "type": "FORMAL"
+    },
+    {
+      "gate": "A",
+      "metric": "Typology Macro-F1",
+      "requirement": ">=0.880",
+      "actual": "0.995546",
+      "result": "PASS",
+      "type": "FORMAL"
+    },
+    {
+      "gate": "B",
+      "metric": "10-bin ECE",
+      "requirement": "<=0.010",
+      "actual": "0.012712",
+      "result": "FAIL",
+      "type": "DIAGNOSTIC"
+    },
+    {
+      "gate": "B",
+      "metric": "Adaptive ECE",
+      "requirement": "<=0.010",
+      "actual": "0.010753",
+      "result": "FAIL",
+      "type": "DIAGNOSTIC"
+    },
+    {
+      "gate": "B",
+      "metric": "Brier score",
+      "requirement": "<=0.015",
+      "actual": "0.017688",
+      "result": "FAIL",
+      "type": "DIAGNOSTIC"
+    },
+    {
+      "gate": "B",
+      "metric": "Cox slope",
+      "requirement": "~1.0",
+      "actual": "0.0915",
+      "result": "INFO",
+      "type": "DIAGNOSTIC"
+    },
+    {
+      "gate": "B",
+      "metric": "Cox intercept",
+      "requirement": "~0.0",
+      "actual": "0.4926",
+      "result": "INFO",
+      "type": "DIAGNOSTIC"
+    }
+  ],
+  "formal_decision": "FORMAL GATE A REQUIREMENTS NOT SATISFIED \u2014 failed: ['Size-only ROC-AUC', 'Size-only PR-AUC', 'Size-only max MI']",
+  "governance": {
+    "gate_a": "FORMAL ACCEPTANCE GATE",
+    "gate_b": "REPORTING/DIAGNOSTIC TIER ONLY",
+    "frozen_test_policy": "EVALUATED EXACTLY ONCE \u2014 NOW LOCKED",
+    "architecture": "C (locked)",
+    "threshold": 0.5,
+    "no_changes_permitted_after_frozen_eval": true
+  }
+}

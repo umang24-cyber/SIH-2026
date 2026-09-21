@@ -67,6 +67,9 @@ class TypologyDetector:
         from backend.app.services.ml_service import ml_service
         from backend.app.services.anomaly_service import anomaly_service
 
+        import time
+        t_scan_start = time.perf_counter()
+        
         logger.info("Scoring complete scenarios to identify illicit alerts...")
         self.evidence_cache.clear()
         self._attribution_attempted.clear()
@@ -79,8 +82,14 @@ class TypologyDetector:
 
         ml_alerts_count = 0
         dropped_count = 0
+        
+        total_feature_time = 0.0
+        total_binary_time = 0.0
+        total_typology_time = 0.0
 
-        for sc_id, txids in scenarios:
+        for idx, (sc_id, txids) in enumerate(scenarios):
+            if idx % 500 == 0:
+                logger.info(f"Scored {idx}/{len(scenarios)} scenarios...")
             tx_records = [data_service.txid_map[t] for t in txids if t in data_service.txid_map]
             if not tx_records:
                 continue
@@ -89,6 +98,10 @@ class TypologyDetector:
 
             try:
                 ml_result = ml_service.score_candidate(tx_records, candidate_id=cand_id)
+                prof = ml_result.get("profiling", {})
+                total_feature_time += prof.get("feature_time", 0.0)
+                total_binary_time += prof.get("binary_time", 0.0)
+                total_typology_time += prof.get("typology_time", 0.0)
             except Exception:
                 logger.exception("ML scoring failed for scenario %s — skipping.", sc_id)
                 continue
@@ -152,6 +165,9 @@ class TypologyDetector:
             )
             ml_alerts_count += 1
 
+        import time
+        t_discovery_start = time.perf_counter()
+
         logger.info("Discovering structural evidence for flagged scenarios...")
         peel_candidates = [c for c in self._discover_peeling_chain_candidates() if c["scenario_id"] in illicit_scenario_ids]
         layer_candidates = [c for c in self._discover_layering_candidates() if c["scenario_id"] in illicit_scenario_ids]
@@ -159,6 +175,8 @@ class TypologyDetector:
         ransom_candidates = [c for c in self._discover_ransomware_candidates() if c["scenario_id"] in illicit_scenario_ids]
         
         all_evidence = peel_candidates + layer_candidates + mix_candidates + ransom_candidates
+        
+        t_discovery_end = time.perf_counter()
         
         alert_map = {a.scenario_id: a for a in alerts}
         for ev in all_evidence:
@@ -178,10 +196,30 @@ class TypologyDetector:
                     self.tx_typology_map[tid].append(a.predicted_pattern_type)
 
         self.is_scanned = True
+        
+        t_total_end = time.perf_counter()
+        total_time = t_total_end - t_scan_start
+        evidence_time = t_discovery_end - t_discovery_start
+        
         logger.info(
             "Typology detection complete. ML-driven scenario alerts: %d. Dropped normal scenarios: %d.",
             ml_alerts_count,
             dropped_count,
+        )
+        logger.info(
+            "\nAlert scan:\n"
+            "  scenarios: %d\n"
+            "  feature computation: %.2fs\n"
+            "  binary scoring: %.2fs\n"
+            "  typology scoring: %.2fs\n"
+            "  evidence extraction: %.2fs\n"
+            "  total: %.2fs",
+            len(scenarios),
+            total_feature_time,
+            total_binary_time,
+            total_typology_time,
+            evidence_time,
+            total_time
         )
 
     # ------------------------------------------------------------------

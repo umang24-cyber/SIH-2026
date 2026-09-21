@@ -148,3 +148,43 @@ def test_deterministic_tie_break(mock_services):
     assert len(alerts) == 2
     assert alerts[0].scenario_id == "sc_B"
     assert alerts[1].scenario_id == "sc_A"
+
+def test_lazy_evaluation_and_caching(mock_services):
+    """TEST 8: Verify get_alerts lazily calls scan_all_typologies precisely once."""
+    mock_data, mock_ml, mock_anomaly = mock_services
+    mock_data.scenario_tx_map = {"sc_A": [1]}
+    mock_data.txid_map = {1: create_mock_tx(1, ["w1"])}
+    
+    mock_ml.score_candidate.return_value = {"is_illicit": True, "risk_score": 0.85, "binary_confidence": 0.85, "typology_confidence": 0.80, "typology": "ransomware"}
+    mock_anomaly.score_scenario_id.return_value = {"anomaly_score": 0.0, "anomaly_label": "LOW"}
+    
+    detector = TypologyDetector()
+    
+    with patch.object(detector, "scan_all_typologies", wraps=detector.scan_all_typologies) as mock_scan:
+        assert not detector.is_scanned
+        # First call should trigger scan
+        alerts1 = detector.get_alerts()
+        assert detector.is_scanned
+        assert mock_scan.call_count == 1
+        assert len(alerts1) == 1
+        
+        # Second call should use cache, not trigger scan
+        alerts2 = detector.get_alerts()
+        assert mock_scan.call_count == 1
+        assert len(alerts2) == 1
+
+def test_ml_service_caching(mock_services):
+    """TEST 9: Verify ml_service feature cache avoids redundant extraction."""
+    from backend.app.services.ml_service import MLService
+    
+    real_ml_service = MLService()
+    
+    # Pre-populate cache
+    scenario_id = "test_scen"
+    txs = [create_mock_tx(1, ["w1"])]
+    real_ml_service._scenario_feature_cache[scenario_id] = {"feat1": 1.0}
+    
+    # This should return the cached dict immediately without throwing errors about missing features
+    res = real_ml_service._feature_dict(txs, scenario_id=scenario_id)
+    assert res == {"feat1": 1.0}
+
