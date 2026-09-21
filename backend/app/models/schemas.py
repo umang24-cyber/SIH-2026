@@ -206,6 +206,9 @@ class AlertSummary(BaseModel):
         description="True when label and confidence fields come from the ML model, not a hardcoded heuristic."
     )
     risk_score: float = Field(default=0.0, description="Binary model P(illicit) score from 0–1.")
+    anomaly_score: float = Field(default=0.0, description="Isolation Forest raw score normalized 0-100")
+    anomaly_label: str = Field(default="LOW", description="HIGH, MEDIUM, or LOW anomaly")
+    evidence: List[Dict[str, Any]] = Field(default_factory=list, description="List of localized structural candidate evidence fragments")
 
 class AlertListResponse(BaseModel):
     total_alerts: int
@@ -228,6 +231,7 @@ class EvidenceResponse(BaseModel):
         description="Top-class probability from the typology XGBoost model."
     )
     typology_heuristic_match: Dict[str, Any]
+    evidence: List[Dict[str, Any]] = Field(default_factory=list, description="List of localized structural candidate evidence fragments")
     # Binary model SHAP attributions (kept for backwards compatibility)
     ml_feature_attributions: List[FeatureAttribution]
     # Typology model SHAP attributions for the predicted class
