@@ -1,0 +1,174 @@
+{
+  "phase": "Phase 5 Step 3",
+  "model": "typology_model_v9",
+  "dataset_version": "V9.0 corrected",
+  "dataset_seed": 20260921,
+  "train_scenarios": 4352,
+  "proper_illicit_rows": 1254,
+  "eval_illicit_rows": 269,
+  "typology_classes": [
+    "layering",
+    "mixing",
+    "peeling_chain",
+    "ransomware"
+  ],
+  "class_counts_proper": {
+    "ransomware": 315,
+    "peeling_chain": 320,
+    "layering": 314,
+    "mixing": 305
+  },
+  "class_counts_eval": {
+    "ransomware": 68,
+    "peeling_chain": 66,
+    "layering": 54,
+    "mixing": 81
+  },
+  "feature_count": 46,
+  "feature_names": [
+    "total_input_mean",
+    "total_output_mean",
+    "fee_ratio_mean",
+    "fee_ratio_std",
+    "amount_decay_slope",
+    "output_amount_gini",
+    "denomination_entropy",
+    "round_number_ratio",
+    "io_amount_similarity",
+    "num_txns",
+    "mean_num_inputs",
+    "mean_num_outputs",
+    "io_count_ratio",
+    "unique_input_addrs",
+    "unique_output_addrs",
+    "fanout_ratio",
+    "fanin_ratio",
+    "address_reuse_ratio",
+    "change_output_ratio",
+    "script_type_entropy",
+    "time_span_hours",
+    "inter_tx_delta_mean",
+    "inter_tx_delta_std",
+    "inter_tx_delta_min",
+    "burstiness_B",
+    "hour_of_day_entropy",
+    "prop_delta_mean",
+    "prop_delta_std",
+    "prop_delta_cv",
+    "suspicious_infra_ratio",
+    "unique_asn_count",
+    "asn_concentration",
+    "unique_country_count",
+    "country_concentration",
+    "unique_ip_count",
+    "ip_to_addr_ratio",
+    "alt_port_ratio",
+    "unique_user_agents",
+    "script_type_mode",
+    "max_chain_length",
+    "graph_density",
+    "avg_clustering",
+    "max_in_degree",
+    "max_out_degree",
+    "degree_assortativity",
+    "edge_to_node_ratio"
+  ],
+  "hyperparameters": {
+    "n_estimators": 500,
+    "max_depth": 5,
+    "learning_rate": 0.05,
+    "subsample": 0.8,
+    "colsample_bytree": 0.8,
+    "min_child_weight": 3,
+    "objective": "multi:softprob",
+    "eval_metric": "mlogloss",
+    "early_stopping_rounds": 50,
+    "random_state": 42
+  },
+  "best_iteration": 499,
+  "best_eval_mlogloss": 0.00598615552142927,
+  "early_stopped": false,
+  "development_metrics": {
+    "macro_f1": 1.0,
+    "weighted_f1": 1.0,
+    "accuracy": 1.0,
+    "balanced_accuracy": 1.0,
+    "ovr_roc_auc": 1.0
+  },
+  "per_class_metrics": {
+    "layering": {
+      "precision": 1.0,
+      "recall": 1.0,
+      "f1": 1.0,
+      "n_actual": 54,
+      "n_predicted": 54
+    },
+    "mixing": {
+      "precision": 1.0,
+      "recall": 1.0,
+      "f1": 1.0,
+      "n_actual": 81,
+      "n_predicted": 81
+    },
+    "peeling_chain": {
+      "precision": 1.0,
+      "recall": 1.0,
+      "f1": 1.0,
+      "n_actual": 66,
+      "n_predicted": 66
+    },
+    "ransomware": {
+      "precision": 1.0,
+      "recall": 1.0,
+      "f1": 1.0,
+      "n_actual": 68,
+      "n_predicted": 68
+    }
+  },
+  "confusion_matrix": [
+    [
+      54,
+      0,
+      0,
+      0
+    ],
+    [
+      0,
+      81,
+      0,
+      0
+    ],
+    [
+      0,
+      0,
+      66,
+      0
+    ],
+    [
+      0,
+      0,
+      0,
+      68
+    ]
+  ],
+  "confusion_matrix_classes": [
+    "layering",
+    "mixing",
+    "peeling_chain",
+    "ransomware"
+  ],
+  "artifact_replacement": {
+    "old_ubj_timestamp": "2026-09-20T17:19:33.671904+00:00",
+    "old_xgb_timestamp": "2026-09-20T17:19:33.700727+00:00",
+    "new_timestamp": "2026-09-21T15:32:04.938269+00:00",
+    "reason": "Phase 5 Step 3 \u2014 corrected V9 dataset (seed=20260921) baseline typology model."
+  },
+  "frozen_test_status": "NOT EVALUATED IN THIS STEP",
+  "governance": {
+    "gate_a": "APPROVED \u2014 FORMAL ACCEPTANCE GATE",
+    "gate_b": "APPROVED \u2014 REPORTING/DIAGNOSTIC TIER",
+    "frozen_test_policy": "LOCKED \u2014 not used in this step",
+    "architecture": "C (locked)"
+  },
+  "timestamp": "2026-09-21T15:32:04.904150+00:00"
+}

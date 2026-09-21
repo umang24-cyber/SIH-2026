@@ -166,6 +166,7 @@ class MLService:
         self.feature_names: List[str] = []
         self.script_type_encoder: Dict[str, int] = {}
         self.typology_classes: List[str] = []
+        self._scenario_feature_cache: Dict[str, Dict[str, float]] = {}
 
     @staticmethod
     def _read_json(path: Path, description: str) -> Dict[str, Any]:
@@ -282,15 +283,18 @@ class MLService:
             classes,
         )
 
-    def _feature_dict(self, scenario_txs: List[Dict[str, Any]]) -> Dict[str, float]:
+    def _feature_dict(self, scenario_txs: List[Dict[str, Any]], scenario_id: Optional[str] = None) -> Dict[str, float]:
         """
         Compute features from raw transaction records using the EXACT same
         compute_scenario_features + compute_graph_features functions used at
-        training time (imported from ml.02_feature_engineering and
-        ml.02b_graph_features). This guarantees zero train/serve skew.
+        training time. This guarantees zero train/serve skew.
+        Caches the feature vector by scenario_id if provided.
         """
         if not scenario_txs:
             raise ValueError("At least one transaction is required for feature extraction")
+
+        if scenario_id is not None and scenario_id in self._scenario_feature_cache:
+            return self._scenario_feature_cache[scenario_id]
 
         grp = pd.DataFrame(scenario_txs)
         grp["timestamp"] = pd.to_datetime(grp["timestamp"])
@@ -311,21 +315,25 @@ class MLService:
         missing = [name for name in self.feature_names if name not in merged]
         if missing:
             raise RuntimeError(f"Feature extraction did not produce manifest features: {missing}")
-        return {name: float(merged[name]) for name in self.feature_names}
+        
+        result = {name: float(merged[name]) for name in self.feature_names}
+        if scenario_id is not None:
+            self._scenario_feature_cache[scenario_id] = result
+        return result
 
-    def extract_features(self, scenario_txs: List[Dict[str, Any]]) -> np.ndarray:
+    def extract_features(self, scenario_txs: List[Dict[str, Any]], scenario_id: Optional[str] = None) -> np.ndarray:
         """Extract a V7 feature matrix in canonical manifest order."""
-        values = self._feature_dict(scenario_txs)
+        values = self._feature_dict(scenario_txs, scenario_id=scenario_id)
         return np.asarray([list(values.values())], dtype=np.float32)
 
-    def explain_binary_features(self, scenario_txs: List[Dict[str, Any]], top_n: int = 5) -> List[Dict[str, Any]]:
+    def explain_binary_features(self, scenario_txs: List[Dict[str, Any]], top_n: int = 5, scenario_id: Optional[str] = None) -> List[Dict[str, Any]]:
         """
         Return XGBoost prediction contributions (SHAP) for the BINARY is_illicit model.
         Uses the native XGBoost pred_contribs which is TreeSHAP-equivalent.
         """
         if not self.is_loaded:
             self.load_model()
-        features = self._feature_dict(scenario_txs)
+        features = self._feature_dict(scenario_txs, scenario_id=scenario_id)
         matrix = np.asarray([list(features.values())], dtype=np.float32)
         import xgboost as xgb
 
@@ -361,6 +369,7 @@ class MLService:
         scenario_txs: List[Dict[str, Any]],
         predicted_class_index: int,
         top_n: int = 5,
+        scenario_id: Optional[str] = None,
     ) -> List[Dict[str, Any]]:
         """
         Return XGBoost SHAP contributions for the TYPOLOGY multiclass model,
@@ -372,7 +381,7 @@ class MLService:
         """
         if not self.is_loaded:
             self.load_model()
-        features = self._feature_dict(scenario_txs)
+        features = self._feature_dict(scenario_txs, scenario_id=scenario_id)
         matrix = np.asarray([list(features.values())], dtype=np.float32)
         import xgboost as xgb
 
@@ -472,7 +481,7 @@ class MLService:
             }
 
         try:
-            features = self.extract_features(tx_records)
+            features = self.extract_features(tx_records, scenario_id=scenario_id)
             score = float(self.model.predict_proba(features)[0][1])
         except Exception as exc:
             logger.exception("Binary V7 inference failed")
@@ -531,24 +540,25 @@ class MLService:
         if not self.is_loaded:
             self.load_model()
 
+        # candidate_id format is "alert_{sc_id}"
+        scenario_id = candidate_id.replace("alert_", "") if candidate_id and candidate_id.startswith("alert_") else None
+
+        import time
+        t_start = time.perf_counter()
+        
         try:
-            features = self.extract_features(scenario_txs)
+            features = self.extract_features(scenario_txs, scenario_id=scenario_id)
+            t_features = time.perf_counter()
             bin_proba = self.model.predict_proba(features)[0]
             risk_score = float(bin_proba[1])
             is_illicit = bool(risk_score >= BINARY_ILLICIT_THRESHOLD)
+            t_binary = time.perf_counter()
         except Exception as exc:
             logger.exception("Binary inference failed for candidate %s", candidate_id)
             return {
-                "risk_score": 0.0,
-                "is_illicit": False,
-                "binary_confidence": 0.0,
-                "typology_confidence": 0.0,
-                "typology": "unknown",
-                "typology_class_index": -1,
-                "binary_shap": [],
-                "typology_shap": [],
-                "typology_explanation": "ML inference failed.",
-                "error": str(exc),
+                "risk_score": 0.0, "is_illicit": False, "binary_confidence": 0.0, "typology_confidence": 0.0,
+                "typology": "unknown", "typology_class_index": -1, "binary_shap": [], "typology_shap": [],
+                "typology_explanation": "ML inference failed.", "error": str(exc), "profiling": {}
             }
 
         typology = "normal"
@@ -563,38 +573,38 @@ class MLService:
                 typ_class_idx = int(np.argmax(typ_proba))
                 typ_confidence = float(typ_proba[typ_class_idx])
                 if typ_confidence >= TYPOLOGY_CONFIDENCE_THRESHOLD:
-                    # High-confidence typology path is intentionally unchanged.
                     typology = self._decode_typology(typ_class_idx)
-                    typ_shap = self.explain_typology_features(
-                        scenario_txs, predicted_class_index=typ_class_idx, top_n=5
-                    )
+                    typ_shap = self.explain_typology_features(scenario_txs, predicted_class_index=typ_class_idx, top_n=5, scenario_id=scenario_id)
                     typ_explanation = _make_typology_explanation(typology, typ_confidence, typ_shap)
                 else:
-                    # The binary model still flags the candidate, but the
-                    # typology model is not strong enough to name one class.
                     ranked_classes = np.argsort(typ_proba)[::-1][:2]
                     first_idx, second_idx = (int(index) for index in ranked_classes)
                     first_name = self._decode_typology(first_idx)
                     second_name = self._decode_typology(second_idx)
-                    typology = (
-                        f"ambiguous between {first_name} ({typ_proba[first_idx]*100:.1f}%) "
-                        f"and {second_name} ({typ_proba[second_idx]*100:.1f}%)"
-                    )
+                    typology = f"ambiguous between {first_name} ({typ_proba[first_idx]*100:.1f}%) and {second_name} ({typ_proba[second_idx]*100:.1f}%)"
             except Exception as exc:
                 logger.exception("Typology inference/SHAP failed for candidate %s", candidate_id)
                 typ_explanation = "Typology scoring failed."
 
+        t_typology = time.perf_counter()
+        
         # Binary SHAP
         bin_shap: List[Dict[str, Any]] = []
         try:
-            bin_shap = self.explain_binary_features(scenario_txs, top_n=5)
+            bin_shap = self.explain_binary_features(scenario_txs, top_n=5, scenario_id=scenario_id)
         except Exception:
             logger.exception("Binary SHAP failed for candidate %s", candidate_id)
 
-        # Canonical meaning: binary XGBoost P(illicit), for both classes.
         binary_confidence = round(risk_score, 4)
         if is_illicit and typ_confidence < TYPOLOGY_CONFIDENCE_THRESHOLD:
             typ_explanation = _make_generic_illicit_explanation(binary_confidence, bin_shap)
+
+        t_end = time.perf_counter()
+        profiling = {
+            "feature_time": t_features - t_start,
+            "binary_time": t_binary - t_features,
+            "typology_time": t_end - t_binary, # includes SHAP for both
+        }
 
         return {
             "risk_score": round(risk_score, 4),
@@ -606,6 +616,7 @@ class MLService:
             "binary_shap": bin_shap,
             "typology_shap": typ_shap,
             "typology_explanation": typ_explanation,
+            "profiling": profiling,
         }
 
 

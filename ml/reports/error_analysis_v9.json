@@ -1,0 +1,15 @@
+{
+  "binary_fp": [
+    "normal_01604",
+    "normal_01632",
+    "normal_02310",
+    "normal_02434",
+    "normal_03068"
+  ],
+  "binary_fn": [
+    "layering_04565",
+    "layering_04638",
+    "layering_04647"
+  ],
+  "typology_errs": []
+}

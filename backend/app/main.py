@@ -46,8 +46,7 @@ async def lifespan(app: FastAPI):
     ml_service.load_model()
     anomaly_service.load_model()
     clustering_service.build_clusters()
-    if not typology_detector.is_scanned:
-        typology_detector.scan_all_typologies()
+    # Alert detection is now lazy-loaded on the first /alerts request
     yield
     logger.info("Shutting down BitKaun AML Forensics API...")
 

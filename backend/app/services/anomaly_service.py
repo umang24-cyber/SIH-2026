@@ -130,6 +130,7 @@ class AnomalyService:
     def score_scenario(
         self,
         scenario_txs: List[Dict[str, Any]],
+        scenario_id: Optional[str] = None,
     ) -> Dict[str, Any]:
         """
         Score a scenario given its raw transaction records.
@@ -144,7 +145,7 @@ class AnomalyService:
         if not ml_service.is_loaded:
             ml_service.load_model()
 
-        feature_dict = ml_service._feature_dict(scenario_txs)
+        feature_dict = ml_service._feature_dict(scenario_txs, scenario_id=scenario_id)
         return self.score_scenario_from_features(feature_dict)
 
     def score_scenario_id(self, scenario_id: str) -> Optional[Dict[str, Any]]:
@@ -173,7 +174,7 @@ class AnomalyService:
             return None
 
         try:
-            result = self.score_scenario(tx_records)
+            result = self.score_scenario(tx_records, scenario_id=scenario_id)
             result["scenario_id"] = scenario_id
             return result
         except Exception:

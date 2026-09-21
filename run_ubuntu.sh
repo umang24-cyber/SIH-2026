@@ -4,8 +4,13 @@ set -e
 DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 cd "$DIR"
 
-# 1. Activate virtualenv
-if [ -d ".venv" ]; then
+# 1. Activate environment
+if [ -f "/home/param/miniforge3/etc/profile.d/conda.sh" ]; then
+    source /home/param/miniforge3/etc/profile.d/conda.sh
+    conda activate ml
+elif [ -n "$CONDA_DEFAULT_ENV" ]; then
+    echo "[+] Using active conda environment: $CONDA_DEFAULT_ENV"
+elif [ -d ".venv" ]; then
     source .venv/bin/activate
 elif [ -d "venv" ]; then
     source venv/bin/activate
