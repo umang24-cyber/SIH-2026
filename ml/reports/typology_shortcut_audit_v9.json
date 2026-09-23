@@ -1,0 +1,352 @@
+{
+  "phase": "Phase 5 Step 3 \u2014 Typology Shortcut Audit",
+  "dataset_seed": 20260921,
+  "features_audited": [
+    "io_count_ratio",
+    "edge_to_node_ratio",
+    "address_reuse_ratio",
+    "degree_assortativity",
+    "avg_clustering",
+    "mean_num_inputs",
+    "mean_num_outputs",
+    "change_output_ratio",
+    "max_chain_length",
+    "graph_density"
+  ],
+  "audit_results": {
+    "io_count_ratio": {
+      "per_class_stats": {
+        "ransomware": {
+          "mean": 1.3837183818444565,
+          "std": 0.2492740852584464,
+          "min": 0.5555555555555556,
+          "max": 2.2
+        },
+        "peeling_chain": {
+          "mean": 0.5565370834547774,
+          "std": 0.04552937942637579,
+          "min": 0.4166666666666667,
+          "max": 0.7857142857142857
+        },
+        "layering": {
+          "mean": 0.9497053964959825,
+          "std": 0.09243827769832823,
+          "min": 0.4615384615384615,
+          "max": 1.181818181818182
+        },
+        "mixing": {
+          "mean": 0.5307860342180558,
+          "std": 0.04600833670923583,
+          "min": 0.3953488372093023,
+          "max": 0.8285714285714286
+        }
+      },
+      "mean_spread": 0.8529323476264007,
+      "max_std": 0.2492740852584464,
+      "separation_ratio": 3.4216647242749643,
+      "flag": "[moderate separation]"
+    },
+    "edge_to_node_ratio": {
+      "per_class_stats": {
+        "ransomware": {
+          "mean": 0.8363900701323644,
+          "std": 0.037807361045031296,
+          "min": 0.7368421052631579,
+          "max": 0.9545454545454546
+        },
+        "peeling_chain": {
+          "mean": 0.983753686149058,
+          "std": 0.0135362693298135,
+          "min": 0.9375,
+          "max": 0.9984984984984984
+        },
+        "layering": {
+          "mean": 1.2213750383658526,
+          "std": 0.07607431304372729,
+          "min": 0.9375,
+          "max": 1.3233082706766917
+        },
+        "mixing": {
+          "mean": 0.9214633622938261,
+          "std": 0.009048752140210104,
+          "min": 0.8873239436619719,
+          "max": 0.9466666666666668
+        }
+      },
+      "mean_spread": 0.38498496823348816,
+      "max_std": 0.07607431304372729,
+      "separation_ratio": 5.0606433074401425,
+      "flag": "*** STRONG SEPARATION \u2014 POTENTIAL SHORTCUT ***"
+    },
+    "address_reuse_ratio": {
+      "per_class_stats": {
+        "ransomware": {
+          "mean": 0.2264697673563808,
+          "std": 0.1642967487817541,
+          "min": 0.0,
+          "max": 0.8
+        },
+        "peeling_chain": {
+          "mean": 0.44096531067132794,
+          "std": 0.02774932275625216,
+          "min": 0.3333333333333333,
+          "max": 0.4814814814814814
+        },
+        "layering": {
+          "mean": 0.8670596617878407,
+          "std": 0.12723134981205614,
+          "min": 0.3076923076923077,
+          "max": 0.9957627118644068
+        },
+        "mixing": {
+          "mean": 0.0,
+          "std": 0.0,
+          "min": 0.0,
+          "max": 0.0
+        }
+      },
+      "mean_spread": 0.8670596617878407,
+      "max_std": 0.1642967487817541,
+      "separation_ratio": 5.2773999664607585,
+      "flag": "*** STRONG SEPARATION \u2014 POTENTIAL SHORTCUT ***"
+    },
+    "degree_assortativity": {
+      "per_class_stats": {
+        "ransomware": {
+          "mean": -0.47512092474583456,
+          "std": 0.14157917393279387,
+          "min": -0.7795844649455881,
+          "max": 2.8166413859063778e-08
+        },
+        "peeling_chain": {
+          "mean": -0.408743296199982,
+          "std": 0.1224933725845975,
+          "min": -0.7739059899518964,
+          "max": 6.491913183178548e-08
+        },
+        "layering": {
+          "mean": -0.4376658402935136,
+          "std": 0.04845088590487211,
+          "min": -0.5840149551458688,
+          "max": -0.2773500981126142
+        },
+        "mixing": {
+          "mean": -0.7161335558339696,
+          "std": 0.057010957180123716,
+          "min": -0.8950796068138585,
+          "max": -0.502201390581075
+        }
+      },
+      "mean_spread": 0.30739025963398764,
+      "max_std": 0.14157917393279387,
+      "separation_ratio": 2.1711544779089333,
+      "flag": "[moderate separation]"
+    },
+    "avg_clustering": {
+      "per_class_stats": {
+        "ransomware": {
+          "mean": 0.807562796815779,
+          "std": 0.12233727768000938,
+          "min": 0.0,
+          "max": 1.0
+        },
+        "peeling_chain": {
+          "mean": 0.7508055075137976,
+          "std": 0.0234705038325393,
+          "min": 0.7055555555555556,
+          "max": 0.8380952380952381
+        },
+        "layering": {
+          "mean": 0.6447338589039899,
+          "std": 0.06271176113234535,
+          "min": 0.4166666666666667,
+          "max": 0.8844444444444444
+        },
+        "mixing": {
+          "mean": 1.0,
+          "std": 0.0,
+          "min": 1.0,
+          "max": 1.0
+        }
+      },
+      "mean_spread": 0.35526614109601007,
+      "max_std": 0.12233727768000938,
+      "separation_ratio": 2.9039892412946293,
+      "flag": "[moderate separation]"
+    },
+    "mean_num_inputs": {
+      "per_class_stats": {
+        "ransomware": {
+          "mean": 2.0066111395044057,
+          "std": 0.3592100453288301,
+          "min": 1.0,
+          "max": 3.1666666666666665
+        },
+        "peeling_chain": {
+          "mean": 1.1920408891272505,
+          "std": 0.08658697615609776,
+          "min": 1.0,
+          "max": 1.5714285714285714
+        },
+        "layering": {
+          "mean": 1.8413908035588527,
+          "std": 0.1545245587069828,
+          "min": 1.2,
+          "max": 2.2857142857142856
+        },
+        "mixing": {
+          "mean": 4.10903554702401,
+          "std": 0.4731837093473411,
+          "min": 2.8,
+          "max": 6.125
+        }
+      },
+      "mean_spread": 2.916994657896759,
+      "max_std": 0.4731837093473411,
+      "separation_ratio": 6.164613434717639,
+      "flag": "*** STRONG SEPARATION \u2014 POTENTIAL SHORTCUT ***"
+    },
+    "mean_num_outputs": {
+      "per_class_stats": {
+        "ransomware": {
+          "mean": 1.4613419401051335,
+          "std": 0.1775331203865962,
+          "min": 1.0,
+          "max": 2.0
+        },
+        "peeling_chain": {
+          "mean": 2.1449677866443326,
+          "std": 0.0847590376480158,
+          "min": 2.0,
+          "max": 2.5
+        },
+        "layering": {
+          "mean": 1.950471994785233,
+          "std": 0.1848245042864352,
+          "min": 1.2,
+          "max": 2.6666666666666665
+        },
+        "mixing": {
+          "mean": 7.792802079324449,
+          "std": 1.0810441145437504,
+          "min": 4.875,
+          "max": 11.75
+        }
+      },
+      "mean_spread": 6.331460139219316,
+      "max_std": 1.0810441145437504,
+      "separation_ratio": 5.856800891085446,
+      "flag": "*** STRONG SEPARATION \u2014 POTENTIAL SHORTCUT ***"
+    },
+    "change_output_ratio": {
+      "per_class_stats": {
+        "ransomware": {
+          "mean": 0.10200573558310826,
+          "std": 0.11119830397661605,
+          "min": 0.0,
+          "max": 0.7
+        },
+        "peeling_chain": {
+          "mean": 0.3612916472057444,
+          "std": 0.1368371670596168,
+          "min": 0.1111111111111111,
+          "max": 1.0
+        },
+        "layering": {
+          "mean": 0.06882294802250317,
+          "std": 0.06315527300330229,
+          "min": 0.0,
+          "max": 0.4
+        },
+        "mixing": {
+          "mean": 0.23173875232575547,
+          "std": 0.05892500859207981,
+          "min": 0.0,
+          "max": 0.4620535714285714
+        }
+      },
+      "mean_spread": 0.29246869918324125,
+      "max_std": 0.1368371670596168,
+      "separation_ratio": 2.137348377860461,
+      "flag": "[moderate separation]"
+    },
+    "max_chain_length": {
+      "per_class_stats": {
+        "ransomware": {
+          "mean": 2.6317460317460317,
+          "std": 1.327705431666943,
+          "min": 1.0,
+          "max": 8.0
+        },
+        "peeling_chain": {
+          "mean": 34.09375,
+          "std": 29.384051132161815,
+          "min": 5.0,
+          "max": 202.0
+        },
+        "layering": {
+          "mean": 20.31528662420382,
+          "std": 22.234977511071303,
+          "min": 2.0,
+          "max": 171.0
+        },
+        "mixing": {
+          "mean": 1.0,
+          "std": 0.0,
+          "min": 1.0,
+          "max": 1.0
+        }
+      },
+      "mean_spread": 33.09375,
+      "max_std": 29.384051132161815,
+      "separation_ratio": 1.1262487207780396,
+      "flag": ""
+    },
+    "graph_density": {
+      "per_class_stats": {
+        "ransomware": {
+          "mean": 0.026637517865507627,
+          "std": 0.015596048506256628,
+          "min": 0.0025466893039049,
+          "max": 0.0909090909090909
+        },
+        "peeling_chain": {
+          "mean": 0.01624631385094211,
+          "std": 0.013536269329813503,
+          "min": 0.0015015015015015,
+          "max": 0.0625
+        },
+        "layering": {
+          "mean": 0.02002570404582794,
+          "std": 0.01393724274088276,
+          "min": 0.0014919908466819,
+          "max": 0.0833333333333333
+        },
+        "mixing": {
+          "mean": 0.0036079726681464155,
+          "std": 0.003168105388004299,
+          "min": 0.0002343228737707,
+          "max": 0.0194264569842738
+        }
+      },
+      "mean_spread": 0.023029545197361213,
+      "max_std": 0.015596048506256628,
+      "separation_ratio": 1.4766268334889876,
+      "flag": ""
+    }
+  },
+  "flagged_strong": [
+    "edge_to_node_ratio",
+    "address_reuse_ratio",
+    "mean_num_inputs",
+    "mean_num_outputs"
+  ],
+  "flagged_moderate": [
+    "io_count_ratio",
+    "degree_assortativity",
+    "avg_clustering",
+    "change_output_ratio"
+  ],
+  "frozen_test_status": "NOT EVALUATED IN THIS STEP",
+  "timestamp": "2026-09-21T15:32:04.904150+00:00"
+}

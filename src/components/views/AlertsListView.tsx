@@ -148,118 +148,110 @@ export const AlertsListView: React.FC<AlertsListViewProps> = ({
         </div>
       ) : (
         <div style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
-          {['CRITICAL', 'HIGH', 'MEDIUM', 'LOW'].map(severityLevel => {
-            const groupAlerts = filteredAlerts.filter(a => a.severity === severityLevel);
-            if (groupAlerts.length === 0) return null;
+          <div
+            style={{
+              backgroundColor: '#002211',
+              color: '#00ff66',
+              padding: '4px 10px',
+              fontSize: '12px',
+              fontWeight: 'bold',
+              borderBottom: '1px solid #005520',
+              marginBottom: '8px',
+              letterSpacing: '1px',
+              display: 'flex',
+              justifyContent: 'space-between',
+            }}
+          >
+            <span>▼ RANKED ILLICIT ALERTS ({filteredAlerts.length})</span>
+            <span style={{ fontSize: '11px', color: '#94a3b8', letterSpacing: 'normal' }}>
+              Sorted by risk_score DESC
+            </span>
+          </div>
 
-            return (
-              <div key={severityLevel}>
-                {/* Divider Header */}
+          <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
+            {filteredAlerts.map((alt, idx) => {
+              const binConf = Number(alt.binary_confidence ?? 0);
+              const typConf = Number(alt.typology_confidence ?? 0);
+              const isCrit = alt.severity === 'CRITICAL';
+
+              return (
                 <div
+                  key={alt.candidate_id || idx}
                   style={{
-                    backgroundColor: severityLevel === 'CRITICAL' ? '#330000' : '#002211',
-                    color: severityLevel === 'CRITICAL' ? '#ff3344' : '#00ff66',
-                    padding: '4px 10px',
-                    fontSize: '12px',
-                    fontWeight: 'bold',
-                    borderBottom: `1px solid ${severityLevel === 'CRITICAL' ? '#ff3344' : '#005520'}`,
-                    marginBottom: '8px',
-                    letterSpacing: '1px',
-                    display: 'flex',
-                    justifyContent: 'space-between',
+                    border: `1px solid ${isCrit ? '#991122' : '#004d20'}`,
+                    padding: '10px 12px',
+                    background: '#000c04',
+                    borderRadius: '2px',
                   }}
                 >
-                  <span>▼ {severityLevel} THREATS ({groupAlerts.length})</span>
-                  <span style={{ fontSize: '11px', color: '#94a3b8', letterSpacing: 'normal' }}>
-                    ML Confidence Calibrated
-                  </span>
-                </div>
-
-                <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
-                  {groupAlerts.map((alt, idx) => {
-                    const binConf = Number(alt.binary_confidence ?? 0);
-                    const typConf = Number(alt.typology_confidence ?? 0);
-                    const isCrit = alt.severity === 'CRITICAL';
-
-                    return (
-                      <div
-                        key={alt.candidate_id || idx}
-                        style={{
-                          border: `1px solid ${isCrit ? '#991122' : '#004d20'}`,
-                          padding: '10px 12px',
-                          background: '#000c04',
-                          borderRadius: '2px',
-                        }}
+                  {/* Header line */}
+                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '6px', marginBottom: '6px' }}>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: '8px', flexWrap: 'wrap' }}>
+                      <span style={{ color: '#ffaa00', fontWeight: 'bold', fontSize: '13px' }}>
+                        #{idx + 1}
+                      </span>
+                      <span
+                        className="cmd-clickable"
+                        onClick={() => onRunCommand(`alerts --detail ${alt.candidate_id}`)}
+                        style={{ color: '#38bdf8', fontWeight: 'bold', fontFamily: 'monospace', fontSize: '13px' }}
+                        title="Click to view deep SHAP evidence"
                       >
-                        {/* Header line */}
-                        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '6px', marginBottom: '6px' }}>
-                          <div style={{ display: 'flex', alignItems: 'center', gap: '8px', flexWrap: 'wrap' }}>
-                            <span style={{ color: '#ffaa00', fontWeight: 'bold', fontSize: '13px' }}>
-                              #{idx + 1}
-                            </span>
-                            <span
-                              className="cmd-clickable"
-                              onClick={() => onRunCommand(`alerts --detail ${alt.candidate_id}`)}
-                              style={{ color: '#38bdf8', fontWeight: 'bold', fontFamily: 'monospace', fontSize: '13px' }}
-                              title="Click to view deep SHAP evidence"
-                            >
-                              {alt.candidate_id}
-                            </span>
-                            {getPatternBadge(alt.predicted_pattern_type)}
-                          </div>
+                        {alt.candidate_id}
+                      </span>
+                      {getPatternBadge(alt.predicted_pattern_type)}
+                    </div>
 
-                          <div style={{ color: '#00ff66', fontWeight: 800, fontSize: '12px', whiteSpace: 'nowrap' }}>
-                            BIN <span style={{ color: binConf >= 0.7 ? '#ff3344' : '#ffaa00' }}>{(binConf * 100).toFixed(1)}%</span>
-                            <span style={{ color: '#446644', margin: '0 4px' }}>·</span>
-                            TYPO <span style={{ color: '#00ff66' }}>{(typConf * 100).toFixed(1)}%</span>
-                          </div>
-                        </div>
+                    <div style={{ color: '#00ff66', fontWeight: 800, fontSize: '12px', whiteSpace: 'nowrap' }}>
+                      BIN/RISK <span style={{ color: binConf >= 0.7 ? '#ff3344' : '#ffaa00' }}>{(binConf * 100).toFixed(1)}%</span>
+                      <span style={{ color: '#446644', margin: '0 4px' }}>·</span>
+                      TYPO <span style={{ color: '#00ff66' }}>{(typConf * 100).toFixed(1)}%</span>
+                    </div>
+                  </div>
 
-                        {/* Explanation */}
-                        <div style={{ fontSize: '13px', color: '#f1f5f9', margin: '4px 0 6px 0', lineHeight: '1.45' }}>
-                          {alt.explanation}
-                        </div>
+                  {/* Explanation */}
+                  <div style={{ fontSize: '13px', color: '#f1f5f9', margin: '4px 0 6px 0', lineHeight: '1.45' }}>
+                    {alt.explanation}
+                  </div>
 
-                        {/* Metadata & Actions */}
-                        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '8px', fontSize: '12px', borderTop: '1px dashed #002b11', paddingTop: '6px' }}>
-                          <div style={{ color: '#94a3b8' }}>
-                            <span>Primary Wallet: </span>
-                            <span className="cmd-clickable" onClick={() => onRunCommand(`inspect ${alt.primary_wallet}`)}>
-                              {alt.primary_wallet}
-                            </span>
-                            <span style={{ margin: '0 6px', color: '#334433' }}>|</span>
-                            <span>Scenario: </span>
-                            <span className="cmd-clickable" onClick={() => onRunCommand(`graph ${alt.scenario_id}`)}>
-                              {alt.scenario_id}
-                            </span>
-                            <span style={{ margin: '0 6px', color: '#334433' }}>|</span>
-                            <span>{alt.member_txids?.length || 0} linked txns</span>
-                          </div>
+                  {/* Metadata & Actions */}
+                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '8px', fontSize: '12px', borderTop: '1px dashed #002b11', paddingTop: '6px' }}>
+                    <div style={{ color: '#94a3b8' }}>
+                      <span>Primary Wallet: </span>
+                      <span className="cmd-clickable" onClick={() => onRunCommand(`inspect ${alt.primary_wallet}`)}>
+                        {alt.primary_wallet}
+                      </span>
+                      <span style={{ margin: '0 6px', color: '#334433' }}>|</span>
+                      <span>Scenario: </span>
+                      <span className="cmd-clickable" onClick={() => onRunCommand(`graph ${alt.scenario_id}`)}>
+                        {alt.scenario_id}
+                      </span>
+                      <span style={{ margin: '0 6px', color: '#334433' }}>|</span>
+                      <span>{alt.member_txids?.length || 0} linked txns</span>
+                      <span style={{ margin: '0 6px', color: '#334433' }}>|</span>
+                      <span>Anomaly: {alt.anomaly_score?.toFixed(1) || '0.0'} ({alt.anomaly_label || 'LOW'})</span>
+                    </div>
 
-                          <div style={{ display: 'flex', gap: '8px' }}>
-                            <span
-                              className="cmd-tag"
-                              onClick={() => onRunCommand(`alerts --detail ${alt.candidate_id}`)}
-                              style={{ cursor: 'pointer', fontSize: '11px', color: '#38bdf8' }}
-                            >
-                              [🔍 SHAP Evidence]
-                            </span>
-                            <span
-                              className="cmd-tag"
-                              onClick={() => onRunCommand(`graph ${alt.scenario_id}`)}
-                              style={{ cursor: 'pointer', fontSize: '11px', color: '#00ff66' }}
-                            >
-                              [🌐 3D Graph]
-                            </span>
-                          </div>
-                        </div>
-                      </div>
-                    );
-                  })}
+                    <div style={{ display: 'flex', gap: '8px' }}>
+                      <span
+                        className="cmd-tag"
+                        onClick={() => onRunCommand(`alerts --detail ${alt.candidate_id}`)}
+                        style={{ cursor: 'pointer', fontSize: '11px', color: '#38bdf8' }}
+                      >
+                        [🔍 SHAP Evidence]
+                      </span>
+                      <span
+                        className="cmd-tag"
+                        onClick={() => onRunCommand(`graph ${alt.scenario_id}`)}
+                        style={{ cursor: 'pointer', fontSize: '11px', color: '#00ff66' }}
+                      >
+                        [🌐 3D Graph]
+                      </span>
+                    </div>
+                  </div>
                 </div>
-              </div>
-            );
-          })}
+              );
+            })}
+          </div>
         </div>
       )}
     </div>

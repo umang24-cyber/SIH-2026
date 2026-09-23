@@ -175,6 +175,8 @@ export interface AlertSummary {
   detected_at: string;
   is_ml_driven?: boolean;
   risk_score?: number;
+  anomaly_score?: number;
+  anomaly_label?: string;
 }
 
 export interface FeatureAttribution {

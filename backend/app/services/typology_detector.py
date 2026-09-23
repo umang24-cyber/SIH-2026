@@ -43,14 +43,7 @@ from backend.app.services.data_service import data_service
 logger = logging.getLogger(__name__)
 
 
-def _severity_from_confidence(conf: float) -> str:
-    if conf >= 0.85:
-        return "CRITICAL"
-    if conf >= 0.70:
-        return "HIGH"
-    if conf >= 0.55:
-        return "MEDIUM"
-    return "LOW"
+
 
 
 class TypologyDetector:
@@ -63,65 +56,66 @@ class TypologyDetector:
 
     def scan_all_typologies(self, max_candidates: Optional[int] = None):
         """
-        Run structural candidate detectors, then score every candidate with the
-        ML models.  Only candidates where binary model predicts is_illicit=True
-        emit alerts.  All labels and confidence values come from the ML models.
+        Score complete scenarios with the ML models first.
+        Only scenarios where binary model predicts is_illicit=True emit alerts.
+        Structural candidates are extracted solely as evidence fragments for illicit scenarios.
         """
         if not data_service.is_ready:
             data_service.initialize()
 
         # Import here to avoid circular imports at module load
         from backend.app.services.ml_service import ml_service
+        from backend.app.services.anomaly_service import anomaly_service
 
-        logger.info("Running structural candidate discovery across all scenarios...")
+        import time
+        t_scan_start = time.perf_counter()
+        
+        logger.info("Scoring complete scenarios to identify illicit alerts...")
         self.evidence_cache.clear()
         self._attribution_attempted.clear()
         alerts = []
+        illicit_scenario_ids = set()
 
-        # 1. Discover Peeling Chain candidates
-        peel_candidates = self._discover_peeling_chain_candidates()
-        logger.info(f"Discovered {len(peel_candidates)} peeling chain structural candidates.")
+        scenarios = list(data_service.scenario_tx_map.items())
+        if max_candidates is not None and len(scenarios) > max_candidates:
+            scenarios = scenarios[:max_candidates]
 
-        # 2. Discover Layering candidates
-        layer_candidates = self._discover_layering_candidates()
-        logger.info(f"Discovered {len(layer_candidates)} layering structural candidates.")
-
-        # 3. Discover Mixing / CoinJoin candidates
-        mix_candidates = self._discover_mixing_candidates()
-        logger.info(f"Discovered {len(mix_candidates)} mixing structural candidates.")
-
-        # 4. Discover Ransomware payment aggregation candidates
-        ransom_candidates = self._discover_ransomware_candidates()
-        logger.info(f"Discovered {len(ransom_candidates)} ransomware structural candidates.")
-
-        all_candidates = peel_candidates + layer_candidates + mix_candidates + ransom_candidates
-
-        if max_candidates is not None and len(all_candidates) > max_candidates:
-            logger.info("Limiting structural candidates to %d (test mode).", max_candidates)
-            all_candidates = all_candidates[:max_candidates]
-
-        # 5. Score every candidate with the ML models
-        logger.info(f"Scoring {len(all_candidates)} total candidates with ML models...")
         ml_alerts_count = 0
         dropped_count = 0
+        
+        total_feature_time = 0.0
+        total_binary_time = 0.0
+        total_typology_time = 0.0
 
-        for cand in all_candidates:
-            tx_records = cand["tx_records"]
-            cand_id = cand["candidate_id"]
+        for idx, (sc_id, txids) in enumerate(scenarios):
+            if idx % 500 == 0:
+                logger.info(f"Scored {idx}/{len(scenarios)} scenarios...")
+            tx_records = [data_service.txid_map[t] for t in txids if t in data_service.txid_map]
+            if not tx_records:
+                continue
+                
+            cand_id = f"alert_{sc_id}"
 
             try:
                 ml_result = ml_service.score_candidate(tx_records, candidate_id=cand_id)
+                prof = ml_result.get("profiling", {})
+                total_feature_time += prof.get("feature_time", 0.0)
+                total_binary_time += prof.get("binary_time", 0.0)
+                total_typology_time += prof.get("typology_time", 0.0)
             except Exception:
-                logger.exception("ML scoring failed for candidate %s — skipping.", cand_id)
-                dropped_count += 1
+                logger.exception("ML scoring failed for scenario %s — skipping.", sc_id)
                 continue
 
             if not ml_result.get("is_illicit", False):
-                # Structural shape matched, but ML says licit — do not emit an alert.
                 dropped_count += 1
                 continue
 
-            # ML model drives all final alert fields
+            illicit_scenario_ids.add(sc_id)
+            
+            anomaly_res = anomaly_service.score_scenario_id(sc_id)
+            anomaly_score = anomaly_res["anomaly_score"] if anomaly_res else 0.0
+            anomaly_label = anomaly_res["anomaly_label"] if anomaly_res else "LOW"
+
             ml_typology    = ml_result["typology"]
             ml_binary_confidence = ml_result["binary_confidence"]
             ml_typology_confidence = ml_result["typology_confidence"]
@@ -130,43 +124,71 @@ class TypologyDetector:
             binary_shap    = ml_result.get("binary_shap", [])
             typology_shap  = ml_result.get("typology_shap", [])
 
-            # Preserve the existing severity semantics: severity reflects
-            # confidence in the named typology, not binary illicit risk.
-            severity = _severity_from_confidence(ml_typology_confidence)
+            if ml_risk_score >= 0.90:
+                severity = "CRITICAL"
+            elif ml_risk_score >= 0.75:
+                severity = "HIGH"
+            elif ml_risk_score >= 0.50:
+                severity = "MEDIUM"
+            else:
+                severity = "LOW"
+                
+            input_addrs = [addr for tx in tx_records for addr in tx.get("input_addresses", [])]
+            primary_wallet = max(set(input_addrs), key=input_addrs.count) if input_addrs else "Unknown"
 
             alert = AlertSummary(
                 candidate_id=cand_id,
-                scenario_id=cand["scenario_id"],
+                scenario_id=sc_id,
                 predicted_pattern_type=ml_typology,
                 binary_confidence=round(ml_binary_confidence, 4),
                 typology_confidence=round(ml_typology_confidence, 4),
                 severity=severity,
                 explanation=ml_explanation,
-                primary_wallet=cand["primary_wallet"],
-                member_txids=cand["member_txids"],
-                member_wallets=cand["member_wallets"][:10],
-                detected_at=cand["detected_at"],
+                primary_wallet=primary_wallet,
+                member_txids=[t["txid"] for t in tx_records],
+                member_wallets=list(set(input_addrs + [addr for tx in tx_records for addr in tx.get("output_addresses", [])]))[:10],
+                detected_at=str(tx_records[0]["timestamp"]),
                 is_ml_driven=True,
                 risk_score=round(ml_risk_score, 4),
+                anomaly_score=anomaly_score,
+                anomaly_label=anomaly_label,
+                evidence=[]
             )
             alerts.append(alert)
-            ml_alerts_count += 1
 
-            # Cache evidence immediately with SHAP already computed
             self._cache_evidence(
                 alert=alert,
                 transactions=tx_records,
-                heuristic_type=cand["structural_type"],
                 binary_shap=binary_shap,
                 typology_shap=typology_shap,
                 typology_explanation=ml_explanation,
             )
+            ml_alerts_count += 1
 
-        # Sort by typology confidence, preserving the previous alert ordering.
-        alerts.sort(key=lambda a: a.typology_confidence, reverse=True)
+        import time
+        t_discovery_start = time.perf_counter()
+
+        logger.info("Discovering structural evidence for flagged scenarios...")
+        peel_candidates = [c for c in self._discover_peeling_chain_candidates() if c["scenario_id"] in illicit_scenario_ids]
+        layer_candidates = [c for c in self._discover_layering_candidates() if c["scenario_id"] in illicit_scenario_ids]
+        mix_candidates = [c for c in self._discover_mixing_candidates() if c["scenario_id"] in illicit_scenario_ids]
+        ransom_candidates = [c for c in self._discover_ransomware_candidates() if c["scenario_id"] in illicit_scenario_ids]
+        
+        all_evidence = peel_candidates + layer_candidates + mix_candidates + ransom_candidates
+        
+        t_discovery_end = time.perf_counter()
+        
+        alert_map = {a.scenario_id: a for a in alerts}
+        for ev in all_evidence:
+            sc_id = ev["scenario_id"]
+            if sc_id in alert_map:
+                alert_map[sc_id].evidence.append(ev)
+                if alert_map[sc_id].candidate_id in self.evidence_cache:
+                    self.evidence_cache[alert_map[sc_id].candidate_id].evidence.append(ev)
+
+        alerts.sort(key=lambda a: (-a.risk_score, -a.anomaly_score, a.scenario_id))
         self.detected_alerts = alerts
 
-        # Build txid → typologies map
         self.tx_typology_map.clear()
         for a in alerts:
             for tid in a.member_txids:
@@ -174,10 +196,30 @@ class TypologyDetector:
                     self.tx_typology_map[tid].append(a.predicted_pattern_type)
 
         self.is_scanned = True
+        
+        t_total_end = time.perf_counter()
+        total_time = t_total_end - t_scan_start
+        evidence_time = t_discovery_end - t_discovery_start
+        
         logger.info(
-            "Typology detection complete. ML-driven alerts: %d. Dropped (not illicit per ML): %d.",
+            "Typology detection complete. ML-driven scenario alerts: %d. Dropped normal scenarios: %d.",
             ml_alerts_count,
             dropped_count,
+        )
+        logger.info(
+            "\nAlert scan:\n"
+            "  scenarios: %d\n"
+            "  feature computation: %.2fs\n"
+            "  binary scoring: %.2fs\n"
+            "  typology scoring: %.2fs\n"
+            "  evidence extraction: %.2fs\n"
+            "  total: %.2fs",
+            len(scenarios),
+            total_feature_time,
+            total_binary_time,
+            total_typology_time,
+            evidence_time,
+            total_time
         )
 
     # ------------------------------------------------------------------
@@ -420,7 +462,6 @@ class TypologyDetector:
         self,
         alert: AlertSummary,
         transactions: List[Dict[str, Any]],
-        heuristic_type: str,
         binary_shap: List[Dict[str, Any]],
         typology_shap: List[Dict[str, Any]],
         typology_explanation: str,
@@ -455,17 +496,11 @@ class TypologyDetector:
             predicted_pattern_type=alert.predicted_pattern_type,
             binary_confidence=alert.binary_confidence,
             typology_confidence=alert.typology_confidence,
-            typology_heuristic_match={
-                "heuristic_name": f"{heuristic_type}_traversal",
-                "chain_length": len(alert.member_txids),
-                "reconvergence_detected": heuristic_type == "layering",
-                "primary_destination": alert.primary_wallet,
-            },
-            # Binary SHAP from the ML model (pre-computed at scan time)
+            typology_heuristic_match={},
+            evidence=alert.evidence,
             ml_feature_attributions=[
                 FeatureAttribution(**item) for item in binary_shap
             ],
-            # Typology SHAP from the ML model (pre-computed at scan time)
             typology_shap_attributions=[
                 FeatureAttribution(**item) for item in typology_shap
             ],
@@ -486,18 +521,22 @@ class TypologyDetector:
 
     def get_alerts(
         self,
-        min_confidence: float = 0.50,
         pattern_type: Optional[str] = None,
         limit: int = 50,
         max_candidates: Optional[int] = None,
+        sort_by: str = "risk_score"
     ) -> List[AlertSummary]:
         if not self.is_scanned:
             self.scan_all_typologies(max_candidates=max_candidates)
+        
         filtered = [
             a for a in self.detected_alerts
-            if a.typology_confidence >= min_confidence
-            and (pattern_type is None or a.predicted_pattern_type.lower() == pattern_type.lower())
+            if (pattern_type is None or a.predicted_pattern_type.lower() == pattern_type.lower())
         ]
+        
+        if sort_by == "risk_score":
+            filtered.sort(key=lambda a: (-a.risk_score, -a.anomaly_score, a.scenario_id))
+            
         return filtered[:limit]
 
     def get_evidence(self, candidate_id: str, max_candidates: Optional[int] = None) -> Optional[EvidenceResponse]:
