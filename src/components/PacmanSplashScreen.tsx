@@ -1,8 +1,12 @@
-import React, { useState, useEffect, useRef } from 'react';
+import React, { useState, useEffect, useRef, useCallback } from 'react';
 import { sound } from '../audio/soundEngine';
+import './PacmanSplashScreen.css';
 
 interface PacmanSplashScreenProps {
   onComplete: () => void;
+  autoStart?: boolean;
+  entranceFromLanding?: boolean;
+  onEntranceComplete?: () => void;
 }
 
 interface BitcoinCoin {
@@ -24,7 +28,12 @@ const TOTAL_COLS = 64;
 const BITCOIN_COLS = [8, 17, 26, 35, 44, 53, 62];
 const GLITCH_CHARS = ['#', '░', '▒', '▓', '%', '&', '*', '@', '?', '0', '1', '!', '/', 'X', 'Z', '█'];
 
-export const PacmanSplashScreen: React.FC<PacmanSplashScreenProps> = ({ onComplete }) => {
+export const PacmanSplashScreen: React.FC<PacmanSplashScreenProps> = ({
+  onComplete, autoStart = false, entranceFromLanding = false, onEntranceComplete,
+}) => {
+  const [isEntering, setIsEntering] = useState(() =>
+    entranceFromLanding && !window.matchMedia('(prefers-reduced-motion: reduce)').matches
+  );
   const [hasStarted, setHasStarted] = useState<boolean>(false);
   const [currentCol, setCurrentCol] = useState<number>(0);
   const [mouthOpen, setMouthOpen] = useState<boolean>(true);
@@ -34,29 +43,99 @@ export const PacmanSplashScreen: React.FC<PacmanSplashScreenProps> = ({ onComple
   );
 
   const timerRef = useRef<number | null>(null);
+  const finishTimerRef = useRef<number | null>(null);
+  const startedRef = useRef(false);
+  const completedRef = useRef(false);
   const chompCounterRef = useRef<number>(0);
   const audioStopRef = useRef<(() => void) | null>(null);
+  const entranceCompletedRef = useRef(false);
+  const splashRef = useRef<HTMLDivElement>(null);
 
-  const startSequence = () => {
-    if (hasStarted) return;
+  const startSequence = useCallback(() => {
+    if (startedRef.current || completedRef.current || isEntering) return;
+    startedRef.current = true;
     setHasStarted(true);
     sound.initCtx();
+  }, [isEntering]);
+
+  const finishEntrance = useCallback(() => {
+    if (entranceCompletedRef.current || completedRef.current) return;
+    entranceCompletedRef.current = true;
+    setIsEntering(false);
+    onEntranceComplete?.();
+  }, [onEntranceComplete]);
+
+  const handleSkip = useCallback(() => {
+    if (completedRef.current) return;
+    completedRef.current = true;
+    if (timerRef.current !== null) clearInterval(timerRef.current);
+    if (finishTimerRef.current !== null) clearTimeout(finishTimerRef.current);
+    audioStopRef.current?.();
+    sound.stopPacmanIntro();
+    onComplete();
+  }, [onComplete]);
+
+  useEffect(() => {
+    splashRef.current?.focus({ preventScroll: true });
+  }, []);
+
+  useEffect(() => {
+    if (!entranceFromLanding) return;
+    if (!isEntering) {
+      finishEntrance();
+      return;
+    }
+
+    // Animation-end is the handoff; the timer also handles paused/disabled CSS.
+    const fallback = window.setTimeout(finishEntrance, 2300);
+    const motion = window.matchMedia('(prefers-reduced-motion: reduce)');
+    const onMotionChange = () => { if (motion.matches) finishEntrance(); };
+    motion.addEventListener('change', onMotionChange);
+    return () => {
+      window.clearTimeout(fallback);
+      motion.removeEventListener('change', onMotionChange);
+    };
+  }, [entranceFromLanding, isEntering, finishEntrance]);
+
+  useEffect(() => {
+    if (autoStart && !isEntering) startSequence();
+  }, [autoStart, isEntering, startSequence]);
+
+  useEffect(() => {
+    if (!hasStarted) return;
     const stopAudio = sound.playPacmanIntro();
     audioStopRef.current = stopAudio;
-  };
+    return () => {
+      stopAudio();
+      audioStopRef.current = null;
+    };
+  }, [hasStarted]);
+
+  useEffect(() => {
+    if (!isEntering) return;
+    const chomp = window.setInterval(() => setMouthOpen(open => !open), 130);
+    return () => window.clearInterval(chomp);
+  }, [isEntering]);
+
+  useEffect(() => () => {
+    if (timerRef.current !== null) clearInterval(timerRef.current);
+    if (finishTimerRef.current !== null) clearTimeout(finishTimerRef.current);
+  }, []);
 
   // Keyboard controls
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
-      if (!hasStarted) {
-        startSequence();
-      } else if (e.key === 'Escape' || e.key === ' ') {
+      if (e.key === 'Escape' || (hasStarted && e.key === ' ')) {
+        e.preventDefault();
         handleSkip();
+      } else if (!isEntering && !hasStarted && (e.key === 'Enter' || e.key === ' ')) {
+        e.preventDefault();
+        startSequence();
       }
     };
     window.addEventListener('keydown', handleKeyDown);
     return () => window.removeEventListener('keydown', handleKeyDown);
-  }, [hasStarted]);
+  }, [hasStarted, isEntering, handleSkip, startSequence]);
 
   // Frame-by-frame column reveal & discrete Pac-Man walk
   useEffect(() => {
@@ -88,25 +167,14 @@ export const PacmanSplashScreen: React.FC<PacmanSplashScreenProps> = ({ onComple
         setIsFinished(true);
         setBitcoins(prev => prev.map(b => ({ ...b, eaten: true })));
 
-        setTimeout(() => {
-          onComplete();
-        }, 500);
+        finishTimerRef.current = window.setTimeout(handleSkip, 500);
       }
     }, stepInterval);
 
     return () => {
       if (timerRef.current) clearInterval(timerRef.current);
     };
-  }, [hasStarted, onComplete]);
-
-  const handleSkip = () => {
-    if (timerRef.current) clearInterval(timerRef.current);
-    if (audioStopRef.current) {
-      audioStopRef.current();
-    }
-    sound.stopPacmanIntro();
-    onComplete();
-  };
+  }, [hasStarted, handleSkip]);
 
   // Generate the scrambled/revealed ASCII logo string for the current frame
   const getScrambledLogo = (): string => {
@@ -141,20 +209,25 @@ export const PacmanSplashScreen: React.FC<PacmanSplashScreenProps> = ({ onComple
 
   return (
     <div
-      onClick={!hasStarted ? startSequence : undefined}
+      ref={splashRef}
+      className={`pacman-splash${isEntering ? ' pacman-splash-entering' : ''}`}
+      role="dialog"
+      aria-modal="true"
+      aria-label="Starting BITKAUN terminal"
+      tabIndex={-1}
+      onClick={!hasStarted && !isEntering ? startSequence : undefined}
       style={{
         position: 'fixed',
         top: 0,
         left: 0,
         width: '100vw',
-        height: '100vh',
-        backgroundColor: '#000000',
+        height: '100dvh',
         display: 'flex',
         flexDirection: 'column',
         alignItems: 'center',
         justifyContent: 'center',
         zIndex: 99999,
-        cursor: !hasStarted ? 'pointer' : 'default',
+        cursor: !hasStarted && !isEntering ? 'pointer' : 'default',
         userSelect: 'none',
         overflow: 'hidden'
       }}
@@ -187,6 +260,7 @@ export const PacmanSplashScreen: React.FC<PacmanSplashScreenProps> = ({ onComple
             return (
               <div
                 key={btc.id}
+                className="pacman-splash-coin"
                 style={{
                   position: 'absolute',
                   left: `${btcPercent}%`,
@@ -213,6 +287,7 @@ export const PacmanSplashScreen: React.FC<PacmanSplashScreenProps> = ({ onComple
 
           {/* Green Pixel Pac-Man Sprite (Moving Clunkily Step-by-Step) */}
           <div
+            className="pacman-splash-position"
             style={{
               position: 'absolute',
               left: `${pacmanPercent}%`,
@@ -222,6 +297,12 @@ export const PacmanSplashScreen: React.FC<PacmanSplashScreenProps> = ({ onComple
               transition: 'none'
             }}
           >
+            <div
+              className="pacman-splash-sprite"
+              onAnimationEnd={event => {
+                if (event.target === event.currentTarget && event.animationName === 'pacman-enter-frame') finishEntrance();
+              }}
+            >
             {mouthOpen ? (
               <svg width="44" height="44" viewBox="0 0 16 16" shapeRendering="crispEdges">
                 <path
@@ -240,15 +321,16 @@ export const PacmanSplashScreen: React.FC<PacmanSplashScreenProps> = ({ onComple
                 <rect x="11" y="8" width="4" height="1" fill="#000000" />
               </svg>
             )}
+            </div>
           </div>
         </div>
 
         {/* The Frame-by-Frame Revealed Scrambled ASCII Art Logo */}
         <pre
-          className="ansi-shadow-logo"
+          className="ansi-shadow-logo pacman-splash-logo"
           style={{
             color: 'var(--fg-primary)',
-            fontSize: '14.5px',
+            fontSize: 'clamp(7px, 1.85vw, 14.5px)',
             lineHeight: 1.15,
             letterSpacing: '0px',
             whiteSpace: 'pre',
@@ -256,12 +338,12 @@ export const PacmanSplashScreen: React.FC<PacmanSplashScreenProps> = ({ onComple
             textShadow: isFinished ? '0 0 4px rgba(0, 204, 85, 0.5)' : '0 0 2px rgba(0, 204, 85, 0.3)'
           }}
         >
-          {getScrambledLogo()}
+          {hasStarted ? getScrambledLogo() : LOGO_LINES.map(line => ' '.repeat(line.length)).join('\n')}
         </pre>
       </div>
 
       {/* Startup Prompt on Blank Black Screen */}
-      {!hasStarted ? (
+      {!hasStarted && !autoStart && !isEntering ? (
         <div
           style={{
             position: 'absolute',
@@ -277,7 +359,9 @@ export const PacmanSplashScreen: React.FC<PacmanSplashScreenProps> = ({ onComple
           [ CLICK TO BOOTUP BITKAUN ]
         </div>
       ) : (
-        <div
+        <button
+          type="button"
+          className="pacman-splash-skip"
           onClick={handleSkip}
           style={{
             position: 'absolute',
@@ -286,11 +370,14 @@ export const PacmanSplashScreen: React.FC<PacmanSplashScreenProps> = ({ onComple
             fontFamily: "'VT323', monospace",
             fontSize: '15px',
             cursor: 'pointer',
-            letterSpacing: '1px'
+            letterSpacing: '1px',
+            background: 'none',
+            border: 0,
+            padding: '8px 12px'
           }}
         >
           [ESC to skip]
-        </div>
+        </button>
       )}
     </div>
   );
