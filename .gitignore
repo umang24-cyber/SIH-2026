@@ -1,6 +1,7 @@
 # Personal & Local Design Specs
 FRONTEND_DESIGN.md
 LANDING_PAGE_PLAN.md
+BITKAUN_CHAT_CONTEXT.md
 node_modules/
 dist/
 .env*

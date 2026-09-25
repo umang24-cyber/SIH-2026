@@ -10,6 +10,13 @@
 
 ## Recent Entries
 
+- **2026-09-25 [Frontend/Docs/Navigation] [P1/P2/P6]** — **Editorial Landing Page & BitKaun Field Guide:**
+  - Added an ivory, olive, and wine editorial theme with locally bundled fonts and interactive ASCII fern, wine glass, and Bitcoin artwork.
+  - Implemented 15 handbook-backed documentation pages with local search, chapter/heading navigation, code-copy controls, and responsive layouts.
+  - Added a book-page transition into the guide, reduced-motion and skip controls, terminal session continuity, and scoped production frontend routes while preserving FastAPI's API documentation.
+  - Added browser-check infrastructure and a manual review checklist. Final `npm run build` passed; final browser verification is deferred to manual review at the user's request.
+  - Ignored the local chat-context Markdown file.
+
 - **2026-09-08 [ML/Backend/Frontend] [P1/P2/P5/P6]** — **Complete V8 Migration & Enhanced Dual-Stream (Ledger + Telemetry) Correlation Dashboard:**
   - **ML V8 Standardization (`MANIFEST_v8.json`, `models/`, `train_v8.py`)**: Established official `MANIFEST_v8.json` declaring the 46-feature contract across 5,440 scenarios (294,639 transactions). Standardized `binary_model_v8.ubj`, `typology_model_v8.ubj`, and `anomaly_model_v8.pkl`. Updated `ml/train_v8.py` to auto-resolve data directories and save `_v8` artifacts.
   - **Backend V8 & Satoshi Accounting Normalization (`config.py`, `ml_service.py`, `anomaly_service.py`, `parser.py`, `routes_ingest.py`)**: Updated API engine version to `8.0.0` and expected rows to `294,639`. Wired `ml_service.py` and `anomaly_service.py` directly to V8 models and manifests. Added satoshi-to-BTC scale normalization in `normalize_transaction_dict` and `parse_and_enrich_dataframe` (converting $>21\text{M}$ satoshi values to standard BTC), eliminating astronomical amounts like 72M BTC in ransomware scenarios.
