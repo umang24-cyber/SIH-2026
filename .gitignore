@@ -6,6 +6,8 @@ dist/
 .env*
 .DS_Store
 Thumbs.db
+playwright-report/
+test-results/
 
 # Raw heavy datasets (>100MB)
 data/raw/

@@ -23,6 +23,20 @@
   width: 100%;
   padding: clamp(24px, 5vw, 70px);
   margin: auto 0;
+  pointer-events: none;
+}
+
+/* Empty layout space lets the still life receive gestures; content stays selectable. */
+.landing-ascii-container,
+.landing-subtitle,
+.landing-description p,
+.landing-card,
+.landing-footer {
+  pointer-events: auto;
+}
+
+.landing-description p {
+  width: fit-content;
 }
 
 .landing-header {
@@ -252,6 +266,19 @@
 }
 
 @media (max-width: 760px) {
+  .landing-content {
+    padding-bottom: 85px;
+  }
+
+  .landing-footer {
+    padding-right: 120px;
+    align-items: baseline;
+  }
+
+  .landing-status-dot {
+    flex-shrink: 0;
+  }
+
   .landing-cards {
     grid-template-columns: 1fr;
     gap: 12px;
@@ -269,6 +296,10 @@
 .landing-canvas-exiting {
   pointer-events: none;
   overflow: hidden;
+}
+
+.landing-canvas-exiting .landing-content * {
+  pointer-events: none;
 }
 
 .landing-canvas-exiting .landing-ascii-container {

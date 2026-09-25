@@ -113,6 +113,17 @@ def root():
         return FileResponse(index_html)
     return {"status": "ONLINE", "message": "BitKaun AML Forensics API"}
 
+
+# Explicit frontend routes allow refreshed/deep-linked guide pages to load
+# from the built app. FastAPI's /docs and /openapi.json remain API references.
+@app.get("/terminal", include_in_schema=False)
+@app.get("/docs/{page:path}", include_in_schema=False)
+def frontend_page(page: str = ""):
+    if os.path.exists(index_html):
+        return FileResponse(index_html)
+    from fastapi import HTTPException
+    raise HTTPException(status_code=404, detail="Frontend build unavailable. Run npm run build from the repository root.")
+
 if __name__ == "__main__":
     import uvicorn
     uvicorn.run("backend.app.main:app", host=settings.HOST, port=settings.PORT, reload=True)
