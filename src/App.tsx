@@ -2,6 +2,7 @@ import React, { useState, useEffect, useRef, useCallback } from 'react';
 import { sound } from './audio/soundEngine';
 import { CliOutputRenderer } from './components/CliOutputRenderer';
 import { PacmanSplashScreen } from './components/PacmanSplashScreen';
+import { LandingPage } from './components/LandingPage';
 import { ScrambledAsciiLogo } from './components/ScrambledAsciiLogo';
 import { AmbientBinaryRain } from './components/AmbientBinaryRain';
 import { CliSpinner } from './components/CliSpinner';
@@ -15,7 +16,9 @@ interface TerminalEntry {
 }
 
 export function App() {
-  const [showSplash, setShowSplash] = useState<boolean>(true);
+  const [showSplash, setShowSplash] = useState<boolean>(false);
+  const [showLanding, setShowLanding] = useState<boolean>(true);
+  const [showTool, setShowTool] = useState<boolean>(false);
   const [inputVal, setInputVal] = useState<string>('');
   const [cursorPos, setCursorPos] = useState<number>(0);
   const [commandHistory, setCommandHistory] = useState<string[]>([]);
@@ -41,6 +44,12 @@ export function App() {
     const t = setTimeout(scrollToBottom, 30);
     return () => clearTimeout(t);
   }, [entries]);
+
+  useEffect(() => {
+    if (showTool) {
+      setTimeout(() => inputRef.current?.focus({ preventScroll: true }), 100);
+    }
+  }, [showTool]);
 
   useEffect(() => {
     inputRef.current?.focus({ preventScroll: true });
@@ -1660,21 +1669,40 @@ export function App() {
     inputRef.current?.focus({ preventScroll: true });
   };
 
+  const enterCLI = () => {
+    setShowSplash(true);
+  };
+
+  const handleSplashEntranceComplete = useCallback(() => {
+    setShowLanding(false);
+  }, []);
+
+  const handleSplashComplete = useCallback(() => {
+    setShowLanding(false);
+    setShowSplash(false);
+    setShowTool(true);
+  }, []);
+
   return (
     <div className="terminal-window" onClick={handleTerminalWindowClick}>
       <AmbientBinaryRain />
 
       {showSplash && (
         <PacmanSplashScreen
-          onComplete={() => {
-            setShowSplash(false);
-            setTimeout(() => inputRef.current?.focus({ preventScroll: true }), 80);
-          }}
+          autoStart
+          entranceFromLanding
+          onEntranceComplete={handleSplashEntranceComplete}
+          onComplete={handleSplashComplete}
         />
       )}
 
-      {/* Title Bar */}
-      <div className="terminal-titlebar">
+      {showLanding && (
+        <LandingPage onEnterCLI={enterCLI} isExiting={showSplash} />
+      )}
+
+      {showTool && !showSplash && !showLanding && (
+        <>
+        <div className="terminal-titlebar">
         <div className="window-dots">
           <span className="window-dot dot-red" />
           <span className="window-dot dot-yellow" />
@@ -1802,6 +1830,8 @@ export function App() {
 
         <div ref={scrollBottomRef} />
       </div>
+    </>
+    )}
     </div>
   );
 }

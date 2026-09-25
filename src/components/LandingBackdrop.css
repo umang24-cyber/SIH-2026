@@ -1,0 +1,232 @@
+.landing-backdrop {
+  position: fixed;
+  inset: 0;
+  overflow: hidden;
+  pointer-events: none;
+  user-select: none;
+  isolation: isolate;
+  background:
+    radial-gradient(ellipse at 88% 28%, #e8eddc 0%, transparent 48%),
+    radial-gradient(ellipse at 73% 94%, #edf0df 0%, transparent 42%),
+    #fcfdf9;
+}
+
+.landing-still-life {
+  position: absolute;
+  top: 50%;
+  right: 20px;
+  width: 820px;
+  height: 950px;
+  transform: translateY(-50%);
+}
+
+.landing-art {
+  --art-surface: #edf1e2;
+  position: absolute;
+  margin: 0;
+  padding: 0;
+  border: 0;
+  background: none;
+  overflow: visible;
+  font-family: 'Courier New', monospace;
+  font-weight: 700;
+  font-variant-ligatures: none;
+  letter-spacing: 0;
+  white-space: pre;
+  text-align: left;
+  text-rendering: geometricPrecision;
+}
+
+.landing-art span {
+  font: inherit;
+  letter-spacing: inherit;
+}
+
+/* Opaque, row-shaped surfaces hide artwork behind the actual silhouette,
+   including interior spaces, rather than covering a rectangular pre box. */
+.landing-art-solid,
+.landing-art-pane {
+  display: inline-block;
+  background: var(--art-surface);
+}
+
+.landing-art-liquid {
+  color: #efb4b0;
+  background-color: #68132b;
+  background-image: linear-gradient(90deg, #4a0d20, #8e203d 38%, #751730 72%, #4a0d20);
+}
+
+.landing-art-pane {
+  background: rgba(246, 249, 238, 0.12);
+}
+
+.landing-art-fern {
+  z-index: 1;
+  top: -65px;
+  left: 220px;
+  color: #49652c;
+  font-size: 8.6px;
+  line-height: 1;
+  transform: rotate(10deg);
+  transform-origin: 50% 90%;
+}
+
+.landing-art-fern-low {
+  z-index: 0;
+  top: 360px;
+  left: 35px;
+  color: #6b7d42;
+  font-size: 7.5px;
+  line-height: 1;
+  transform: rotate(-57deg);
+  transform-origin: 50% 85%;
+}
+
+.landing-art-wine {
+  --art-surface: #f0f3e5;
+  z-index: 2;
+  top: 100px;
+  left: 120px;
+  color: #3e5527;
+  font-size: 13px;
+  line-height: 1.06;
+  transform: none;
+}
+
+.landing-art-bitcoin {
+  --art-surface: #efd28a;
+  z-index: 3;
+  top: 480px;
+  left: 380px;
+  color: #67400f;
+  font-size: 14px;
+  line-height: 1.13;
+  transform: rotate(6deg);
+  text-shadow: 0 1px 0 rgba(255, 246, 213, 0.65);
+  filter: drop-shadow(0 8px 12px rgba(117, 83, 24, 0.18));
+}
+
+.landing-art-bitcoin .landing-art-solid {
+  background-image: linear-gradient(105deg, #d3ad56, #f9e7b0 38%, #efd28a 68%, #d3ad56);
+}
+
+.landing-art-caption {
+  z-index: 4;
+  position: absolute;
+  right: 60px;
+  bottom: 12px;
+  color: #7a875f;
+  font: 9px / 1.8 'Courier New', monospace;
+  letter-spacing: 2px;
+  opacity: 0.6;
+}
+
+/* A restrained blur keeps the individual ASCII marks legible through glass. */
+.landing-frost {
+  position: absolute;
+  inset: 0;
+  background: linear-gradient(125deg, rgba(255, 255, 255, 0.06), rgba(248, 251, 241, 0.02));
+  -webkit-backdrop-filter: blur(0.2px);
+  backdrop-filter: blur(0.2px);
+}
+
+.landing-frost::after {
+  content: '';
+  position: absolute;
+  inset: 0;
+  opacity: 0.24;
+  background-image: radial-gradient(rgba(85, 107, 47, 0.16) 0.5px, transparent 0.75px);
+  background-size: 4px 4px;
+  mask-image: linear-gradient(to right, transparent 30%, #000);
+}
+
+.landing-condensation {
+  position: absolute;
+  inset: 0;
+}
+
+.landing-dew-drop {
+  position: absolute;
+  border: 1px solid rgba(255, 255, 255, 0.68);
+  border-bottom-color: rgba(112, 135, 84, 0.2);
+  border-right-color: rgba(112, 135, 84, 0.13);
+  border-radius: 48% 52% 57% 43% / 39% 42% 58% 61%;
+  background:
+    radial-gradient(ellipse at 28% 22%, rgba(255, 255, 255, 0.95) 0%, rgba(255, 255, 255, 0.3) 18%, transparent 40%),
+    radial-gradient(ellipse at 70% 78%, rgba(138, 158, 108, 0.19), transparent 65%),
+    rgba(255, 255, 255, 0.1);
+  box-shadow:
+    inset 1px 1px 2px rgba(255, 255, 255, 0.85),
+    inset -1px -2px 3px rgba(85, 107, 47, 0.09),
+    1px 3px 4px rgba(74, 94, 48, 0.09);
+  -webkit-backdrop-filter: contrast(1.12) brightness(1.04);
+  backdrop-filter: contrast(1.12) brightness(1.04);
+  transform: rotate(-18deg);
+  opacity: 0.8;
+}
+
+.landing-dew-drop:nth-child(3n) {
+  transform: rotate(24deg);
+  border-radius: 55% 45% 49% 51% / 43% 39% 61% 57%;
+}
+
+.landing-dew-drop::after {
+  content: '';
+  position: absolute;
+  top: 18%;
+  left: 22%;
+  width: 23%;
+  height: 13%;
+  border-radius: 50%;
+  background: rgba(255, 255, 255, 0.9);
+  transform: rotate(-35deg);
+}
+
+.landing-reading-veil {
+  position: absolute;
+  inset: 0;
+  background: linear-gradient(90deg,
+    rgba(255, 255, 255, 0.96) 0%,
+    rgba(255, 255, 255, 0.9) 30%,
+    rgba(255, 255, 255, 0.55) 48%,
+    rgba(255, 255, 255, 0.08) 65%,
+    transparent 78%);
+}
+
+@media (min-width: 1600px) {
+  .landing-still-life {
+    right: 2vw;
+    transform: translateY(-50%) scale(1.12);
+  }
+}
+
+@media (max-width: 1100px) {
+  .landing-still-life {
+    right: -110px;
+    transform: translateY(-50%) scale(0.92);
+  }
+
+  .landing-reading-veil {
+    background: linear-gradient(90deg, rgba(255, 255, 255, 0.96), rgba(255, 255, 255, 0.68) 42%, rgba(255, 255, 255, 0.08));
+  }
+}
+
+@media (max-width: 760px) {
+  .landing-still-life {
+    top: 370px;
+    right: -205px;
+    transform: translateY(-50%) scale(0.7);
+  }
+
+  .landing-reading-veil {
+    background: linear-gradient(100deg, rgba(255, 255, 255, 0.92), rgba(255, 255, 255, 0.6) 55%, rgba(255, 255, 255, 0.18));
+  }
+
+  .landing-art-caption {
+    display: none;
+  }
+
+  .landing-dew-drop {
+    opacity: 0.5;
+  }
+}
