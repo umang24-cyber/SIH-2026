@@ -25,6 +25,9 @@
 - [ ] **Judges FAQ / Defense Cheat Sheet:** Prepare answers on data leakage prevention (scenario-level splitting), offline air-gapped compliance, and why individual feature ablation was replaced by group ablation.
 
 ### 2. Frontend & UI Visualizer Polish (P1, P2)
+- [x] **Editorial Landing Page & Field Guide:** Implemented the shared ivory/olive/wine theme, interactive ASCII still life, 15 Markdown-backed guide pages, search, code-copy controls, and responsive navigation.
+- [x] **Book-Page Docs Entry & Terminal Continuity:** Added the landing-to-guide page turn, skip/reduced-motion behavior, direct chapter routes, and navigation preserving the mounted terminal session. Final production build passed.
+- [ ] **Landing/Field Guide Manual Review:** User to review visual balance, book transition, mobile layout, search/copy controls, direct links, and terminal session return using the supplied checklist; final automated browser rerun was deferred at the user's request.
 - [x] **3D Graph True Screen-Space Panning & Navigation Controls:** Added silky smooth screen-space panning supporting Middle-Click Drag, Right-Click Drag, Shift + Left-Click Drag, and an interactive `[MODE: PAN / REVOLVE]` toolbar toggle button; calibrated pan speed with camera perspective depth; prevented accidental node selection when dragging.
 - [x] **Graph Node Density & Viewport Auto-Framing Balance:** Re-calibrated node cluster radius (between 90–260 depending on node count) and eliminated pitch-black exponential fog; ensures all nodes and connections are fully visible, bright, and centered within the viewport on initial load.
 - [x] **Concurrent Command Execution With Active 3D Graph:** Allowed investigators to type and execute any forensic command (`alerts`, `status`, `tor`, `inspect`, `trace`, etc.) while keeping the 3D graph live on screen; added global keyboard autofocus redirection to the input prompt without scroll jump; prevented redundant graph re-opening if already active.
@@ -104,5 +107,4 @@
 - [x] Built ranked alert triage feed with severity indicators and typology filtering.
 - [x] Created forensic evidence drawer showing SHAP feature attributions and telemetry breakdown.
 - [x] Verified 100% offline functionality with zero external CDN dependencies.
-
 
