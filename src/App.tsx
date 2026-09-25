@@ -7,6 +7,10 @@ import { ScrambledAsciiLogo } from './components/ScrambledAsciiLogo';
 import { AmbientBinaryRain } from './components/AmbientBinaryRain';
 import { CliSpinner } from './components/CliSpinner';
 import { api } from './services/api';
+import { Link, useLocation, useNavigate } from 'react-router-dom';
+import { BookPageTurn } from './components/BookPageTurn';
+const loadDocs = () => import('./docs/DocsPage').then(module => ({ default: module.DocsPage }));
+const DocsPage = React.lazy(loadDocs);
 
 interface TerminalEntry {
   id: string;
@@ -16,9 +20,20 @@ interface TerminalEntry {
 }
 
 export function App() {
-  const [showSplash, setShowSplash] = useState<boolean>(false);
-  const [showLanding, setShowLanding] = useState<boolean>(true);
+  const location = useLocation();
+  const navigate = useNavigate();
+  const terminalActive = location.pathname === '/terminal';
+  const [showSplash, setShowSplash] = useState<boolean>(terminalActive);
+  const [showLanding, setShowLanding] = useState<boolean>(location.pathname === '/');
   const [showTool, setShowTool] = useState<boolean>(false);
+  const [bookTurning, setBookTurning] = useState(false);
+  const preparingBook = useRef(false);
+  const currentPath = useRef(location.pathname);
+  currentPath.current = location.pathname;
+  const finishBookTurn = useCallback(() => {
+    setBookTurning(false);
+    requestAnimationFrame(() => document.querySelector<HTMLElement>('.docs-article-header h1')?.focus({ preventScroll: true }));
+  }, []);
   const [inputVal, setInputVal] = useState<string>('');
   const [cursorPos, setCursorPos] = useState<number>(0);
   const [commandHistory, setCommandHistory] = useState<string[]>([]);
@@ -33,6 +48,19 @@ export function App() {
   const lastGraphTimeRef = useRef<number>(0);
   const commandBurstTimestampsRef = useRef<number[]>([]);
 
+  useEffect(() => {
+    if (location.pathname !== '/docs/introduction') setBookTurning(false);
+    if (location.pathname === '/') document.title = 'BitKaun? — Bitcoin intelligence, with perspective.';
+    if (terminalActive) {
+      document.title = 'BitKaun? — Forensic Terminal';
+      if (!showTool) setShowSplash(true);
+    }
+    else {
+      setShowSplash(false);
+      setShowLanding(location.pathname === '/');
+    }
+  }, [location.pathname, terminalActive]);
+
   const scrollToBottom = useCallback(() => {
     if (terminalBodyRef.current) {
       terminalBodyRef.current.scrollTop = terminalBodyRef.current.scrollHeight;
@@ -46,12 +74,14 @@ export function App() {
   }, [entries]);
 
   useEffect(() => {
-    if (showTool) {
-      setTimeout(() => inputRef.current?.focus({ preventScroll: true }), 100);
+    if (showTool && terminalActive && !showSplash) {
+      const timer = setTimeout(() => inputRef.current?.focus({ preventScroll: true }), 100);
+      return () => clearTimeout(timer);
     }
-  }, [showTool]);
+  }, [showTool, terminalActive, showSplash]);
 
   useEffect(() => {
+    if (!terminalActive || showSplash) return;
     inputRef.current?.focus({ preventScroll: true });
 
     const handleGlobalKeyDown = (e: KeyboardEvent) => {
@@ -59,7 +89,8 @@ export function App() {
       if (
         document.activeElement instanceof HTMLInputElement ||
         document.activeElement instanceof HTMLTextAreaElement ||
-        document.activeElement instanceof HTMLSelectElement
+        document.activeElement instanceof HTMLSelectElement ||
+        (document.activeElement instanceof HTMLElement && !!document.activeElement.closest('a, button, [contenteditable="true"]'))
       ) {
         return;
       }
@@ -85,10 +116,11 @@ export function App() {
 
     window.addEventListener('keydown', handleGlobalKeyDown);
     return () => window.removeEventListener('keydown', handleGlobalKeyDown);
-  }, []);
+  }, [terminalActive, showSplash]);
 
   // Fetch initial active case to sync web prompt
   useEffect(() => {
+    if (!terminalActive) return;
     api.getActiveCase()
       .then(res => {
         if (res && res.case_name && res.status === 'success') {
@@ -98,7 +130,7 @@ export function App() {
         }
       })
       .catch(() => setActiveCaseName(null));
-  }, []);
+  }, [terminalActive]);
 
   const handleRunCommand = async (raw: string) => {
     const trimmed = raw.trim();
@@ -1670,7 +1702,26 @@ export function App() {
   };
 
   const enterCLI = () => {
-    setShowSplash(true);
+    if (!showTool) setShowSplash(true);
+    else setShowLanding(false);
+    navigate('/terminal');
+  };
+
+  const enterDocs = async () => {
+    if (preparingBook.current || bookTurning) return;
+    preparingBook.current = true;
+    try {
+      // Load the real reading page before lifting the cover, including its CSS.
+      await loadDocs();
+      if (currentPath.current !== '/') return;
+      setBookTurning(!window.matchMedia('(prefers-reduced-motion: reduce)').matches);
+      navigate('/docs/introduction');
+    } catch {
+      // A full navigation lets the browser retry a stale/offline asset request.
+      window.location.assign('/docs/introduction');
+    } finally {
+      preparingBook.current = false;
+    }
   };
 
   const handleSplashEntranceComplete = useCallback(() => {
@@ -1684,24 +1735,26 @@ export function App() {
   }, []);
 
   return (
-    <div className="terminal-window" onClick={handleTerminalWindowClick}>
-      <AmbientBinaryRain />
+    <div className="terminal-window" onClick={terminalActive && !showSplash ? handleTerminalWindowClick : undefined}>
+      {terminalActive && <AmbientBinaryRain />}
 
-      {showSplash && (
+      {showSplash && terminalActive && (
         <PacmanSplashScreen
           autoStart
-          entranceFromLanding
+          entranceFromLanding={showLanding}
           onEntranceComplete={handleSplashEntranceComplete}
           onComplete={handleSplashComplete}
         />
       )}
 
-      {showLanding && (
-        <LandingPage onEnterCLI={enterCLI} isExiting={showSplash} />
+      {(location.pathname === '/' || bookTurning || (showLanding && showSplash && terminalActive)) && (
+        <BookPageTurn turning={bookTurning} onComplete={finishBookTurn}><LandingPage onEnterCLI={enterCLI} onEnterDocs={enterDocs} isExiting={showSplash} isTurning={bookTurning} /></BookPageTurn>
       )}
 
-      {showTool && !showSplash && !showLanding && (
-        <>
+      {!terminalActive && location.pathname !== '/' && <React.Suspense fallback={<div className="editorial guide-loading" role="status">Opening the field guide…</div>}><DocsPage onEnterCLI={enterCLI} /></React.Suspense>}
+
+      {showTool && (
+        <div className="terminal-session" style={{ display: terminalActive && !showSplash ? 'contents' : 'none' }}>
         <div className="terminal-titlebar">
         <div className="window-dots">
           <span className="window-dot dot-red" />
@@ -1709,7 +1762,7 @@ export function App() {
           <span className="window-dot dot-green" />
         </div>
         <div style={{ fontWeight: 500 }}>bitkaun@investigation{activeCaseName ? ` (${activeCaseName})` : ''}: ~ (bash)</div>
-        <div style={{ fontSize: '12px', color: '#555555' }}>x86_64 tty1 [FASTAPI LINKED]</div>
+        <nav className="terminal-public-nav" aria-label="Workspace navigation"><Link to="/">[home]</Link><Link to="/docs/introduction">[field guide]</Link></nav>
       </div>
 
       {/* Terminal Content Buffer */}
@@ -1809,6 +1862,7 @@ export function App() {
             <span className="typed-text">{textAfter}</span>
             <input
               ref={inputRef}
+              aria-label="BitKaun terminal command"
               type="text"
               className="terminal-real-input"
               value={inputVal}
@@ -1821,7 +1875,6 @@ export function App() {
               onClick={e => syncCursorPos(e.currentTarget)}
               onSelect={e => syncCursorPos(e.currentTarget)}
               onFocus={e => syncCursorPos(e.currentTarget)}
-              autoFocus
               spellCheck={false}
               autoComplete="off"
             />
@@ -1830,7 +1883,7 @@ export function App() {
 
         <div ref={scrollBottomRef} />
       </div>
-    </>
+    </div>
     )}
     </div>
   );

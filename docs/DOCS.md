@@ -1,9 +1,11 @@
 # BitKaun? — Documentation Content Handbook
 
-> **Frontend handoff:** This file contains the content for the documentation website. Each numbered section can become a documentation page. Page slugs below are suggested website routes, not routes already implemented in the application.
+> **Website content source:** Sections 1–15 power the BitKaun Field Guide. The frontend derives its pages, contents navigation, and local search from this file. Section 16 is an internal implementation handoff.
 >
 > **Reviewed:** 25 September 2026, branch `cli`, application source at commit `10ab219`.
 > **Verification scope:** Source and configuration review. Setup commands, runtime behavior, and model performance were not executed or benchmarked for this handoff. “Implemented” means a corresponding code path exists; known gaps are documented below.
+>
+> **Website integration:** Landing navigation, guide routes, and the production static-serving note were updated on 25 September 2026. The source-review revision above still describes the technical content review, not a new model evaluation.
 
 ## Documentation navigation
 
@@ -191,7 +193,7 @@ npm ci
 npm run dev
 ```
 
-Open `http://localhost:5173`, or the exact URL printed by Vite if it chooses another available port. Use the landing page's **CLI TOOL** button to enter the browser terminal.
+Open `http://localhost:5173`, or the exact URL printed by Vite if it chooses another available port. Use the landing page's **Open Terminal** button to enter the browser terminal, or **Read the field guide** to browse documentation.
 
 Vite forwards configured local API paths to `http://localhost:8000`. The browser API client uses relative URLs. No `.env` file or external API key is required by this default local configuration.
 
@@ -252,7 +254,7 @@ The helper scripts contain machine-specific Conda detection, and the combined sc
 
 Stop each running development server with **Ctrl+C** in its terminal.
 
-**Build serving note:** Vite builds to root `dist/`. The current FastAPI static-path calculation points to `backend/dist/`. A successful frontend build alone does not establish single-server hosting. `npm run preview` is a frontend preview, not a verified backend deployment configuration.
+**Build serving note:** Vite builds to root `dist/`, which FastAPI resolves relative to the backend source. Build before starting FastAPI so it can mount the generated assets. The backend serves the landing page at `/`, the terminal at `/terminal`, and guide chapters at `/docs/<page>`. Its `/docs` URL remains the interactive API schema; open `/docs/introduction` for the field guide. `npm run preview` is a frontend preview and does not start the backend or provide the development API proxy.
 
 ---
 
@@ -841,7 +843,7 @@ Do not rename directories or overwrite models solely to make the newest version 
 | No active case when saving | Run `init demo_review` or `cd <existing_case>`; check `cases` and `status`. |
 | Saved files are not in the repository | Check the application-data location and paths returned by the case API. |
 | `bitkaun` is not recognized | Activate the environment where `python -m pip install -e ./cli` ran. |
-| Built UI is not served by FastAPI | Review the root `dist/` versus `backend/dist/` static-path mismatch in Section 2. |
+| Built UI is not served by FastAPI | Run `npm run build` from the repository root, then restart FastAPI to mount the generated assets. See Section 2. |
 | `deadlock` or `inject` is unknown in the browser | These are not implemented web-dispatcher commands in this revision; use the documented commands. |
 
 ---
@@ -880,9 +882,9 @@ Not for the reviewed default backend. It uses in-memory analysis and SQLite pers
 
 No. Current default selection is explicitly V8/V7-based. Adding V9 artifacts does not wire them into serving or establish compatibility.
 
-### Are the landing page's DOCS and ANALYTICS cards working modules?
+### Are documentation and analytics available from the landing page?
 
-In the reviewed revision, they are placeholders. The CLI entry works as the terminal entry point; analytics-related terminal commands exist separately. This handbook supplies content for implementing the DOCS experience.
+The **Documentation** link opens this field guide, including setup, command reference, investigation workflows, and search. **Open Terminal** enters the investigative workspace. **Analytics** is marked coming soon; analytics-related terminal commands exist separately. The terminal's **field guide** link lets you consult the documentation and return to your current session without a page reload.
 
 ### Glossary
 

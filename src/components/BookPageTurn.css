@@ -1,0 +1,41 @@
+.book-stage { position: fixed; inset: 0; z-index: 110; perspective: 2400px; perspective-origin: 30% 50%; }
+.book-cover { position: absolute; inset: 0; transform-origin: 0 50%; transform-style: preserve-3d; }
+.book-cover-front { position: absolute; inset: 0; backface-visibility: hidden; -webkit-backface-visibility: hidden; }
+.book-cover-front > .landing-canvas { position: absolute; }
+.book-cover-light { display: none; }
+.book-turning { z-index: 150; }
+.book-turning .book-cover { animation: book-cover-turn 1400ms cubic-bezier(.32, .04, .2, 1) both; will-change: transform; }
+.book-turning .book-cover-front { overflow: hidden; }
+.book-turning .book-cover-front > .landing-canvas { pointer-events: none; }
+.book-turning .book-cover-light { display: block; position: absolute; inset: 0; z-index: 120; pointer-events: none; background: linear-gradient(90deg, #24261d33, transparent 12%, #fff9df22 54%, #fffdf5a6 90%, #39342440); animation: book-paper-light 1400ms ease both; }
+.book-cover-back { position: absolute; inset: 0; transform: rotateY(180deg); backface-visibility: hidden; -webkit-backface-visibility: hidden; background: #eae3d1; box-shadow: inset -18px 0 28px #4a422322; }
+.book-endpaper { position: absolute; inset: 32px; border: 1px solid #c8b98f; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 32px; background: repeating-linear-gradient(45deg, transparent, transparent 16px, #8c805009 16px, #8c805009 17px); }
+.book-endpaper .eyebrow { font-size: 10px; text-align: center; padding: 0 20px; }
+.book-endpaper-mark { font: 400 140px var(--serif); color: var(--olive); }
+.book-endpaper-mark > span { color: var(--wine); }
+.book-follow-leaf { position: absolute; inset: 0; background: linear-gradient(90deg, #e9e2d1, #fcfaf3 14%, #f5f0e2 90%, #d5c9ac); border-right: 1px solid #b8a987; transform-origin: 0 50%; animation: book-follow-turn 1470ms cubic-bezier(.32, .04, .2, 1) both; box-shadow: 10px 0 28px #24282022; }
+.book-reveal-shade { position: absolute; inset: 0; background: linear-gradient(90deg, #2428204d, #24282014 60%, transparent); pointer-events: none; animation: book-reveal-light 1500ms ease both; }
+.book-turn-controls { position: absolute; bottom: 22px; right: 24px; display: flex; align-items: center; gap: 18px; padding: 8px 12px; border: 1px solid var(--rule); border-radius: 3px; background: #f5f1e8eb; box-shadow: 0 3px 20px #25282014; }
+.book-turn-controls > span { font: 10px var(--mono); color: var(--muted); }
+.book-turn-controls button { background: transparent; border: 0; min-height: 32px; font-size: 11px; }
+.book-turn-controls button span { margin-left: 8px; }
+@keyframes book-cover-turn {
+  0% { transform: rotateY(0deg); }
+  18% { transform: rotateY(-12deg); }
+  65% { transform: rotateY(-108deg); }
+  100% { transform: rotateY(-178deg); }
+}
+@keyframes book-follow-turn {
+  0%, 8% { transform: rotateY(0deg); }
+  27% { transform: rotateY(-10deg); }
+  73% { transform: rotateY(-111deg); }
+  100% { transform: rotateY(-178deg); }
+}
+@keyframes book-paper-light { 0% { opacity: 0; } 40% { opacity: 1; } 100% { opacity: .2; } }
+@keyframes book-reveal-light { 0%, 20% { opacity: 1; } 100% { opacity: 0; } }
+@media (max-width: 600px) {
+  .book-stage { perspective: 1400px; perspective-origin: 0 50%; }
+  .book-turn-controls { bottom: 16px; right: 16px; }
+  .book-turn-controls > span { display: none; }
+}
+@media (prefers-reduced-motion: reduce) { .book-turning { display: none; } }

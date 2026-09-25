@@ -134,6 +134,13 @@ html:active, body:active {
   align-items: center;
 }
 
+.terminal-public-nav { display: flex; flex-wrap: wrap; gap: 14px; font-size: 12px; }
+.terminal-public-nav a { color: var(--fg-muted); }
+.terminal-public-nav a:focus-visible { outline: 1px solid var(--fg-primary); outline-offset: 4px; }
+@media (max-width: 600px) {
+  .terminal-titlebar { gap: 12px; padding: 8px 12px; flex-wrap: wrap; }
+}
+
 .window-dot {
   width: 11px;
   height: 11px;

@@ -35,6 +35,220 @@
   white-space: pre;
   text-align: left;
   text-rendering: geometricPrecision;
+  width: max-content;
+}
+
+.landing-art-text {
+  margin: 0;
+  padding: 0;
+  border: 0;
+  font: inherit;
+  letter-spacing: inherit;
+  white-space: pre;
+  text-align: left;
+  pointer-events: none;
+}
+
+.landing-art-pose {
+  pointer-events: none;
+}
+
+/* The terminal's global font rule must not change the ASCII cell dimensions
+   when artwork passes through these animation wrappers. */
+.landing-art-pose,
+.landing-coin-perspective {
+  font: inherit;
+  letter-spacing: inherit;
+}
+
+.landing-glass-pose {
+  position: relative;
+  transform-origin: 50% 94%;
+  will-change: transform;
+}
+
+.landing-liquid-grid {
+  position: absolute;
+  inset: 0;
+}
+
+.landing-liquid-row {
+  display: block;
+  height: 1.06em;
+}
+
+.landing-liquid-row .landing-art-liquid {
+  display: inline-block;
+}
+
+.landing-fern-band {
+  position: relative;
+}
+
+.landing-coin-perspective {
+  perspective: 1100px;
+}
+
+.landing-coin-pose {
+  position: relative;
+  transform-style: preserve-3d;
+  will-change: transform;
+}
+
+.landing-coin-front,
+.landing-coin-back {
+  backface-visibility: hidden;
+  -webkit-backface-visibility: hidden;
+}
+
+.landing-coin-front {
+  transform: translateZ(10px);
+}
+
+.landing-coin-back {
+  position: absolute;
+  inset: 0;
+  transform: rotateY(180deg) translateZ(10px);
+}
+
+.landing-coin-edge {
+  position: absolute;
+  top: 0;
+  left: calc(50% - 1.5ch);
+  color: #8b6320;
+  background: linear-gradient(90deg, #ad7e2f, #ffe7a1, #ad7e2f);
+  border-radius: 45%;
+  transform: rotateY(90deg);
+}
+
+/* Hit areas stay stable while the artwork bends, tilts, and turns edge-on. */
+.landing-art-handle {
+  position: absolute;
+  inset: 0;
+  z-index: 5;
+  width: 100%;
+  height: 100%;
+  padding: 0;
+  border: 0;
+  background: transparent;
+  pointer-events: auto;
+  touch-action: pan-y;
+  cursor: grab;
+  -webkit-tap-highlight-color: transparent;
+}
+
+.landing-art-handle-wine {
+  clip-path: polygon(0 0, 100% 0, 91% 47%, 56% 64%, 56% 85%, 96% 94%, 90% 100%, 10% 100%, 4% 94%, 44% 85%, 44% 64%, 9% 47%);
+}
+
+.landing-art-handle-coin {
+  clip-path: ellipse(48% 49% at 51% 50%);
+}
+
+.landing-art-handle-fern,
+.landing-art-handle-fern-low {
+  clip-path: polygon(43% 1%, 73% 5%, 95% 21%, 97% 48%, 72% 79%, 50% 99%, 44% 99%, 21% 75%, 2% 46%, 10% 22%);
+}
+
+.landing-art-handle[data-dragging] {
+  cursor: grabbing;
+}
+
+.landing-art-handle:focus-visible {
+  outline: none;
+  background: rgba(107, 142, 35, 0.08);
+  box-shadow: inset 0 0 0 3px #6b8e23;
+}
+
+.landing-art-hint {
+  position: absolute;
+  z-index: 6;
+  left: 50%;
+  top: 45%;
+  transform: translate(-50%, -50%);
+  padding: 8px 12px;
+  border: 1px solid #aab78d;
+  border-radius: 3px;
+  background: #f8faef;
+  color: #3e5527;
+  font: 11px / 1.4 'Courier New', monospace !important;
+  letter-spacing: 1px !important;
+  white-space: nowrap;
+  opacity: 0;
+  transition: opacity 160ms;
+  pointer-events: none;
+}
+
+.landing-art-handle:hover + .landing-art-hint,
+.landing-art-handle:focus-visible + .landing-art-hint {
+  opacity: 1;
+}
+
+.landing-art-handle[data-dragging] + .landing-art-hint {
+  opacity: 0;
+}
+
+.landing-art-fern-low .landing-art-hint {
+  transform: translate(-50%, -50%) rotate(57deg);
+}
+
+.landing-art-fern .landing-art-hint {
+  transform: translate(-50%, -50%) rotate(-10deg);
+}
+
+.landing-motion-controls {
+  position: fixed;
+  z-index: 2;
+  bottom: max(16px, env(safe-area-inset-bottom));
+  right: max(20px, env(safe-area-inset-right));
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  font: 10px / 1.4 'Courier New', monospace;
+  letter-spacing: 1px;
+  color: #67794b;
+}
+
+.landing-motion-controls button {
+  padding: 10px 12px;
+  min-height: 44px;
+  border: 1px solid #aab78d;
+  border-radius: 3px;
+  font: inherit;
+  letter-spacing: inherit;
+  color: #3e5527;
+  background: #f8faef;
+  pointer-events: auto;
+  cursor: pointer;
+}
+
+.landing-motion-controls button:focus-visible {
+  outline: 2px solid #556b2f;
+  outline-offset: 3px;
+}
+
+.landing-motion-controls button:disabled {
+  cursor: default;
+}
+
+.landing-visually-hidden {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  padding: 0;
+  overflow: hidden;
+  clip-path: inset(50%);
+  white-space: nowrap;
+}
+
+.landing-canvas-exiting .landing-art-handle,
+.landing-canvas-exiting .landing-motion-controls {
+  pointer-events: none;
+  visibility: hidden;
+}
+
+.landing-canvas-exiting .landing-art-hint {
+  display: none;
 }
 
 .landing-art span {
@@ -108,13 +322,14 @@
 
 .landing-art-bitcoin .landing-art-solid {
   background-image: linear-gradient(105deg, #d3ad56, #f9e7b0 38%, #efd28a 68%, #d3ad56);
+  filter: brightness(var(--coin-light, 1));
 }
 
 .landing-art-caption {
   z-index: 4;
   position: absolute;
   right: 60px;
-  bottom: 12px;
+  bottom: 65px;
   color: #7a875f;
   font: 9px / 1.8 'Courier New', monospace;
   letter-spacing: 2px;
@@ -212,6 +427,12 @@
 }
 
 @media (max-width: 760px) {
+  /* Participate in the mobile scroll container so native swipes that begin
+     on the artwork scroll the page rather than the fixed document body. */
+  .landing-backdrop {
+    position: absolute;
+  }
+
   .landing-still-life {
     top: 370px;
     right: -205px;
@@ -228,5 +449,20 @@
 
   .landing-dew-drop {
     opacity: 0.5;
+  }
+
+  .landing-motion-controls > span {
+    display: none;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .landing-art-hint {
+    transition: none;
+  }
+
+  .landing-glass-pose,
+  .landing-coin-pose {
+    will-change: auto;
   }
 }

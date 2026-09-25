@@ -2,6 +2,19 @@
 
 This document provides a comprehensive test protocol and step-by-step verification manual for the **Bitkaun V8 Forensic Terminal** and backend engine.
 
+## Landing page & field guide browser checks
+
+```bash
+npm ci
+npx playwright install chromium
+npm run build
+npm run test:ui
+```
+
+The browser suite starts the built Vite preview on port 4175. It checks all 15 handbook pages, local heading links, search, clipboard behavior, mobile layout, reduced motion, route recovery, and terminal draft/output preservation. It does not require datasets or a running backend; terminal case lookup is mocked only in the session-navigation tests. Screenshots and failure traces are written to the ignored `test-results/` directory.
+
+Content comes from `docs/DOCS.md`; edit sections 1–15 there. Page navigation metadata and Markdown adaptation live in `src/docs/content.ts`. API schema URLs on FastAPI (`/docs`, `/openapi.json`) are separate from field-guide chapter URLs (`/docs/introduction`, etc.).
+
 ---
 
 ## 1. System Architecture Overview (V8 Specification)

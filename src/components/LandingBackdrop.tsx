@@ -1,4 +1,6 @@
 import React from 'react';
+import { useLandingMotion } from './useLandingMotion';
+import type { ArtworkId } from './useLandingMotion';
 import './LandingBackdrop.css';
 
 // Keep the rim, bowl, stem, and foot on one axis regardless of row width.
@@ -139,6 +141,18 @@ function createFern(): string {
 
 const FERN = createFern();
 
+const GLASS_ROWS = WINE_GLASS.split('\n');
+// The bowl interior narrows with the outline. Wine is only ever drawn inside it.
+const LIQUID_MASK = GLASS_ROWS.map((row, index) => {
+  if (index < 6 || index > 28) return { start: 0, end: 0 };
+  return { start: row.search(/\S/) + 5, end: row.trimEnd().length - 5 };
+});
+const EMPTY_GLASS = GLASS_ROWS.map((row, index) => {
+  const { start, end } = LIQUID_MASK[index];
+  return end > start ? row.slice(0, start) + ' '.repeat(end - start) + row.slice(end) : row;
+}).join('\n');
+const FERN_BANDS = Array.from({ length: 20 }, (_, index) => FERN.split('\n').slice(index * 5, index * 5 + 5).join('\n'));
+
 interface AsciiArtworkProps {
   artwork: string;
   className: string;
@@ -149,12 +163,11 @@ function AsciiArtwork({ artwork, className, material }: AsciiArtworkProps) {
   const rows = artwork.split('\n');
 
   return (
-    <pre className={`landing-art ${className}`}>
+    <pre className={`landing-art-text ${className}`} aria-hidden="true">
       {rows.map((row, rowIndex) => {
         const start = row.search(/\S/);
         const end = row.trimEnd().length;
         const silhouette = start < 0 ? '' : row.slice(start, end);
-        const isLiquid = material === 'glass' && rowIndex >= 14 && rowIndex < 30;
         const isSolid = material === 'coin' || (material === 'glass' && rowIndex >= 14);
         const isGlassPane = material === 'glass' && rowIndex >= 6 && rowIndex < 14;
 
@@ -164,7 +177,7 @@ function AsciiArtwork({ artwork, className, material }: AsciiArtworkProps) {
               <>
                 {row.slice(0, start)}
                 {isSolid || isGlassPane ? (
-                  <span className={isGlassPane ? 'landing-art-pane' : `landing-art-solid${isLiquid ? ' landing-art-liquid' : ''}`}>
+                  <span className={isGlassPane ? 'landing-art-pane' : 'landing-art-solid'}>
                     {silhouette}
                   </span>
                 ) : (
@@ -194,27 +207,87 @@ const DEW_DROPS = [
   [54, 61, 6], [98, 16, 4], [81, 24, 4], [90, 65, 5],
 ];
 
-export const LandingBackdrop = React.memo(function LandingBackdrop() {
+export const LandingBackdrop = React.memo(function LandingBackdrop({ isExiting = false }: { isExiting?: boolean }) {
+  const motion = useLandingMotion(isExiting, LIQUID_MASK);
+  const control = (id: ArtworkId, label: string, hint: string) => (
+    <>
+      <button
+        type="button"
+        className={`landing-art-handle landing-art-handle-${id}`}
+        aria-label={label}
+        aria-describedby="landing-art-instructions"
+        disabled={isExiting}
+        {...motion.bind(id)}
+      />
+      <span className="landing-art-hint" aria-hidden="true">{hint}</span>
+    </>
+  );
+
   return (
-    <div className="landing-backdrop" aria-hidden="true">
-      <div className="landing-still-life">
-        <AsciiArtwork className="landing-art-fern-low" artwork={FERN} material="leaf" />
-        <AsciiArtwork className="landing-art-fern" artwork={FERN} material="leaf" />
-        <AsciiArtwork className="landing-art-wine" artwork={WINE_GLASS} material="glass" />
-        <AsciiArtwork className="landing-art-bitcoin" artwork={BITCOIN} material="coin" />
-        <div className="landing-art-caption">FIG. 01 / BOTANICAL PROOF<br />CHARACTER STUDY · BITKAUN</div>
+    <>
+      <div className="landing-backdrop" ref={motion.sceneRef}>
+        <span className="landing-visually-hidden" id="landing-art-instructions">
+          Drag left or right to move this artwork. Use arrow keys to adjust, Enter or Space to nudge, and Escape to reset.
+        </span>
+        <div className="landing-still-life">
+          {(['fern-low', 'fern'] as const).map(id => (
+            <div className={`landing-art landing-art-${id}`} key={id}>
+              <div className="landing-art-pose" data-motion-pose={id} aria-hidden="true">
+                {FERN_BANDS.map((band, index) => (
+                  <AsciiArtwork className="landing-fern-band" artwork={band} material="leaf" key={index} />
+                ))}
+              </div>
+              {control(id, id === 'fern' ? 'Bend the tall fern' : 'Bend the lower fern', 'BRUSH / PULL TO BEND')}
+            </div>
+          ))}
+          <div className="landing-art landing-art-wine">
+            <div className="landing-art-pose landing-glass-pose" data-motion-pose="wine" aria-hidden="true">
+              <AsciiArtwork className="landing-glass-outline" artwork={EMPTY_GLASS} material="glass" />
+              <pre className="landing-art-text landing-liquid-grid">
+                {GLASS_ROWS.map((_, row) => (
+                  <span className="landing-liquid-row" data-liquid-row key={row}>
+                    <span /><span className="landing-art-liquid" />
+                  </span>
+                ))}
+              </pre>
+            </div>
+            {control('wine', 'Tilt the wine glass and swirl the wine', 'DRAG TO SWIRL')}
+          </div>
+          <div className="landing-art landing-art-bitcoin">
+            <div className="landing-coin-perspective" aria-hidden="true">
+              <div className="landing-art-pose landing-coin-pose" data-motion-pose="coin">
+                <AsciiArtwork className="landing-coin-front" artwork={BITCOIN} material="coin" />
+                <AsciiArtwork className="landing-coin-back" artwork={BITCOIN} material="coin" />
+                <pre className="landing-art-text landing-coin-edge">{Array.from({ length: 27 }, () => '|||').join('\n')}</pre>
+              </div>
+            </div>
+            {control('coin', 'Rotate or flick the Bitcoin', 'DRAG / FLICK TO SPIN')}
+          </div>
+          <div className="landing-art-caption" aria-hidden="true">FIG. 01 / BOTANICAL PROOF<br />CHARACTER STUDY · BITKAUN</div>
+        </div>
+        <div className="landing-frost" aria-hidden="true" />
+        <div className="landing-condensation" aria-hidden="true">
+          {DEW_DROPS.map(([left, top, size], index) => (
+            <span
+              key={index}
+              className="landing-dew-drop"
+              style={{ left: `${left}%`, top: `${top}%`, width: size, height: size * 1.18 }}
+            />
+          ))}
+        </div>
+        <div className="landing-reading-veil" aria-hidden="true" />
       </div>
-      <div className="landing-frost" />
-      <div className="landing-condensation">
-        {DEW_DROPS.map(([left, top, size], index) => (
-          <span
-            key={index}
-            className="landing-dew-drop"
-            style={{ left: `${left}%`, top: `${top}%`, width: size, height: size * 1.18 }}
-          />
-        ))}
+      <div className="landing-motion-controls">
+        <span aria-hidden="true">{motion.reducedMotion ? 'MANUAL MOTION' : 'ASCII / ALIVE'}</span>
+        <button
+          type="button"
+          aria-pressed={motion.paused}
+          disabled={isExiting || motion.reducedMotion}
+          onClick={() => motion.setPaused(value => !value)}
+        >
+          {motion.reducedMotion ? 'REDUCED MOTION' : motion.paused ? 'RESUME MOTION' : 'PAUSE MOTION'}
+        </button>
       </div>
-      <div className="landing-reading-veil" />
-    </div>
+    </>
   );
 });
