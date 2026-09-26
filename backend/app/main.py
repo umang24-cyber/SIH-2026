@@ -29,6 +29,7 @@ from backend.app.api.routes_dossier import router as dossier_router
 from backend.app.api.routes_anomaly import router as anomaly_router
 from backend.app.api.routes_ingest import router as ingest_router
 from backend.app.api.routes_cases import router as cases_router
+from backend.app.api.routes_observatory import router as observatory_router
 
 # Configure logging
 logging.basicConfig(
@@ -92,6 +93,7 @@ app.include_router(dossier_router)
 app.include_router(anomaly_router)
 app.include_router(ingest_router)
 app.include_router(cases_router)
+app.include_router(observatory_router)
 
 from fastapi.staticfiles import StaticFiles
 from fastapi.responses import FileResponse
