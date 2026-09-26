@@ -102,12 +102,15 @@ import os
 dist_dir = os.path.abspath(os.path.join(os.path.dirname(__file__), "..", "..", "dist"))
 assets_dir = os.path.join(dist_dir, "assets")
 fonts_dir = os.path.join(dist_dir, "fonts")
+audio_dir = os.path.join(dist_dir, "audio")
 index_html = os.path.join(dist_dir, "index.html")
 
 if os.path.exists(assets_dir):
     app.mount("/assets", StaticFiles(directory=assets_dir), name="assets")
 if os.path.exists(fonts_dir):
     app.mount("/fonts", StaticFiles(directory=fonts_dir), name="fonts")
+if os.path.exists(audio_dir):
+    app.mount("/audio", StaticFiles(directory=audio_dir), name="audio")
 
 @app.get("/")
 def root():
@@ -119,6 +122,7 @@ def root():
 # Explicit frontend routes allow refreshed/deep-linked guide pages to load
 # from the built app. FastAPI's /docs and /openapi.json remain API references.
 @app.get("/terminal", include_in_schema=False)
+@app.get("/analytics", include_in_schema=False)
 @app.get("/docs/{page:path}", include_in_schema=False)
 def frontend_page(page: str = ""):
     if os.path.exists(index_html):

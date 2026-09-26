@@ -2,6 +2,9 @@ import { test, expect } from '@playwright/test';
 
 const slugs = ['introduction', 'setup', 'quickstart', 'commands', 'cli', 'ingestion', 'graphs', 'ml', 'cases', 'architecture', 'api', 'data-models', 'troubleshooting', 'faq', 'deadlock'];
 
+// Opening choreography is exercised separately in public-motion.spec.ts.
+test.beforeEach(async ({ page }) => { await page.addInitScript(() => sessionStorage.setItem('bitkaun-opening-seen', '1')); });
+
 test('landing has readable editorial typography, interactive art, and working docs entry', async ({ page }, testInfo) => {
   await page.goto('/');
   await expect(page.getByRole('heading', { level: 1 })).toContainText('Follow the flow.');

@@ -4,6 +4,8 @@ import { ArrowLeft, ArrowRight, ArrowUpRight, BookOpen, ChevronDown, Menu, Searc
 import { groups, pages, reviewDate, reviewRevision, searchDocs, type DocPage } from './content';
 import { DocMarkdown } from './DocMarkdown';
 import './docs.css';
+import { useReveal } from '../motion/useReveal';
+import { publicAudio } from '../audio/publicAudio';
 
 function Navigation({ page, onNavigate }: { page?: DocPage; onNavigate?: () => void }) {
   return <nav className="docs-navigation" aria-label="Documentation chapters">
@@ -19,6 +21,13 @@ export function DocsPage({ onEnterCLI }: { onEnterCLI: () => void }) {
   const navigationType = useNavigationType();
   const slug = location.pathname.replace(/^\/docs\/?/, '').replace(/\/$/, '') || 'introduction';
   const page = pages.find(page => page.slug === slug);
+  const chapterReveal = useReveal(slug, 480);
+  const previousSlug = useRef(slug);
+  useEffect(() => {
+    const changed = previousSlug.current !== slug;
+    previousSlug.current = slug;
+    if (changed && !window.matchMedia('(prefers-reduced-motion: reduce)').matches) return publicAudio.sequence('chapter-turn', [{ at: 0, type: 'book' }], 800);
+  }, [slug]);
   const scrollRef = useRef<HTMLDivElement>(null);
   const titleRef = useRef<HTMLHeadingElement>(null);
   const savedScroll = useRef(new Map<string, number>());
@@ -92,7 +101,7 @@ export function DocsPage({ onEnterCLI }: { onEnterCLI: () => void }) {
     <div className="docs-grid">
       <aside className="docs-sidebar"><Link to="/" className="docs-back-home"><ArrowLeft size={13} /> Back to the study</Link><Navigation page={page} /><div className="docs-sidebar-note"><span className="eyebrow">An investigator's companion</span><p>A little context.<br />A clearer perspective.</p><span className="docs-sidebar-mark" aria-hidden="true">{'{ ₿ }'}</span></div></aside>
       <main className="docs-main" id="docs-article" tabIndex={-1}>
-        {page ? <>
+        {page ? <div ref={chapterReveal.ref} className="docs-chapter-motion" data-reveal={chapterReveal.phase}>
           <div className="docs-breadcrumb eyebrow"><BookOpen size={13} /><span>{page.group}</span><span>/</span><span>{String(page.number).padStart(2, '0')}</span></div>
           <header className="docs-article-header">
             <p className="docs-chapter-label">{page.label}{page.slug === 'deadlock' && <span className="docs-planned">Planned</span>}</p>
@@ -104,7 +113,7 @@ export function DocsPage({ onEnterCLI }: { onEnterCLI: () => void }) {
           <article className="docs-prose" key={page.slug}><DocMarkdown page={page} /></article>
           <div className="docs-page-navigation">{previous ? <Link to={`/docs/${previous.slug}`}><span><ArrowLeft size={13} /> Previous chapter</span><strong>{previous.label}</strong></Link> : <Link to="/"><span><ArrowLeft size={13} /> Back to</span><strong>The study</strong></Link>}{next ? <Link to={`/docs/${next.slug}`}><span>Next chapter <ArrowRight size={13} /></span><strong>{next.label}</strong></Link> : <Link to="/docs/introduction"><span>Return to <ArrowRight size={13} /></span><strong>Introduction</strong></Link>}</div>
           <footer className="docs-article-footer"><span>BITKAUN? / THE FIELD GUIDE</span><span>Source review · {reviewRevision}</span></footer>
-        </> : <div className="docs-not-found"><p className="eyebrow">404 / A missing page</p><h1 ref={titleRef} tabIndex={-1}>A small detour.</h1><p>This chapter doesn't exist. Find your way back through the guide or search for what you need.</p><Link className="editorial-button" to="/docs/introduction">Back to the introduction <ArrowRight size={16} /></Link></div>}
+        </div> : <div className="docs-not-found"><p className="eyebrow">404 / A missing page</p><h1 ref={titleRef} tabIndex={-1}>A small detour.</h1><p>This chapter doesn't exist. Find your way back through the guide or search for what you need.</p><Link className="editorial-button" to="/docs/introduction">Back to the introduction <ArrowRight size={16} /></Link></div>}
       </main>
       <aside className="docs-toc">{!!page?.headings.length && <><p className="eyebrow">On this page</p>{contents}</>}<div className="docs-toc-help"><span className="eyebrow">Need your bearings?</span><Link to="/docs/quickstart">Start an investigation <ArrowUpRight size={13} /></Link><Link to="/docs/troubleshooting">Troubleshooting <ArrowUpRight size={13} /></Link></div></aside>
     </div>

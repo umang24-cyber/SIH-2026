@@ -1,6 +1,7 @@
 import React from 'react';
 import { useLandingMotion } from './useLandingMotion';
 import type { ArtworkId } from './useLandingMotion';
+import { useLandingEntrance } from './useLandingEntrance';
 import './LandingBackdrop.css';
 
 // Keep the rim, bowl, stem, and foot on one axis regardless of row width.
@@ -207,8 +208,38 @@ const DEW_DROPS = [
   [54, 61, 6], [98, 16, 4], [81, 24, 4], [90, 65, 5],
 ];
 
-export const LandingBackdrop = React.memo(function LandingBackdrop({ isExiting = false }: { isExiting?: boolean }) {
-  const motion = useLandingMotion(isExiting, LIQUID_MASK);
+const BOTTLE = String.raw`       .------.
+       |======|
+       |======|
+       |      |
+       |      |
+       |      |
+      /        \
+     /          \
+    /            \
+   /              \
+  |   .--------.   |
+  |  /          \  |
+  | |     B?     | |
+  | |            | |
+  | |  RÉSERVE   | |
+  | |            | |
+  | |    2026    | |
+  |  \          /  |
+  |   '--------'   |
+  |                |
+  |                |
+  |                |
+  |                |
+  |                |
+  |                |
+  |________________|
+  '----------------'`;
+const noop = () => {};
+
+export const LandingBackdrop = React.memo(function LandingBackdrop({ isExiting = false, introActive = false, introRunning = false, onReveal = noop, onIntroComplete = noop }: { isExiting?: boolean; introActive?: boolean; introRunning?: boolean; onReveal?: () => void; onIntroComplete?: () => void }) {
+  const motion = useLandingMotion(isExiting, LIQUID_MASK, introActive);
+  const entrance = useLandingEntrance(introRunning, motion.sceneRef, motion.setIntroFrame, onReveal, onIntroComplete);
   const control = (id: ArtworkId, label: string, hint: string) => (
     <>
       <button
@@ -216,7 +247,7 @@ export const LandingBackdrop = React.memo(function LandingBackdrop({ isExiting =
         className={`landing-art-handle landing-art-handle-${id}`}
         aria-label={label}
         aria-describedby="landing-art-instructions"
-        disabled={isExiting}
+        disabled={isExiting || introActive}
         {...motion.bind(id)}
       />
       <span className="landing-art-hint" aria-hidden="true">{hint}</span>
@@ -225,6 +256,7 @@ export const LandingBackdrop = React.memo(function LandingBackdrop({ isExiting =
 
   return (
     <>
+      {introRunning && <><pre ref={entrance.bottleRef} className="landing-intro-bottle" aria-hidden="true">{BOTTLE}</pre><svg ref={entrance.streamRef} className="landing-pour-stream" aria-hidden="true"><path fill="none" stroke="#722f42" strokeWidth="4" strokeLinecap="round" /><ellipse rx="10" ry="3" fill="none" stroke="#722f42" strokeWidth="1" /></svg></>}
       <div className="landing-backdrop" ref={motion.sceneRef}>
         <span className="landing-visually-hidden" id="landing-art-instructions">
           Drag left or right to move this artwork. Use arrow keys to adjust, Enter or Space to nudge, and Escape to reset.
@@ -282,7 +314,7 @@ export const LandingBackdrop = React.memo(function LandingBackdrop({ isExiting =
         <button
           type="button"
           aria-pressed={motion.paused}
-          disabled={isExiting || motion.reducedMotion}
+          disabled={isExiting || introActive || motion.reducedMotion}
           onClick={() => motion.setPaused(value => !value)}
         >
           {motion.reducedMotion ? 'REDUCED MOTION' : motion.paused ? 'RESUME MOTION' : 'PAUSE MOTION'}

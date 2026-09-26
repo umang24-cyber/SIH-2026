@@ -1,0 +1,38 @@
+.scramble-number { font-variant-numeric: tabular-nums lining-nums; display: inline-block; white-space: nowrap; }
+.scramble-number[data-reveal=waiting] > [aria-hidden=true] { opacity: 0; }
+.editorial .obs-section-heading[data-reveal=waiting] { opacity: 0; }
+.editorial .obs-section-heading[data-reveal=playing] { animation: editorial-chapter-arrive 600ms cubic-bezier(.16,1,.3,1) both; }
+.editorial [data-reveal=waiting] > .obs-bar .obs-bar-caption { opacity: 0; }
+.editorial [data-reveal=waiting] .reveal-bar { transform: scaleX(0); }
+.editorial .reveal-bar { transform-origin: left center; }
+.editorial [data-reveal=playing] .reveal-bar { animation: editorial-bar-unfold 720ms cubic-bezier(.16,1,.3,1) both; animation-delay: var(--reveal-delay, 0ms); }
+.editorial [data-reveal=playing] .obs-bar-caption { animation: editorial-ink-arrive 550ms ease both; animation-delay: var(--reveal-delay, 0ms); }
+.editorial [data-reveal=waiting] .reveal-plot { transform: scaleY(0); }
+.editorial .reveal-plot { transform-origin: 0 240px; }
+.editorial [data-reveal=playing] .reveal-plot { animation: editorial-plot-rise 1100ms cubic-bezier(.16,1,.3,1) both; }
+.editorial [data-reveal=playing] .reveal-line { stroke-dasharray: 1; stroke-dashoffset: 1; animation: editorial-path-draw 1100ms ease forwards; }
+.editorial [data-reveal=waiting] .reveal-node { opacity: 0; }
+.editorial [data-reveal=playing] .reveal-node { animation: editorial-node-arrive 480ms cubic-bezier(.16,1,.3,1) both; animation-delay: var(--reveal-delay, 0ms); transform-box: fill-box; transform-origin: center; }
+.editorial [data-reveal=waiting] .reveal-edge { stroke-dasharray: 1; stroke-dashoffset: 1; opacity: 0; }
+.editorial [data-reveal=playing] .reveal-edge { stroke-dasharray: 1; stroke-dashoffset: 1; animation: editorial-path-draw 500ms ease both; animation-delay: var(--reveal-delay, 0ms); }
+.editorial .obs-diagram-node rect, .editorial .obs-diagram-node text { transition: fill 200ms ease, stroke 200ms ease; }
+.editorial .obs-bar-track > span { transition: width 500ms cubic-bezier(.16,1,.3,1); }
+.editorial .obs-tabs button, .editorial .obs-section-index a { transition: color 180ms ease, border-color 180ms ease; }
+.editorial :is(.obs-source,.obs-data-table, .obs-metric)[open] > :not(summary) { animation: editorial-ink-arrive 300ms ease both; }
+.editorial :is(.obs-source,.obs-data-table,.obs-metric) summary { transition: color 180ms ease; }
+.editorial :is(.obs-source,.obs-data-table,.obs-metric) summary:hover { color: var(--wine); }
+.editorial .obs-diagram-detail p { animation: editorial-ink-arrive 250ms ease; }
+.editorial .docs-chapter-motion[data-reveal=waiting] { opacity: 0; }
+.editorial .docs-chapter-motion[data-reveal=playing] { animation: editorial-chapter-arrive 440ms cubic-bezier(.16,1,.3,1) both; }
+.editorial .docs-navigation a, .editorial .landing-index :is(a,button) { transition: color 180ms ease, background 180ms ease; }
+.editorial .landing-index :is(a,button):hover { background: #d9d1c222; }
+.editorial .landing-index :is(a,button) svg { transition: transform 250ms ease; }
+.editorial .landing-index :is(a,button):hover svg { transform: translate(3px,-3px); }
+.editorial .docs-search-dialog[open], .editorial .docs-menu-dialog[open] { animation: editorial-chapter-arrive 240ms ease both; }
+@keyframes editorial-bar-unfold { from { transform: scaleX(0); } to { transform: scaleX(1); } }
+@keyframes editorial-plot-rise { from { transform: scaleY(0); opacity: .15; } to { transform: scaleY(1); opacity: 1; } }
+@keyframes editorial-path-draw { to { stroke-dashoffset: 0; } }
+@keyframes editorial-node-arrive { from { opacity: 0; transform: translateY(12px) scale(.96); } to { opacity: 1; transform: none; } }
+@keyframes editorial-ink-arrive { from { opacity: 0; } to { opacity: 1; } }
+@keyframes editorial-chapter-arrive { from { opacity: 0; transform: translateY(10px); } to { opacity: 1; transform: none; } }
+@media (prefers-reduced-motion: reduce) { .editorial [data-reveal] *, .editorial .docs-chapter-motion, .editorial details[open] > *, .editorial dialog[open] { animation: none !important; }.editorial [data-reveal] .reveal-bar, .editorial [data-reveal] .reveal-plot { transform: none !important; }.editorial [data-reveal] .reveal-node { opacity: 1 !important; }.editorial [data-reveal] .reveal-edge { stroke-dasharray: none !important; stroke-dashoffset: 0 !important; opacity: 1 !important; } }

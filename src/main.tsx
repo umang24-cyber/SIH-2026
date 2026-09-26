@@ -10,6 +10,7 @@ import '@fontsource/dm-sans/latin-500.css';
 import '@fontsource/dm-sans/latin-600.css';
 import './styles/terminal.css';
 import './styles/editorial.css';
+import './motion/editorialMotion.css';
 
 ReactDOM.createRoot(document.getElementById('root')!).render(
   <React.StrictMode>
