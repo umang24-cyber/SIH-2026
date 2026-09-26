@@ -12,3 +12,6 @@
 *.pdf binary
 *.zip binary
 *.tar.gz binary
+
+# Full-length lounge track exceeds GitHub's regular-file size limit.
+public/audio/lounge.mp3 filter=lfs diff=lfs merge=lfs -text

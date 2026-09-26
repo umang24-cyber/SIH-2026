@@ -1,0 +1,7 @@
+.newspaper-entrance { position: fixed; inset: 0; z-index: 180; background: #e7e2d6; background: radial-gradient(ellipse at 50% 35%, #f5f1e8, #d9d1c2); }
+.newspaper-canvas { position: absolute; inset: 0; pointer-events: none; }
+.newspaper-canvas canvas { display: block; }
+.newspaper-controls { position: absolute; right: 24px; bottom: 24px; display: flex; align-items: center; gap: 24px; background: #f5f1e8ed; border: 1px solid var(--rule); padding: 8px 15px; }
+.newspaper-controls > span { font: 10px var(--mono); color: var(--muted); }
+.newspaper-controls button { background: none; border: 0; padding: 10px 0; font: 11px var(--sans); }
+@media (max-width: 600px) { .newspaper-controls { bottom: 16px; right: 16px; left: 16px; justify-content: space-between; gap: 10px; }.newspaper-controls > span { font-size: 8px; } }

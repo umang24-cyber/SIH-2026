@@ -9,8 +9,15 @@ import { CliSpinner } from './components/CliSpinner';
 import { api } from './services/api';
 import { Link, useLocation, useNavigate } from 'react-router-dom';
 import { BookPageTurn } from './components/BookPageTurn';
+import { PublicAudioControls } from './audio/PublicAudioControls';
+import { publicAudio } from './audio/publicAudio';
+import { MotionReadyContext } from './motion/useReveal';
 const loadDocs = () => import('./docs/DocsPage').then(module => ({ default: module.DocsPage }));
 const DocsPage = React.lazy(loadDocs);
+const loadObservatory = () => import('./observatory/ObservatoryPage').then(module => ({ default: module.ObservatoryPage }));
+const ObservatoryPage = React.lazy(loadObservatory);
+const loadNewspaper = () => import('./observatory/components/NewspaperEntrance').then(module => ({ default: module.NewspaperEntrance }));
+const NewspaperEntrance = React.lazy(loadNewspaper);
 
 interface TerminalEntry {
   id: string;
@@ -27,6 +34,11 @@ export function App() {
   const [showLanding, setShowLanding] = useState<boolean>(location.pathname === '/');
   const [showTool, setShowTool] = useState<boolean>(false);
   const [bookTurning, setBookTurning] = useState(false);
+  const [newspaperOpening, setNewspaperOpening] = useState(false);
+  const preparingNewspaper = useRef(false);
+  const finishNewspaper = useCallback(() => {
+    setNewspaperOpening(false);
+  }, []);
   const preparingBook = useRef(false);
   const currentPath = useRef(location.pathname);
   currentPath.current = location.pathname;
@@ -50,6 +62,7 @@ export function App() {
 
   useEffect(() => {
     if (location.pathname !== '/docs/introduction') setBookTurning(false);
+    if (location.pathname !== '/analytics') setNewspaperOpening(false);
     if (location.pathname === '/') document.title = 'BitKaun? — Bitcoin intelligence, with perspective.';
     if (terminalActive) {
       document.title = 'BitKaun? — Forensic Terminal';
@@ -1702,12 +1715,14 @@ export function App() {
   };
 
   const enterCLI = () => {
+    publicAudio.setRoute(false);
     if (!showTool) setShowSplash(true);
     else setShowLanding(false);
     navigate('/terminal');
   };
 
   const enterDocs = async () => {
+    publicAudio.unlock();
     if (preparingBook.current || bookTurning) return;
     preparingBook.current = true;
     try {
@@ -1724,6 +1739,23 @@ export function App() {
     }
   };
 
+  const enterAnalytics = async () => {
+    publicAudio.unlock();
+    if (preparingNewspaper.current || preparingBook.current || newspaperOpening || bookTurning) return;
+    preparingNewspaper.current = true;
+    try {
+      const reduceMotion = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+      await Promise.all([loadObservatory(), ...(!reduceMotion ? [loadNewspaper()] : []), document.fonts.ready]);
+      if (currentPath.current !== '/') return;
+      setNewspaperOpening(!reduceMotion);
+      navigate('/analytics');
+    } catch {
+      window.location.assign('/analytics');
+    } finally {
+      preparingNewspaper.current = false;
+    }
+  };
+
   const handleSplashEntranceComplete = useCallback(() => {
     setShowLanding(false);
   }, []);
@@ -1736,6 +1768,7 @@ export function App() {
 
   return (
     <div className="terminal-window" onClick={terminalActive && !showSplash ? handleTerminalWindowClick : undefined}>
+      <PublicAudioControls active={!terminalActive} />
       {terminalActive && <AmbientBinaryRain />}
 
       {showSplash && terminalActive && (
@@ -1748,10 +1781,12 @@ export function App() {
       )}
 
       {(location.pathname === '/' || bookTurning || (showLanding && showSplash && terminalActive)) && (
-        <BookPageTurn turning={bookTurning} onComplete={finishBookTurn}><LandingPage onEnterCLI={enterCLI} onEnterDocs={enterDocs} isExiting={showSplash} isTurning={bookTurning} /></BookPageTurn>
+        <BookPageTurn turning={bookTurning} onComplete={finishBookTurn}><LandingPage onEnterCLI={enterCLI} onEnterDocs={enterDocs} onEnterAnalytics={enterAnalytics} isExiting={showSplash} isTurning={bookTurning} /></BookPageTurn>
       )}
 
-      {!terminalActive && location.pathname !== '/' && <React.Suspense fallback={<div className="editorial guide-loading" role="status">Opening the field guide…</div>}><DocsPage onEnterCLI={enterCLI} /></React.Suspense>}
+      {location.pathname === '/analytics' && <MotionReadyContext.Provider value={!newspaperOpening}><React.Suspense fallback={<div className="editorial guide-loading" role="status">Preparing the edition…</div>}><ObservatoryPage entering={newspaperOpening} onEnterCLI={enterCLI} /></React.Suspense></MotionReadyContext.Provider>}
+      {location.pathname === '/analytics' && newspaperOpening && <React.Suspense fallback={null}><NewspaperEntrance onComplete={finishNewspaper} /></React.Suspense>}
+      {!terminalActive && location.pathname !== '/' && location.pathname !== '/analytics' && <MotionReadyContext.Provider value={!bookTurning}><React.Suspense fallback={<div className="editorial guide-loading" role="status">Opening the field guide…</div>}><DocsPage onEnterCLI={enterCLI} /></React.Suspense></MotionReadyContext.Provider>}
 
       {showTool && (
         <div className="terminal-session" style={{ display: terminalActive && !showSplash ? 'contents' : 'none' }}>

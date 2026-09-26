@@ -8,14 +8,14 @@ const clamp = (value: number, min: number, max: number) => Math.max(min, Math.mi
 const freshBody = () => ({ value: 0, velocity: 0, target: 0, hover: 0 });
 
 /** One clock owns both ambient motion and gesture physics. React only handles UI state. */
-export function useLandingMotion(isExiting: boolean, liquidMask: LiquidRow[]) {
+export function useLandingMotion(isExiting: boolean, liquidMask: LiquidRow[], introActive = false) {
   const sceneRef = useRef<HTMLDivElement>(null);
   const [paused, setPaused] = useState(false);
   const [reducedMotion, setReducedMotion] = useState(() =>
     window.matchMedia('(prefers-reduced-motion: reduce)').matches);
   const state = useRef({
     wine: freshBody(), coin: freshBody(), fern: freshBody(), 'fern-low': freshBody(),
-    time: 0, liquid: 0, liquidVelocity: 0, ripple: 0,
+    time: 0, liquid: 0, liquidVelocity: 0, ripple: 0, fill: 1,
   });
   const drag = useRef<{
     id: ArtworkId; pointerId: number; element: HTMLButtonElement;
@@ -59,7 +59,8 @@ export function useLandingMotion(isExiting: boolean, liquidMask: LiquidRow[]) {
     let frame = 0;
     let last = 0;
     let lastLiquid = -Infinity;
-    const ambient = !paused && !reducedMotion;
+    const ambient = !paused && !reducedMotion && !introActive;
+    if (!introActive) state.current.fill = 1;
 
     const draw = (forceLiquid = false) => {
       const s = state.current;
@@ -82,7 +83,7 @@ export function useLandingMotion(isExiting: boolean, liquidMask: LiquidRow[]) {
           let text = '';
           for (let column = mask.start; column < mask.end; column++) {
             // Character aspect ratio converts glass rotation to a level world-space surface.
-            const surface = 16 - (column - 25) * Math.tan(s.liquid * Math.PI / 180) * 0.566
+            const surface = 29 - 13 * s.fill - (column - 25) * Math.tan(s.liquid * Math.PI / 180) * 0.566
               + (!reducedMotion ? Math.sin(column * 0.3 + s.time * 1.7) * (0.32 + s.ripple) : 0);
             if (row >= surface) {
               if (first < 0) first = column;
@@ -153,7 +154,18 @@ export function useLandingMotion(isExiting: boolean, liquidMask: LiquidRow[]) {
       document.removeEventListener('visibilitychange', visibility);
       window.removeEventListener('blur', release);
     };
-  }, [isExiting, paused, reducedMotion, liquidMask, release]);
+  }, [isExiting, paused, reducedMotion, liquidMask, release, introActive]);
+
+  const setIntroFrame = useCallback((fill: number, rotation: number, time: number) => {
+    state.current.fill = fill;
+    state.current.coin.value = rotation;
+    state.current.coin.hover = 0;
+    state.current.wine.value = 0;
+    state.current.liquid = 0;
+    state.current.ripple = fill > 0 && fill < 1 ? .8 : .15;
+    state.current.time = time;
+    drawRef.current();
+  }, []);
 
   const bind = (id: ArtworkId) => ({
     onPointerDown: (event: ReactPointerEvent<HTMLButtonElement>) => {
@@ -254,5 +266,5 @@ export function useLandingMotion(isExiting: boolean, liquidMask: LiquidRow[]) {
     },
   });
 
-  return { sceneRef, paused, setPaused, reducedMotion, bind };
+  return { sceneRef, paused, setPaused, reducedMotion, bind, setIntroFrame };
 }

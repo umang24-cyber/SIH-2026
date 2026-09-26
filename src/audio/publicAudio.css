@@ -1,0 +1,4 @@
+.public-audio { position: fixed; z-index: 230; left: 18px; bottom: 14px; display: flex; align-items: center; gap: 11px; padding: 6px 10px; background: #f5f1e8ed; border: 1px solid var(--rule); box-shadow: 0 3px 18px #2528200a; border-radius: 3px; }
+.public-audio button { display: flex; align-items: center; gap: 7px; font: 10px var(--sans); background: transparent; border: 0; padding: 6px 0; min-height: 28px; }
+.public-audio label { display: flex; }.public-audio input { width: 62px; accent-color: var(--olive); height: 20px; cursor: pointer; }.public-audio-note { font-size: 9px; color: var(--muted); }
+@media (max-width: 600px) { .public-audio { left: 10px; bottom: 10px; padding: 4px 8px; }.public-audio input { width: 45px; } }

@@ -1,0 +1,42 @@
+.landing-entry-gate { position: fixed; inset: 0; z-index: 170; background: var(--paper); display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 34px; text-align: center; padding: 30px; }
+.landing-entry-gate > .eyebrow { font-size: 10px; }.landing-entry-gate > p { font: 400 27px/1.4 var(--serif); }.landing-entry-gate em { color: var(--olive); }.landing-entry-note { font: 10px var(--sans); color: var(--muted); }
+.landing-entry-wordmark { display: flex; color: var(--olive); filter: drop-shadow(0 2px 0 #d9d1c2); }
+.landing-entry-wordmark pre { font: clamp(4px, 1.05vw, 15px)/1.1 'Courier New', monospace; white-space: pre; margin: 0; letter-spacing: 0; }
+.landing-entry-departing { pointer-events: none; animation: entry-wash-depart 600ms ease forwards; }
+.landing-entry-departing .landing-entry-wordmark { animation: entry-logo-depart 550ms cubic-bezier(.65,0,.35,1) both; }
+.landing-entry-departing > :not(.landing-entry-wordmark) { animation: entry-copy-depart 420ms ease both; }
+.landing-intro-wash { position: fixed; inset: 0; z-index: 1; background: radial-gradient(ellipse at 50% 50%, #fcfaf5, #eee9dd); pointer-events: none; }
+.intro-running .landing-intro-wash { animation: landing-wash-settle 5700ms linear both; }
+.intro-gate .landing-gallery { visibility: hidden; }
+.intro-running .landing-gallery { z-index: 2; overflow: visible; background: transparent; border-color: transparent; }
+.intro-running .landing-gallery::after, .intro-running .landing-frost, .intro-running .landing-condensation { opacity: 0; }
+.intro-running .landing-gallery .landing-backdrop { overflow: visible; isolation: auto; }
+.intro-running .landing-gallery :is(.gallery-caption,.gallery-edition,.landing-motion-controls) { visibility: hidden; }
+.intro-running .landing-art { --art-surface: #f5f1e8; }
+.intro-running .landing-art-wine { --art-surface: #f5f1e8; }
+.intro-running :is(.landing-art-wine,.landing-art-bitcoin) { will-change: transform, opacity; }
+.intro-running :is(.landing-art-fern,.landing-art-fern-low) { opacity: 0; }
+.intro-gate :is(.landing-masthead,.landing-hero-copy,.landing-index,.landing-colophon), .intro-running:not(.landing-revealing) :is(.landing-masthead,.landing-hero-copy,.landing-index,.landing-colophon) { visibility: hidden; }
+.intro-running { overflow: hidden; }
+.landing-intro-bottle { position: fixed; z-index: 5; top: 0; left: 0; margin: 0; padding: 0; white-space: pre; font: 9px/1.05 'Courier New', monospace !important; letter-spacing: 0; color: #34422e; text-shadow: 1px 0 #e0ddbd; transform-origin: 50% 8px; opacity: 0; pointer-events: none; }
+.landing-pour-stream { position: fixed; z-index: 4; inset: 0; width: 100vw; height: 100dvh; overflow: visible; pointer-events: none; opacity: 0; }
+.landing-pour-stream path { stroke-dasharray: 13 3; animation: wine-stream-flow 320ms linear infinite; }
+.landing-pour-stream ellipse { animation: wine-ripple 500ms ease infinite; transform-box: fill-box; transform-origin: center; }
+.landing-intro-controls { position: fixed; z-index: 180; bottom: 20px; right: 24px; display: flex; align-items: center; gap: 24px; background: #f5f1e8e8; border: 1px solid var(--rule); padding: 8px 14px; }
+.landing-intro-controls span { font: 10px var(--mono); color: var(--muted); }.landing-intro-controls button { border: 0; background: none; font: 11px var(--sans); padding: 10px 0; }
+.landing-revealing .landing-hero-copy, .landing-revealing .landing-masthead { animation: landing-content-arrive 750ms cubic-bezier(.16,1,.3,1) both; }
+.landing-revealing .landing-index, .landing-revealing .landing-colophon { animation: landing-content-arrive 650ms cubic-bezier(.16,1,.3,1) 180ms both; }
+.landing-revealing .landing-ascii-letter { animation: landing-letter-arrive 300ms ease both; animation-delay: var(--letter-delay); }
+.landing-replay { border: 0; background: none; font: inherit; padding: 0; color: var(--muted); cursor: pointer; }.landing-replay:hover { color: var(--wine); }
+.landing-hero h1:focus { outline: none; }
+.landing-colophon { padding-bottom: 70px; }
+@keyframes entry-logo-depart { to { transform: translateY(-55vh) rotate(-3deg); opacity: 0; } }
+@keyframes entry-copy-depart { to { transform: translateY(25vh); opacity: 0; } }
+@keyframes entry-wash-depart { 0%,45% { background: var(--paper); } 100% { background: transparent; visibility: hidden; } }
+@keyframes landing-wash-settle { 0%,57% { opacity: 1; } 82%,100% { opacity: 0; } }
+@keyframes landing-content-arrive { from { transform: translateY(18px); opacity: 0; } to { transform: none; opacity: 1; } }
+@keyframes landing-letter-arrive { from { transform: translateY(9px); opacity: 0; filter: blur(2px); } to { transform: none; opacity: 1; filter: none; } }
+@keyframes wine-stream-flow { to { stroke-dashoffset: -32; } }
+@keyframes wine-ripple { from { transform: scale(.5); opacity: .7; } to { transform: scale(1.4); opacity: 0; } }
+@media (max-width: 760px) { .landing-entry-gate { gap: 28px; padding: 20px; }.landing-entry-wordmark pre { font-size: clamp(4px,1.15vw,8px); }.landing-entry-gate > p { font-size: 23px; }.landing-intro-bottle { font-size: 6px !important; }.landing-intro-controls { bottom: 14px; right: 12px; padding: 5px 10px; }.landing-intro-controls > span { display: none; } }
+@media (prefers-reduced-motion: reduce) { .landing-revealing *, .landing-entry-gate { animation: none !important; } }
