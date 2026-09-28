@@ -1,6 +1,7 @@
-import React, { useState, useRef } from 'react';
+import React, { useState, useRef, useEffect } from 'react';
 import { api } from '../../services/api';
 import { sound } from '../../audio/soundEngine';
+import { CorrelationEvidencePanel } from './CorrelationEvidencePanel';
 
 interface TwoStreamUploadViewProps {
   onRunCommand?: (cmd: string) => void;
@@ -32,6 +33,11 @@ export const TwoStreamUploadView: React.FC<TwoStreamUploadViewProps> = ({ onRunC
 
   const ledgerInputRef = useRef<HTMLInputElement>(null);
   const networkInputRef = useRef<HTMLInputElement>(null);
+  const resultRef = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    if (result) resultRef.current?.scrollIntoView({ block: 'start', behavior: 'auto' });
+  }, [result]);
 
   const handleLoadDemoFiles = async () => {
     try {
@@ -90,7 +96,7 @@ export const TwoStreamUploadView: React.FC<TwoStreamUploadViewProps> = ({ onRunC
     const scenarioList = result.scenario_results || [];
 
     return (
-      <div className="output-block" style={{
+      <div ref={resultRef} className="output-block" style={{
         background: 'rgba(3, 10, 6, 0.95)',
         border: '1px solid #00aa44',
         boxShadow: '0 0 20px rgba(0, 255, 102, 0.15)',
@@ -143,6 +149,8 @@ export const TwoStreamUploadView: React.FC<TwoStreamUploadViewProps> = ({ onRunC
           </div>
         </div>
 
+        <CorrelationEvidencePanel phase="complete" evidence={result.correlation_evidence} />
+
         {/* Telemetry Summary Stats */}
         <div style={{
           display: 'grid',
@@ -163,7 +171,7 @@ export const TwoStreamUploadView: React.FC<TwoStreamUploadViewProps> = ({ onRunC
             <div style={{ color: '#fff', fontSize: '16px', fontWeight: 'bold' }}>{result.network_records}</div>
           </div>
           <div>
-            <div style={{ color: '#66aa88', fontSize: '10px' }}>CORRELATION MATCH</div>
+            <div style={{ color: '#66aa88', fontSize: '10px' }}>EXACT-ID MATCH COVERAGE</div>
             <div style={{ color: '#33ff88', fontSize: '16px', fontWeight: 'bold' }}>{result.matched_records} ({correlationPct}%)</div>
           </div>
           <div>
@@ -174,6 +182,14 @@ export const TwoStreamUploadView: React.FC<TwoStreamUploadViewProps> = ({ onRunC
             <div style={{ color: '#66aa88', fontSize: '10px' }}>UNMATCHED STREAMS</div>
             <div style={{ color: '#ffaa33', fontSize: '16px', fontWeight: 'bold' }}>{result.unmatched_ledger + result.unmatched_network}</div>
           </div>
+          <div>
+            <div style={{ color: '#66aa88', fontSize: '10px' }}>TIMING ISSUES / CONFLICTS</div>
+            <div style={{ color: '#ffaa33', fontSize: '16px', fontWeight: 'bold' }}>{result.timing_issue_count ?? 0} / {result.conflicting_records ?? 0}</div>
+          </div>
+        </div>
+
+        <div style={{ color: '#88bb99', fontSize: '11px', marginBottom: '12px' }}>
+          Coverage is the fraction of records sharing an original transaction ID, not a confidence score. Relay observations do not verify the sender.
         </div>
 
         {/* Scenarios Analyzed */}
@@ -387,6 +403,8 @@ export const TwoStreamUploadView: React.FC<TwoStreamUploadViewProps> = ({ onRunC
           </button>
         )}
       </div>
+
+      <CorrelationEvidencePanel phase={isUploading ? 'loading' : error ? 'error' : 'idle'} />
 
       {/* 1-Click Demo Preset Banner */}
       <div style={{

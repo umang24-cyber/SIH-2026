@@ -131,7 +131,7 @@ export function searchDocs(query: string): SearchResult[] {
 
 export function resolveDocLink(href: string): string {
   if (/^(https?:|mailto:|#|\/)/.test(href)) return href;
-  // Repository-relative citations are source links, not application routes.
-  const sourcePath = new URL(href, 'https://source.local/docs/DOCS.md');
-  return `https://github.com/umang24-cyber/SIH-2026/blob/cli${sourcePath.pathname}${sourcePath.hash}`;
+  // Repository-relative citations are served by the local backend, never GitHub.
+  const sourcePath = new URL(href, 'http://bitkaun.invalid/docs/DOCS.md');
+  return `/source${sourcePath.pathname}${sourcePath.hash}`;
 }

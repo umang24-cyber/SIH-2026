@@ -54,7 +54,9 @@ class TestExtendedServices(unittest.TestCase):
         summary = res["reconciliation_summary"]
         self.assertEqual(summary["total_mempool_frames"], 4)
         self.assertEqual(summary["total_block_events"], 4)
-        self.assertEqual(summary["correlated_matches"], 2)
+        self.assertEqual(summary["correlated_matches"], 3)  # exact ID 103 retained despite large timing gap
+        self.assertEqual(summary["within_window_matches"], 2)
+        self.assertEqual(summary["timing_issue_count"], 1)
         self.assertEqual(summary["orphan_mempool_packets"], 1)
         self.assertEqual(summary["orphan_block_events"], 1)
         self.assertGreater(summary["average_propagation_delta_seconds"], 0)

@@ -14,6 +14,8 @@ from typing import Dict, Any, List, Optional, AsyncGenerator
 from backend.app.services.data_service import data_service
 from backend.app.services.typology_detector import typology_detector
 from backend.app.services.ml_service import ml_service
+from backend.app.services.correlation_evidence import evidence, original_id
+import math
 
 logger = logging.getLogger(__name__)
 
@@ -100,9 +102,11 @@ class StreamingCorrelator:
         """
         start_time = time.perf_counter()
         
-        # Buffer indexed by txid
-        mempool_buffer: Dict[int, Dict[str, Any]] = {}
-        block_buffer: Dict[int, Dict[str, Any]] = {}
+        if not math.isfinite(max_window_seconds) or max_window_seconds <= 0:
+            raise ValueError("max_window_seconds must be finite and greater than zero")
+        mempool_buffer: Dict[str, List[Dict[str, Any]]] = {}
+        block_buffer: Dict[str, Dict[str, Any]] = {}
+        conflicting_blocks: set[str] = set()
         
         correlated_events: List[Dict[str, Any]] = []
         timing_deltas: List[float] = []
@@ -111,43 +115,42 @@ class StreamingCorrelator:
         
         # Ingest mempool stream
         for m in mempool_stream:
-            txid = m.get("txid")
-            if txid is not None:
-                mempool_buffer[int(txid)] = m
+            txid = original_id(m)
+            if txid:
+                mempool_buffer.setdefault(txid, []).append(m)
 
-        # Ingest block stream and perform sliding window correlation
+        # Buffer by the original ID, regardless of arrival order.
         for b in block_stream:
-            txid = b.get("txid")
-            if txid is None:
+            txid = original_id(b)
+            if not txid:
                 continue
-            txid = int(txid)
+            if txid in block_buffer:
+                if block_buffer[txid] != b:
+                    conflicting_blocks.add(txid)
+                continue
             block_buffer[txid] = b
 
+        for txid, b in block_buffer.items():
+            if txid in conflicting_blocks:
+                item = evidence(txid, {"txid": b.get("txid"), "timestamp": b.get("block_timestamp")}, mempool_buffer.get(txid, []), max_window_seconds)
+                item["match_status"] = "CONFLICTING"
+                item["reasons"].append("Contradictory block records share a transaction ID; not counted as a match.")
+                correlated_events.append({**item, "correlation_status": "CONFLICTING"})
+                continue
             if txid in mempool_buffer:
-                m = mempool_buffer[txid]
-                t_relay = float(m.get("relay_timestamp", 0.0))
-                t_block = float(b.get("block_timestamp", 0.0))
-                delta_t = abs(t_block - t_relay)
-
-                if delta_t <= max_window_seconds:
+                relays = mempool_buffer[txid]
+                item = evidence(txid, {"txid": b.get("txid"), "timestamp": b.get("block_timestamp")}, relays, max_window_seconds)
+                delta_t = item["timing_delta_seconds"]
+                if delta_t is not None and item["timing_status"] == "WITHIN_WINDOW":
                     timing_deltas.append(delta_t)
-                    correlated_events.append({
-                        "txid": txid,
-                        "correlation_status": "MATCHED",
-                        "timing_delta_seconds": round(delta_t, 3),
-                        "relay_ip": m.get("relay_ip", "0.0.0.0"),
-                        "asn": m.get("asn", "Unknown"),
-                        "is_tor": bool(m.get("is_tor", False)),
-                        "btc_value": float(b.get("btc_value", 0.0)),
-                        "block_height": b.get("block_height", 0)
-                    })
-                else:
-                    correlated_events.append({
-                        "txid": txid,
-                        "correlation_status": "WINDOW_EXCEEDED",
-                        "timing_delta_seconds": round(delta_t, 3),
-                        "reason": f"Delta {delta_t:.1f}s exceeded max window {max_window_seconds}s"
-                    })
+                correlated_events.append({
+                    **item, "txid": b.get("txid"), "correlation_status": "MATCHED",
+                    "relay_ip": item["observations"][0]["relay_ip"],
+                    "asn": item["observations"][0]["asn"],
+                    "is_tor": relays[0].get("is_tor") is True,
+                    "btc_value": float(b.get("btc_value", 0.0)),
+                    "block_height": b.get("block_height", 0),
+                })
             else:
                 orphan_block_events += 1
 
@@ -155,15 +158,28 @@ class StreamingCorrelator:
             if txid not in block_buffer:
                 orphan_mempool_packets += 1
 
+        for txid, block in block_buffer.items():
+            if txid not in mempool_buffer and txid not in conflicting_blocks:
+                item = evidence(txid, {"txid": block.get("txid"), "timestamp": block.get("block_timestamp")}, [], max_window_seconds)
+                correlated_events.append({**item, "correlation_status": "UNMATCHED"})
+        for txid, relays in mempool_buffer.items():
+            if txid not in block_buffer:
+                item = evidence(txid, None, relays, max_window_seconds)
+                correlated_events.append({**item, "correlation_status": "UNMATCHED"})
+
         elapsed_ms = (time.perf_counter() - start_time) * 1000.0
         avg_delta = sum(timing_deltas) / len(timing_deltas) if timing_deltas else 0.0
-        match_rate = (len(timing_deltas) / max(1, len(block_stream))) * 100.0
+        matched = sum(item["match_status"] == "MATCHED" for item in correlated_events)
+        match_rate = (matched / max(1, len(block_buffer))) * 100.0
 
         return {
             "reconciliation_summary": {
                 "total_mempool_frames": len(mempool_stream),
                 "total_block_events": len(block_stream),
-                "correlated_matches": len(timing_deltas),
+                "correlated_matches": matched,
+                "within_window_matches": len(timing_deltas),
+                "timing_issue_count": matched - len(timing_deltas),
+                "conflicting_records": len(conflicting_blocks),
                 "match_rate_percent": round(match_rate, 2),
                 "orphan_mempool_packets": orphan_mempool_packets,
                 "orphan_block_events": orphan_block_events,

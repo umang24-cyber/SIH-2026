@@ -28,6 +28,8 @@ CREATE TABLE IF NOT EXISTS forensic_transactions (
     isp TEXT DEFAULT 'Standard Relay ISP',
     user_agent TEXT DEFAULT '/Satoshi:22.0.0/',
     propagation_delta_ms REAL DEFAULT 0.0,
+    transaction_hash TEXT,
+    relay_observations TEXT,
     is_custom_ingested INTEGER DEFAULT 1,
     created_at TEXT DEFAULT (datetime('now'))
 );
@@ -73,5 +75,9 @@ def create_schema() -> None:
     with get_db_connection() as conn:
         cursor = conn.cursor()
         cursor.executescript(CREATE_TABLES_SQL)
+        columns = {row[1] for row in cursor.execute("PRAGMA table_info(forensic_transactions)")}
+        for name in ("transaction_hash", "relay_observations"):
+            if name not in columns:
+                cursor.execute(f"ALTER TABLE forensic_transactions ADD COLUMN {name} TEXT")
         conn.commit()
     logger.info("Forensic SQLite Database schema & indexes created successfully.")

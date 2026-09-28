@@ -340,3 +340,6 @@ class IngestCorrelationResponse(BaseModel):
     correlation_rate: float
     scenarios_analyzed: List[str]
     scenario_results: List[IngestScenarioAnalysis]
+    correlation_evidence: List[Dict[str, Any]] = Field(default_factory=list)
+    timing_issue_count: int = 0
+    conflicting_records: int = 0

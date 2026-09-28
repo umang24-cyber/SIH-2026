@@ -30,6 +30,7 @@ from backend.app.api.routes_anomaly import router as anomaly_router
 from backend.app.api.routes_ingest import router as ingest_router
 from backend.app.api.routes_cases import router as cases_router
 from backend.app.api.routes_observatory import router as observatory_router
+from backend.app.api.offline_docs import router as offline_docs_router
 
 # Configure logging
 logging.basicConfig(
@@ -56,7 +57,9 @@ app = FastAPI(
     title=settings.APP_NAME,
     version=settings.APP_VERSION,
     description="Dual-Layer Bitcoin Network Telemetry & On-Chain Forensic Intelligence API (100% Air-Gapped)",
-    lifespan=lifespan
+    lifespan=lifespan,
+    docs_url=None,
+    redoc_url=None,
 )
 
 # Enable CORS
@@ -94,6 +97,7 @@ app.include_router(anomaly_router)
 app.include_router(ingest_router)
 app.include_router(cases_router)
 app.include_router(observatory_router)
+app.include_router(offline_docs_router)
 
 from fastapi.staticfiles import StaticFiles
 from fastapi.responses import FileResponse
@@ -103,6 +107,7 @@ dist_dir = os.path.abspath(os.path.join(os.path.dirname(__file__), "..", "..", "
 assets_dir = os.path.join(dist_dir, "assets")
 fonts_dir = os.path.join(dist_dir, "fonts")
 audio_dir = os.path.join(dist_dir, "audio")
+graph_data_dir = os.path.join(dist_dir, "data")
 index_html = os.path.join(dist_dir, "index.html")
 
 if os.path.exists(assets_dir):
@@ -111,6 +116,8 @@ if os.path.exists(fonts_dir):
     app.mount("/fonts", StaticFiles(directory=fonts_dir), name="fonts")
 if os.path.exists(audio_dir):
     app.mount("/audio", StaticFiles(directory=audio_dir), name="audio")
+if os.path.exists(graph_data_dir):
+    app.mount("/data", StaticFiles(directory=graph_data_dir), name="graph-data")
 
 @app.get("/")
 def root():

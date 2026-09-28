@@ -6,6 +6,7 @@ and dynamic CSV/JSON/XML format parsing for live ingestion.
 import io
 import json
 import logging
+import math
 import xml.etree.ElementTree as ET
 import pandas as pd
 from typing import Any, Dict, List, Union
@@ -79,6 +80,8 @@ def normalize_transaction_dict(raw_d: Dict[str, Any]) -> Dict[str, Any]:
     d = _normalize_dict_keys(raw_d)
 
     raw_txid = d.get("txid", 0)
+    original = d.get("transaction_hash", raw_txid)
+    transaction_hash = str(original).strip() if original is not None else ""
     txid = 0
     try:
         txid = int(raw_txid)
@@ -142,16 +145,22 @@ def normalize_transaction_dict(raw_d: Dict[str, Any]) -> Dict[str, Any]:
 
     # Calculate propagation delta if not present
     prop_delta = d.get("propagation_delta_ms")
-    if prop_delta is None:
+    if prop_delta is None or (isinstance(prop_delta, (int, float)) and not math.isfinite(prop_delta)):
         try:
             t1 = pd.to_datetime(ts, utc=True)
             t2 = pd.to_datetime(relay_ts, utc=True)
-            prop_delta = round(abs((t1 - t2).total_seconds() * 1000.0), 2)
+            prop_delta = round((t1 - t2).total_seconds() * 1000.0, 2) if bool(d.get("timestamp")) and bool(d.get("relay_timestamp")) else 0.0
         except Exception:
             prop_delta = 125.0
 
     return {
         "txid": txid,
+        "transaction_hash": transaction_hash,
+        "timestamp_observed": bool(d.get("timestamp") is not None and str(d.get("timestamp")).strip()),
+        "relay_timestamp_observed": bool(d.get("relay_timestamp") is not None and str(d.get("relay_timestamp")).strip()),
+        "relay_ip_observed": bool(d.get("relay_ip") is not None and str(d.get("relay_ip")).strip()),
+        "asn_observed": bool(d.get("asn") is not None and str(d.get("asn")).strip()),
+        "node_type_observed": bool(d.get("node_type") is not None and str(d.get("node_type")).strip()),
         "timestamp": ts,
         "relay_timestamp": relay_ts,
         "input_addresses": [str(a) for a in in_addrs],
@@ -219,7 +228,7 @@ def parse_json_payload(data: Union[Dict[str, Any], List[Dict[str, Any]]]) -> Lis
 
 def parse_csv_bytes(csv_content: bytes) -> List[Dict[str, Any]]:
     """Parse raw CSV bytes into normalized transaction records."""
-    df = pd.read_csv(io.BytesIO(csv_content))
+    df = pd.read_csv(io.BytesIO(csv_content), dtype={"txid": str}, keep_default_na=False)
     df = parse_and_enrich_dataframe(df)
     records = df.to_dict(orient="records")
     return [normalize_transaction_dict(r) for r in records]

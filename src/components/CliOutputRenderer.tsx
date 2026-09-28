@@ -634,7 +634,7 @@ export const CliOutputRenderer: React.FC<CliOutputRendererProps> = React.memo(({
               CONFIDENTIAL // SYSTEM-GENERATED INVESTIGATIVE SUMMARY
             </div>
             <a
-              href={`http://localhost:8000/api/dossier/${entry.content.transaction_evidence?.txid}/html`}
+              href={`/api/dossier/${entry.content.transaction_evidence?.txid}/html`}
               target="_blank"
               rel="noreferrer"
               style={{ background: '#00ff66', color: '#000', padding: '3px 10px', fontWeight: 'bold', textDecoration: 'none', borderRadius: '3px', fontSize: '12px' }}
@@ -702,7 +702,7 @@ export const CliOutputRenderer: React.FC<CliOutputRendererProps> = React.memo(({
                         [View]
                       </span>
                       <a
-                        href={`http://localhost:8000/api/dossier/${d.txid}/html`}
+                        href={`/api/dossier/${d.txid}/html`}
                         target="_blank"
                         rel="noreferrer"
                         style={{ color: '#00ff66', textDecoration: 'none', fontWeight: 'bold' }}
