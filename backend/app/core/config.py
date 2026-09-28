@@ -18,6 +18,9 @@ def get_app_data_dir() -> Path:
     Under WSL2, automatically discovers the shared Windows AppData directory so
     Windows PowerShell and Ubuntu WSL share the exact same physical folder.
     """
+    override = os.getenv("BITKAUN_DATA_DIR")
+    if override:
+        return Path(override).expanduser().resolve()
     system = platform.system()
     if system == "Windows":
         app_data = os.getenv("LOCALAPPDATA")

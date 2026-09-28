@@ -24,7 +24,8 @@ export default defineConfig({
       '/dossier': 'http://localhost:8000',
       '/intel': 'http://localhost:8000',
       '/stream': 'http://localhost:8000',
-      '/cases': 'http://localhost:8000'
+      '/cases': 'http://localhost:8000',
+      '/source': 'http://localhost:8000'
     }
   }
 });

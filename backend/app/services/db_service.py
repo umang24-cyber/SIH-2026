@@ -36,8 +36,8 @@ class DBService:
                     txid, timestamp, relay_timestamp, input_addresses, output_addresses,
                     input_amounts, output_amounts, fee_btc, script_type, scenario_id,
                     relay_ip, relay_port, node_type, country_code, asn, isp,
-                    user_agent, propagation_delta_ms, is_custom_ingested
-                ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+                    user_agent, propagation_delta_ms, is_custom_ingested, transaction_hash, relay_observations
+                ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
                 ON CONFLICT(txid) DO UPDATE SET
                     timestamp=excluded.timestamp,
                     relay_timestamp=excluded.relay_timestamp,
@@ -56,7 +56,9 @@ class DBService:
                     isp=excluded.isp,
                     user_agent=excluded.user_agent,
                     propagation_delta_ms=excluded.propagation_delta_ms,
-                    is_custom_ingested=excluded.is_custom_ingested;
+                    is_custom_ingested=excluded.is_custom_ingested,
+                    transaction_hash=excluded.transaction_hash,
+                    relay_observations=excluded.relay_observations;
                 """,
                 (
                     int(record["txid"]),
@@ -78,6 +80,8 @@ class DBService:
                     str(record.get("user_agent", "/Satoshi:22.0.0/")),
                     float(record.get("propagation_delta_ms", 0.0)),
                     1 if is_custom else 0,
+                    str(record.get("transaction_hash", record["txid"])),
+                    json.dumps(record.get("relay_observations", [])),
                 )
             )
             conn.commit()
@@ -110,6 +114,8 @@ class DBService:
                 str(record.get("user_agent", "/Satoshi:22.0.0/")),
                 float(record.get("propagation_delta_ms", 0.0)),
                 1 if is_custom else 0,
+                str(record.get("transaction_hash", record["txid"])),
+                json.dumps(record.get("relay_observations", [])),
             ))
 
         with get_db_connection() as conn:
@@ -120,8 +126,8 @@ class DBService:
                     txid, timestamp, relay_timestamp, input_addresses, output_addresses,
                     input_amounts, output_amounts, fee_btc, script_type, scenario_id,
                     relay_ip, relay_port, node_type, country_code, asn, isp,
-                    user_agent, propagation_delta_ms, is_custom_ingested
-                ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+                    user_agent, propagation_delta_ms, is_custom_ingested, transaction_hash, relay_observations
+                ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
                 ON CONFLICT(txid) DO UPDATE SET
                     timestamp=excluded.timestamp,
                     relay_timestamp=excluded.relay_timestamp,
@@ -140,7 +146,9 @@ class DBService:
                     isp=excluded.isp,
                     user_agent=excluded.user_agent,
                     propagation_delta_ms=excluded.propagation_delta_ms,
-                    is_custom_ingested=excluded.is_custom_ingested;
+                    is_custom_ingested=excluded.is_custom_ingested,
+                    transaction_hash=excluded.transaction_hash,
+                    relay_observations=excluded.relay_observations;
                 """,
                 rows
             )
@@ -176,6 +184,8 @@ class DBService:
                     "isp": r["isp"],
                     "user_agent": r["user_agent"],
                     "propagation_delta_ms": r["propagation_delta_ms"],
+                    "transaction_hash": r["transaction_hash"] or str(r["txid"]),
+                    "relay_observations": json.loads(r["relay_observations"] or "[]"),
                 })
             return results
 

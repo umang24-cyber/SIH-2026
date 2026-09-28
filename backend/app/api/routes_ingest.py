@@ -5,6 +5,7 @@ Supports CSV, JSON, and XML payload ingestion on the fly without server restart.
 import json
 import logging
 import math
+from datetime import datetime, timezone
 from collections import defaultdict
 from typing import List, Dict, Any, Optional, Union
 from fastapi import APIRouter, HTTPException, UploadFile, File, Query, Body
@@ -20,6 +21,7 @@ from backend.app.models.schemas import (
 from backend.app.services.data_service import data_service
 from backend.app.services.ml_service import ml_service
 from backend.app.services.anomaly_service import anomaly_service
+from backend.app.services.correlation_evidence import evidence, original_id, parse_time
 from backend.app.ingestion.parser import (
     normalize_transaction_dict,
     parse_json_payload,
@@ -638,7 +640,8 @@ def get_uploaded_scenario_analysis(scenario_id: str):
 @router.post("/correlate", response_model=IngestCorrelationResponse)
 async def ingest_correlate(
     ledger_file: UploadFile = File(...),
-    network_file: UploadFile = File(...)
+    network_file: UploadFile = File(...),
+    max_window_seconds: float = Query(120.0, gt=0, description="Timing-display window in seconds. Exact-ID matches are retained outside it.")
 ):
     """
     Dual-stream correlation endpoint (FULL OUTER JOIN).
@@ -658,27 +661,48 @@ async def ingest_correlate(
     network_input_records = len(network_records)
     input_records = ledger_input_records + network_input_records
 
+    if not math.isfinite(max_window_seconds):
+        raise HTTPException(status_code=422, detail="max_window_seconds must be finite")
+    if any(not original_id(r) for r in ledger_records + network_records):
+        raise HTTPException(status_code=400, detail="Both streams require an original transaction ID; timing-only matching is not supported.")
+
     ledger_map = {}
     ledger_dups_in_file = 0
+    conflicts = set()
     for r in ledger_records:
-        tid = str(r["txid"])
+        tid = original_id(r)
         if tid in ledger_map:
             ledger_dups_in_file += 1
+            keys = ("timestamp", "input_addresses", "output_addresses", "input_amounts", "output_amounts", "fee_btc", "scenario_id")
+            if any(ledger_map[tid].get(key) != r.get(key) for key in keys):
+                conflicts.add(tid)
         else:
             ledger_map[tid] = r
 
-    network_map = {}
+    network_map = defaultdict(list)
     network_dups_in_file = 0
     for r in network_records:
-        tid = str(r["txid"])
+        tid = original_id(r)
         if tid in network_map:
             network_dups_in_file += 1
-        else:
-            network_map[tid] = r
+        network_map[tid].append(r)
 
-    matched_txids = set(ledger_map.keys()) & set(network_map.keys())
-    ledger_only = set(ledger_map.keys()) - matched_txids
-    network_only = set(network_map.keys()) - matched_txids
+    matched_txids = (set(ledger_map) & set(network_map)) - conflicts
+    ledger_only = set(ledger_map) - set(network_map) - conflicts
+    network_only = set(network_map) - set(ledger_map)
+
+    # Internal integer IDs are needed by the existing graph/ML store. Never
+    # silently coalesce two distinct original hashes into one integer key.
+    internal = {}
+    for tx_hash, record in ledger_map.items():
+        if tx_hash in conflicts:
+            continue
+        integer = record["txid"]
+        previous = internal.get(integer)
+        existing = data_service.txid_map.get(integer)
+        if (previous is not None and previous != tx_hash) or (existing and original_id(existing) != tx_hash):
+            raise HTTPException(status_code=409, detail="Distinct transaction IDs map to the same internal ID; upload not indexed.")
+        internal[integer] = tx_hash
 
     TELEMETRY_FIELDS = {
         "relay_timestamp", "relay_ip", "relay_port", "node_type",
@@ -686,24 +710,40 @@ async def ingest_correlate(
         "propagation_delta_ms"
     }
     merged_records = []
+    correlation_evidence = []
     # Merge matches (network telemetry fields added to ledger)
-    for txid in matched_txids:
+    for txid in sorted(matched_txids):
         merged = ledger_map[txid].copy()
+        relays = network_map[txid]
+        item = evidence(txid, merged, relays, max_window_seconds)
+        correlation_evidence.append(item)
         # Telemetry from network stream explicitly enriches ledger record
-        for k, v in network_map[txid].items():
+        # Earliest valid observation is the display representative; every
+        # observation remains available in the evidence response.
+        selected = min(relays, key=lambda r: (
+            parse_time(r.get("relay_timestamp")) if r.get("relay_timestamp_observed", True) else None
+        ) or datetime.max.replace(tzinfo=timezone.utc))
+        for k, v in selected.items():
             if v is not None and str(v) != "":
                 if k in TELEMETRY_FIELDS or k not in merged or merged[k] in ("127.0.0.1", "residential", "US", "AS15169", "Standard Relay ISP", "/Satoshi:22.0.0/", ""):
                     merged[k] = v
-        # Re-normalize to ensure types and propagation latency are consistent
+        # Invalidate stale values from stream-specific normalization.
+        merged["propagation_delta_ms"] = round(item["timing_delta_seconds"] * 1000, 2) if item["timing_delta_seconds"] is not None else 0.0
         merged = normalize_transaction_dict(merged)
+        merged["relay_observations"] = item["observations"]
         merged_records.append(merged)
 
-    # Add unmatched
-    for txid in ledger_only:
+    for txid in sorted(ledger_only):
+        correlation_evidence.append(evidence(txid, ledger_map[txid], [], max_window_seconds))
         merged_records.append(ledger_map[txid])
 
-    for txid in network_only:
-        merged_records.append(network_map[txid])
+    for txid in sorted(network_only):
+        correlation_evidence.append(evidence(txid, None, network_map[txid], max_window_seconds))
+    for txid in sorted(conflicts):
+        item = evidence(txid, ledger_map[txid], network_map.get(txid, []), max_window_seconds)
+        item["match_status"] = "CONFLICTING"
+        item["reasons"].append("Contradictory ledger rows share an original transaction ID; not indexed or scored.")
+        correlation_evidence.append(item)
 
     unique_records = len(merged_records)
     already_indexed = sum(1 for r in merged_records if r["txid"] in data_service.txid_map)
@@ -721,6 +761,8 @@ async def ingest_correlate(
 
     scenario_results = []
     seen_scenarios = []
+    missing_timing_ids = {item["transaction_hash"] for item in correlation_evidence
+                          if item["match_status"] == "MATCHED" and item["timing_status"] == "MISSING_TIMESTAMP"}
     for scenario_id, scenario_txs in grouped_records.items():
         seen_scenarios.append(scenario_id)
         sc_key = str(scenario_id)
@@ -736,7 +778,15 @@ async def ingest_correlate(
             graph_service._scenario_cache.pop(sc_key, None)
         except Exception:
             pass
-        analysis = _analyze_uploaded_scenario(scenario_id, scenario_txs)
+        if any(original_id(tx) not in matched_txids or original_id(tx) in missing_timing_ids for tx in scenario_txs):
+            analysis = IngestScenarioAnalysis(
+                scenario_id=scenario_id,
+                transaction_count=len(scenario_txs),
+                analysis_status="UNAVAILABLE",
+                analysis_message="Incomplete dual-stream scenario: a transaction lacks matched relay telemetry or observed timestamps; ML scoring skipped.",
+            )
+        else:
+            analysis = _analyze_uploaded_scenario(scenario_id, scenario_txs)
         scenario_ml_analysis[scenario_id] = analysis
         scenario_results.append(analysis)
 
@@ -759,5 +809,8 @@ async def ingest_correlate(
         unmatched_network=len(network_only),
         correlation_rate=round(correlation_rate, 4),
         scenarios_analyzed=seen_scenarios[:10],
-        scenario_results=scenario_results
+        scenario_results=scenario_results,
+        correlation_evidence=correlation_evidence,
+        timing_issue_count=sum(e["timing_status"] != "WITHIN_WINDOW" for e in correlation_evidence if e["match_status"] == "MATCHED"),
+        conflicting_records=len(conflicts),
     )

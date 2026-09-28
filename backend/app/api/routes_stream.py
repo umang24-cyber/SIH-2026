@@ -2,7 +2,8 @@
 Stream Ingestion & Temporal Sliding-Window Correlation API Routes.
 """
 from typing import Dict, Any, List, Optional
-from pydantic import BaseModel
+import math
+from pydantic import BaseModel, field_validator
 from fastapi import APIRouter, Query, Body, HTTPException
 from fastapi.responses import StreamingResponse
 from backend.app.services.streaming_correlator import streaming_correlator
@@ -13,6 +14,13 @@ class ReconcileRequest(BaseModel):
     mempool_stream: List[Dict[str, Any]]
     block_stream: List[Dict[str, Any]]
     max_window_seconds: float = 120.0
+
+    @field_validator("max_window_seconds")
+    @classmethod
+    def valid_window(cls, value: float) -> float:
+        if not math.isfinite(value) or value <= 0:
+            raise ValueError("max_window_seconds must be finite and greater than zero")
+        return value
 
 @router.get("/replay")
 async def stream_replay(

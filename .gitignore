@@ -4,6 +4,10 @@ LANDING_PAGE_PLAN.md
 BITKAUN_CHAT_CONTEXT.md
 node_modules/
 dist/
+offline_bundle/
+wheelhouse/
+cli/*.egg-info/
+cli/build/
 .env*
 .DS_Store
 Thumbs.db

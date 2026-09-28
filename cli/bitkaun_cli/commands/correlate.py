@@ -90,7 +90,8 @@ def _send_correlation(files):
 
         t.add_row("Ledger Records Ingested", str(data.get("ledger_records", 0)))
         t.add_row("Network Telemetry Records", str(data.get("network_records", 0)))
-        t.add_row("Matched Correlation", f"[bold green]{data.get('matched_records', 0)} ({data.get('correlation_rate', 0)*100:.1f}%)[/bold green]")
+        t.add_row("Exact-ID Match Coverage (not confidence)", f"[bold green]{data.get('matched_records', 0)} ({data.get('correlation_rate', 0)*100:.1f}%)[/bold green]")
+        t.add_row("Timing Issues / Conflicts", f"{data.get('timing_issue_count', 0)} / {data.get('conflicting_records', 0)}")
         t.add_row("Newly Indexed Transactions", str(data.get("newly_indexed_records", 0)))
         t.add_row("Unmatched Streams", str(data.get("unmatched_ledger", 0) + data.get("unmatched_network", 0)))
         console.print(t)

@@ -1,50 +1,28 @@
-#!/bin/bash
-set -e
+#!/usr/bin/env bash
+# Linux runtime: serves the built React/Three.js UI and local API from one process.
+# No npm, pip, package registry, cloud call or network access is needed at runtime.
+set -euo pipefail
 
 DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
-cd "$DIR"
-
-# 1. Activate environment
-if [ -f "/home/param/miniforge3/etc/profile.d/conda.sh" ]; then
-    source /home/param/miniforge3/etc/profile.d/conda.sh
-    conda activate ml
-elif [ -n "$CONDA_DEFAULT_ENV" ]; then
-    echo "[+] Using active conda environment: $CONDA_DEFAULT_ENV"
-elif [ -d ".venv" ]; then
-    source .venv/bin/activate
-elif [ -d "venv" ]; then
-    source venv/bin/activate
-else
-    echo "[!] Virtualenv not found, creating one..."
-    python3 -m venv .venv
-    source .venv/bin/activate
-    pip install -r backend/requirements.txt
-    pip install -r requirements.txt
-    pip install -e ./cli
+if [[ ! -f "$DIR/dist/index.html" ]]; then
+    echo "Missing built frontend: dist/index.html. Use the Linux offline bundle or build on a connected preparation machine." >&2
+    exit 1
 fi
 
-export PYTHONPATH="$DIR:$PYTHONPATH"
+if [[ -x "$DIR/.venv/bin/python" ]]; then
+    PYTHON="$DIR/.venv/bin/python"
+elif [[ -n "${CONDA_PREFIX:-}" && -x "$CONDA_PREFIX/bin/python" ]]; then
+    PYTHON="$CONDA_PREFIX/bin/python"
+else
+    echo "No provisioned Python environment. On Linux run ./scripts/install_offline.sh with the included wheelhouse." >&2
+    exit 1
+fi
 
-echo "================================================================="
-echo "  BitKaun AML Forensics Platform — Linux / Ubuntu Launcher"
-echo "  FastAPI Backend (Port 8000) + React Frontend (Port 5173)"
-echo "================================================================="
+if ! "$PYTHON" -c 'import fastapi, uvicorn, numpy, pandas, xgboost, sklearn, shap, multipart' >/dev/null 2>&1; then
+    echo "Local Python environment is missing backend dependencies. Run ./scripts/install_offline.sh." >&2
+    exit 1
+fi
 
-cleanup() {
-    echo ""
-    echo "[+] Stopping services..."
-    if [ ! -z "$BACKEND_PID" ]; then
-        kill "$BACKEND_PID" 2>/dev/null || true
-    fi
-    exit 0
-}
-trap cleanup SIGINT SIGTERM EXIT
-
-echo "[1/2] Starting Backend API on http://localhost:8000 ..."
-python3 -m uvicorn backend.app.main:app --host 0.0.0.0 --port 8000 &
-BACKEND_PID=$!
-
-sleep 2
-
-echo "[2/2] Starting Frontend Visualizer on http://localhost:5173 ..."
-npm run dev -- --host
+export PYTHONPATH="$DIR${PYTHONPATH:+:$PYTHONPATH}"
+echo "BitKaun offline: open http://127.0.0.1:8000 (API reference: /docs)"
+exec "$PYTHON" -m uvicorn backend.app.main:app --host 127.0.0.1 --port 8000

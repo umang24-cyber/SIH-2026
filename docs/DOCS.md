@@ -93,6 +93,8 @@ Use two terminals: one for FastAPI and one for Vite. Run commands from the repos
 
 Initial package installation requires internet access or pre-provisioned packages. Local investigation is designed to run with locally available data and models. A fresh machine needs dependencies installed before an offline demonstration.
 
+**Air-gapped Linux delivery:** Use the prebuilt bundle, local wheelhouse installer, and single-process launcher in [Offline Linux delivery](OFFLINE_LINUX.md). The connected-machine setup below is for development, not the offline run path.
+
 There is no verified minimum RAM/GPU requirement in the current source. Data and indexes are loaded into memory; startup and graph rendering depend on dataset size and hardware.
 
 ### 2.2 Get the repository
@@ -179,10 +181,10 @@ Keep this terminal open. Startup initializes SQLite, loads the master dataset an
 Open these local URLs in the browser:
 
 - `http://127.0.0.1:8000/health` — current status and dataset counters.
-- `http://127.0.0.1:8000/docs` — FastAPI Swagger interface.
+- `http://127.0.0.1:8000/docs` — self-contained local OpenAPI browser (no CDN).
 - `http://127.0.0.1:8000/openapi.json` — machine-readable API schema.
 
-The default FastAPI documentation interface may need its external JavaScript/CSS assets available. `/openapi.json` is served locally; do not treat Swagger's availability as proof of a fully offline docs UI.
+The API reference and `/openapi.json` are served locally without CDN assets. Relative source citations in the Field Guide resolve through the local `/source/` route.
 
 ### 2.7 Start the frontend — terminal 2
 
@@ -860,7 +862,7 @@ No. Current replay/batch routes use locally indexed records. “Live” refers t
 
 ### Can I use it offline?
 
-The investigation pipeline is designed for local data/models. Install dependencies and provision all assets beforehand. Test the exact demo path offline, including documentation assets; development package installation is not offline by default.
+The investigation pipeline uses local data/models. Prepare the transferable Linux bundle and install exclusively from its local wheelhouse as described in [Offline Linux delivery](OFFLINE_LINUX.md). The browser and compatible OS/Python packages must be provisioned beforehand. Development `npm ci` and an unbundled `pip install` can require internet; the offline runtime does not.
 
 ### Does 90% risk mean the wallet owner is 90% likely to be a criminal?
 
