@@ -17,6 +17,7 @@ Outputs:
 
 import json
 import warnings
+from collections import deque
 from pathlib import Path
 
 import networkx as nx
@@ -64,17 +65,18 @@ def compute_graph_features(grp: pd.DataFrame) -> dict:
 
     addr_nodes = set()
 
-    for _, row in grp.iterrows():
-        tx_node = f"tx_{row['txid']}"
+    columns = ["txid", "input_addresses", "input_amounts", "output_addresses", "output_amounts"]
+    for txid, input_addresses, input_amounts, output_addresses, output_amounts in grp[columns].itertuples(index=False, name=None):
+        tx_node = f"tx_{txid}"
         G.add_node(tx_node, node_class="tx")
 
-        for addr, amt in zip(row["input_addresses"], row["input_amounts"]):
+        for addr, amt in zip(input_addresses, input_amounts):
             anode = f"addr_{addr}"
             addr_nodes.add(anode)
             G.add_node(anode, node_class="addr")
             G.add_edge(anode, tx_node, weight=float(amt))
 
-        for addr, amt in zip(row["output_addresses"], row["output_amounts"]):
+        for addr, amt in zip(output_addresses, output_amounts):
             anode = f"addr_{addr}"
             addr_nodes.add(anode)
             G.add_node(anode, node_class="addr")
@@ -104,16 +106,20 @@ def compute_graph_features(grp: pd.DataFrame) -> dict:
         max_depth = 0
         for node in G.nodes():
             visited = {node}
-            queue = [(node, 0)]
+            queue = deque([(node, 0)])
             while queue:
-                cur, depth = queue.pop(0)
+                cur, depth = queue.popleft()
                 if depth > max_depth:
                     max_depth = depth
+                if max_depth == 15:
+                    break  # 15 is the exact upper bound of this fallback.
                 if depth < 15:
                     for nxt in G.successors(cur):
                         if nxt not in visited:
                             visited.add(nxt)
                             queue.append((nxt, depth + 1))
+            if max_depth == 15:
+                break
         max_chain_length = max_depth
         
     # Divide by 2 because bipartite graph has 2 edges per transaction (addr->tx->addr)

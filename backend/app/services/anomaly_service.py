@@ -148,6 +148,20 @@ class AnomalyService:
         feature_dict = ml_service._feature_dict(scenario_txs, scenario_id=scenario_id)
         return self.score_scenario_from_features(feature_dict)
 
+    def score_feature_batch(self, feature_dicts):
+        """Score the same IsolationForest features in one vectorized call."""
+        if not self.is_loaded:
+            self.load_model()
+        if not feature_dicts:
+            return []
+        matrix = np.asarray([[float(values[name]) for name in self._feature_names]
+                             for values in feature_dicts], dtype=np.float32)
+        raw = self._model.score_samples(matrix)
+        scores = self._normalize(raw)
+        return [{"anomaly_score": round(float(score), 2),
+                 "anomaly_label": "HIGH" if score >= _HIGH_ANOMALY_THRESHOLD else ("MEDIUM" if score >= 40.0 else "LOW")}
+                for score in scores]
+
     def score_scenario_id(self, scenario_id: str) -> Optional[Dict[str, Any]]:
         """
         Score a scenario by its ID by looking up its transactions from data_service.

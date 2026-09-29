@@ -155,9 +155,11 @@ def compute_scenario_features(grp: pd.DataFrame) -> dict:
     else:
         feats["denomination_entropy"] = 0.0
 
-    feats["round_number_ratio"] = float(
-        np.mean([is_round_number(a) for a in all_out_amounts])
-    ) if len(all_out_amounts) > 0 else 0.0
+    feats["round_number_ratio"] = float(np.mean(
+        (all_out_amounts > 0) & np.any(
+            np.abs(all_out_amounts[:, None] - ROUND_TARGETS) / ROUND_TARGETS <= 0.01, axis=1
+        )
+    )) if len(all_out_amounts) > 0 else 0.0
 
     # io_amount_similarity per txn, then averaged
     io_sim = 1.0 - np.abs(in_sums - out_sums) / in_sums.replace(0, np.nan)
@@ -197,9 +199,9 @@ def compute_scenario_features(grp: pd.DataFrame) -> dict:
     # For each txn: a "change output" is one whose amount ≈ largest_input - some_other_output
     # within 1% tolerance. We check all (input, output_pair) combinations.
     change_flags = []
-    for _, row in grp.iterrows():
-        in_amts  = np.array(row["input_amounts"],  dtype=float)
-        out_amts = np.array(row["output_amounts"], dtype=float)
+    for input_amounts, output_amounts in grp[["input_amounts", "output_amounts"]].itertuples(index=False, name=None):
+        in_amts = np.array(input_amounts, dtype=float)
+        out_amts = np.array(output_amounts, dtype=float)
         if len(in_amts) == 0 or len(out_amts) == 0:
             change_flags.append(0.0)
             continue

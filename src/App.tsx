@@ -6,7 +6,7 @@ import { LandingPage } from './components/LandingPage';
 import { ScrambledAsciiLogo } from './components/ScrambledAsciiLogo';
 import { AmbientBinaryRain } from './components/AmbientBinaryRain';
 import { CliSpinner } from './components/CliSpinner';
-import { api } from './services/api';
+import { api, type AlertScanStatus } from './services/api';
 import { Link, useLocation, useNavigate } from 'react-router-dom';
 import { BookPageTurn } from './components/BookPageTurn';
 import { PublicAudioControls } from './audio/PublicAudioControls';
@@ -52,6 +52,23 @@ export function App() {
   const [historyIdx, setHistoryIdx] = useState<number>(-1);
   const [entries, setEntries] = useState<TerminalEntry[]>([]);
   const [pendingCommand, setPendingCommand] = useState<string | null>(null);
+  const [alertScanStatus, setAlertScanStatus] = useState<AlertScanStatus | null>(null);
+
+  useEffect(() => {
+    setAlertScanStatus(null);
+    if (!pendingCommand || !/^(?:bitkaun\s+)?alerts?\b/i.test(pendingCommand)) return;
+    const controller = new AbortController();
+    let timer: ReturnType<typeof setTimeout>;
+    const poll = async () => {
+      try {
+        const status = await api.getAlertScanStatus(controller.signal);
+        if (!controller.signal.aborted) setAlertScanStatus(status);
+      } catch { /* Main request reports any error; progress is advisory. */ }
+      if (!controller.signal.aborted) timer = setTimeout(poll, 1000);
+    };
+    poll();
+    return () => { controller.abort(); clearTimeout(timer); };
+  }, [pendingCommand]);
   const [activeCaseName, setActiveCaseName] = useState<string | null>(null);
 
   const inputRef = useRef<HTMLInputElement>(null);
@@ -1882,6 +1899,10 @@ export function App() {
         {pendingCommand && (
           <div style={{ margin: '8px 0', padding: '4px 0', color: '#00ff66', fontFamily: 'monospace' }}>
             <CliSpinner label={`EXECUTING COMMAND: [${pendingCommand}] ...`} />
+            {alertScanStatus?.state === 'running' && <div role="status" aria-live="polite" style={{ color: '#b5d9c3', fontSize: '12px', marginTop: '6px' }}>
+              Alert scan: {alertScanStatus.phase.replace(/_/g, ' ')} · {alertScanStatus.processed.toLocaleString()} / {alertScanStatus.total.toLocaleString()} scenarios · {alertScanStatus.elapsed_seconds.toFixed(1)}s elapsed.
+              <br />All scenarios are ranked before the requested top alerts are returned. Unchanged features are reused from the local cache.
+            </div>}
           </div>
         )}
 

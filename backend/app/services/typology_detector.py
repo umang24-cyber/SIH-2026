@@ -34,6 +34,8 @@ Implements structural heuristics for:
 """
 import logging
 import math
+import time
+from threading import RLock
 from datetime import datetime
 from typing import List, Dict, Any, Optional, Set
 from collections import Counter, defaultdict
@@ -53,8 +55,42 @@ class TypologyDetector:
         self._attribution_attempted: Set[str] = set()
         self.tx_typology_map: Dict[int, List[str]] = defaultdict(list)
         self.is_scanned: bool = False
+        self._scan_lock = RLock()
+        self._scanned_revision = None
+        self._scan_limit = None
+        self._evidence_scope = None
+        self._scenario_records = {}
+        self.scan_status = {"state": "idle", "phase": "idle", "processed": 0, "total": 0, "elapsed_seconds": 0.0}
+
+    @staticmethod
+    def _revision():
+        revision = getattr(data_service, "revision", 0)
+        return revision if isinstance(revision, int) else 0
+
+    def _needs_scan(self, max_candidates=None):
+        return not self.is_scanned or self._scanned_revision != self._revision() or self._scan_limit != max_candidates
 
     def scan_all_typologies(self, max_candidates: Optional[int] = None):
+        # Single-flight: concurrent /alerts, /logs and dossier requests must not
+        # launch independent 5k-scenario scans against the same models/cache.
+        with self._scan_lock:
+            if not self._needs_scan(max_candidates):
+                return
+            start = time.perf_counter()
+            self.is_scanned = False
+            self.scan_status = {"state": "running", "phase": "features", "processed": 0, "total": 0, "elapsed_seconds": 0.0}
+            try:
+                self._scan_all_typologies(max_candidates)
+                self._scan_limit = max_candidates
+                self.scan_status = {**self.scan_status, "state": "complete", "phase": "complete", "elapsed_seconds": round(time.perf_counter() - start, 2)}
+            except Exception:
+                self.is_scanned = False
+                self.scan_status = {**self.scan_status, "state": "failed", "phase": "failed", "elapsed_seconds": round(time.perf_counter() - start, 2)}
+                raise
+            finally:
+                self._evidence_scope = None
+
+    def _scan_all_typologies(self, max_candidates: Optional[int] = None):
         """
         Score complete scenarios with the ML models first.
         Only scenarios where binary model predicts is_illicit=True emit alerts.
@@ -80,28 +116,42 @@ class TypologyDetector:
         if max_candidates is not None and len(scenarios) > max_candidates:
             scenarios = scenarios[:max_candidates]
 
+        revision = self._revision()
+        self._scenario_records = {
+            sc_id: [data_service.txid_map[tid] for tid in txids if tid in data_service.txid_map]
+            for sc_id, txids in scenarios
+        }
+        nonempty = [(sc_id, records) for sc_id, records in self._scenario_records.items() if records]
+
+        def progress(processed, total):
+            self.scan_status = {"state": "running", "phase": "features", "processed": processed,
+                                "total": total, "elapsed_seconds": round(time.perf_counter() - t_scan_start, 2)}
+
+        progress(0, len(nonempty))
+        ml_results = ml_service.score_scenarios(nonempty, progress=progress)
+        scoring_seconds = time.perf_counter() - t_scan_start
+        self.scan_status = {**self.scan_status, "phase": "anomaly"}
+        feature_rows = [(sc_id, result["_features"]) for sc_id, result in ml_results.items()
+                        if result.get("is_illicit") and "_features" in result]
+        anomaly_start = time.perf_counter()
+        anomaly_results = dict(zip([row[0] for row in feature_rows],
+                                   anomaly_service.score_feature_batch([row[1] for row in feature_rows])))
+        anomaly_seconds = time.perf_counter() - anomaly_start
+
         ml_alerts_count = 0
         dropped_count = 0
         
-        total_feature_time = 0.0
-        total_binary_time = 0.0
-        total_typology_time = 0.0
-
         for idx, (sc_id, txids) in enumerate(scenarios):
             if idx % 500 == 0:
                 logger.info(f"Scored {idx}/{len(scenarios)} scenarios...")
-            tx_records = [data_service.txid_map[t] for t in txids if t in data_service.txid_map]
+            tx_records = self._scenario_records[sc_id]
             if not tx_records:
                 continue
                 
             cand_id = f"alert_{sc_id}"
 
             try:
-                ml_result = ml_service.score_candidate(tx_records, candidate_id=cand_id)
-                prof = ml_result.get("profiling", {})
-                total_feature_time += prof.get("feature_time", 0.0)
-                total_binary_time += prof.get("binary_time", 0.0)
-                total_typology_time += prof.get("typology_time", 0.0)
+                ml_result = ml_results[sc_id]
             except Exception:
                 logger.exception("ML scoring failed for scenario %s — skipping.", sc_id)
                 continue
@@ -112,7 +162,9 @@ class TypologyDetector:
 
             illicit_scenario_ids.add(sc_id)
             
-            anomaly_res = anomaly_service.score_scenario_id(sc_id)
+            anomaly_res = anomaly_results.get(sc_id)
+            if anomaly_res is None:
+                anomaly_res = anomaly_service.score_scenario_id(sc_id)
             anomaly_score = anomaly_res["anomaly_score"] if anomaly_res else 0.0
             anomaly_label = anomaly_res["anomaly_label"] if anomaly_res else "LOW"
 
@@ -134,7 +186,8 @@ class TypologyDetector:
                 severity = "LOW"
                 
             input_addrs = [addr for tx in tx_records for addr in tx.get("input_addresses", [])]
-            primary_wallet = max(set(input_addrs), key=input_addrs.count) if input_addrs else "Unknown"
+            counts = Counter(input_addrs)
+            primary_wallet = min(counts, key=lambda addr: (-counts[addr], addr)) if counts else "Unknown"
 
             alert = AlertSummary(
                 candidate_id=cand_id,
@@ -169,12 +222,15 @@ class TypologyDetector:
         t_discovery_start = time.perf_counter()
 
         logger.info("Discovering structural evidence for flagged scenarios...")
+        self.scan_status = {**self.scan_status, "phase": "structural_evidence"}
+        self._evidence_scope = illicit_scenario_ids
         peel_candidates = [c for c in self._discover_peeling_chain_candidates() if c["scenario_id"] in illicit_scenario_ids]
         layer_candidates = [c for c in self._discover_layering_candidates() if c["scenario_id"] in illicit_scenario_ids]
         mix_candidates = [c for c in self._discover_mixing_candidates() if c["scenario_id"] in illicit_scenario_ids]
         ransom_candidates = [c for c in self._discover_ransomware_candidates() if c["scenario_id"] in illicit_scenario_ids]
         
         all_evidence = peel_candidates + layer_candidates + mix_candidates + ransom_candidates
+        self._evidence_scope = None
         
         t_discovery_end = time.perf_counter()
         
@@ -195,6 +251,9 @@ class TypologyDetector:
                 if a.predicted_pattern_type not in self.tx_typology_map[tid]:
                     self.tx_typology_map[tid].append(a.predicted_pattern_type)
 
+        if self._revision() != revision:
+            raise RuntimeError("Dataset changed during alert analysis. Retry against the updated data.")
+        self._scanned_revision = revision
         self.is_scanned = True
         
         t_total_end = time.perf_counter()
@@ -209,15 +268,13 @@ class TypologyDetector:
         logger.info(
             "\nAlert scan:\n"
             "  scenarios: %d\n"
-            "  feature computation: %.2fs\n"
-            "  binary scoring: %.2fs\n"
-            "  typology scoring: %.2fs\n"
+            "  features + batch classification: %.2fs\n"
+            "  batch anomaly scoring: %.2fs\n"
             "  evidence extraction: %.2fs\n"
             "  total: %.2fs",
             len(scenarios),
-            total_feature_time,
-            total_binary_time,
-            total_typology_time,
+            scoring_seconds,
+            anomaly_seconds,
             evidence_time,
             total_time
         )
@@ -243,6 +300,8 @@ class TypologyDetector:
         """
         candidates = []
         for sc_id, txids in data_service.scenario_tx_map.items():
+            if self._evidence_scope is not None and sc_id not in self._evidence_scope:
+                continue
             txs = sorted(
                 [data_service.txid_map[t] for t in txids if t in data_service.txid_map],
                 key=lambda t: self._timestamp(t["timestamp"]),
@@ -318,6 +377,8 @@ class TypologyDetector:
         """
         candidates = []
         for sc_id, txids in data_service.scenario_tx_map.items():
+            if self._evidence_scope is not None and sc_id not in self._evidence_scope:
+                continue
             txs = [data_service.txid_map[t] for t in txids if t in data_service.txid_map]
             fan_outs = [t for t in txs if len(t["input_addresses"]) <= 2 and len(t["output_addresses"]) >= 3]
             fan_ins  = [t for t in txs if len(t["input_addresses"]) >= 3 and len(t["output_addresses"]) <= 2]
@@ -367,6 +428,8 @@ class TypologyDetector:
         """
         candidates = []
         for sc_id, txids in data_service.scenario_tx_map.items():
+            if self._evidence_scope is not None and sc_id not in self._evidence_scope:
+                continue
             txs = [data_service.txid_map[t] for t in txids if t in data_service.txid_map]
             best_tx = None
             best_cv = None
@@ -406,6 +469,8 @@ class TypologyDetector:
         """
         candidates = []
         for sc_id, txids in data_service.scenario_tx_map.items():
+            if self._evidence_scope is not None and sc_id not in self._evidence_scope:
+                continue
             txs = sorted(
                 [data_service.txid_map[t] for t in txids if t in data_service.txid_map],
                 key=lambda t: self._timestamp(t["timestamp"]),
@@ -455,7 +520,7 @@ class TypologyDetector:
         return candidates
 
     # ------------------------------------------------------------------
-    # Evidence caching — now populated at scan time with pre-computed SHAP
+    # Structural evidence cached at scan time; SHAP added on first view.
     # ------------------------------------------------------------------
 
     def _cache_evidence(
@@ -488,7 +553,7 @@ class TypologyDetector:
             })
 
         infra_types = [t.get("node_type", "residential") for t in tx_records]
-        infra_dist  = {k: infra_types.count(k) for k in set(infra_types)}
+        infra_dist = dict(Counter(infra_types))
 
         evidence = EvidenceResponse(
             candidate_id=alert.candidate_id,
@@ -526,32 +591,48 @@ class TypologyDetector:
         max_candidates: Optional[int] = None,
         sort_by: str = "risk_score"
     ) -> List[AlertSummary]:
-        if not self.is_scanned:
-            self.scan_all_typologies(max_candidates=max_candidates)
-        
-        filtered = [
-            a for a in self.detected_alerts
-            if (pattern_type is None or a.predicted_pattern_type.lower() == pattern_type.lower())
-        ]
-        
-        if sort_by == "risk_score":
-            filtered.sort(key=lambda a: (-a.risk_score, -a.anomaly_score, a.scenario_id))
-            
-        return filtered[:limit]
+        with self._scan_lock:
+            if self._needs_scan(max_candidates):
+                self.scan_all_typologies(max_candidates=max_candidates)
+            filtered = [a for a in self.detected_alerts
+                        if pattern_type is None or a.predicted_pattern_type.lower() == pattern_type.lower()]
+            if sort_by == "risk_score":
+                filtered.sort(key=lambda a: (-a.risk_score, -a.anomaly_score, a.scenario_id))
+            for alert in filtered[:limit]:
+                self._ensure_attribution(alert)
+            return filtered[:limit]
+
+    def _ensure_attribution(self, alert):
+        if alert.candidate_id in self._attribution_attempted:
+            return
+        from backend.app.services.ml_service import ml_service
+        result = ml_service.score_candidate(self._scenario_records[alert.scenario_id], candidate_id=alert.candidate_id)
+        if result.get("error"):
+            raise RuntimeError(f"Explanation unavailable for {alert.candidate_id}: {result['error']}")
+        cached = self.evidence_cache[alert.candidate_id]
+        cached.ml_feature_attributions = [FeatureAttribution(**item) for item in result.get("binary_shap", [])]
+        cached.typology_shap_attributions = [FeatureAttribution(**item) for item in result.get("typology_shap", [])]
+        cached.typology_explanation = result.get("typology_explanation", "")
+        alert.explanation = cached.typology_explanation
+        self._attribution_attempted.add(alert.candidate_id)
 
     def get_evidence(self, candidate_id: str, max_candidates: Optional[int] = None) -> Optional[EvidenceResponse]:
         """
-        Return cached evidence.  Binary and typology SHAP are pre-computed at
-        scan time and are always present — no lazy re-invocation needed.
+        Return evidence with binary and typology SHAP computed on first view.
         """
-        if not self.is_scanned:
-            self.scan_all_typologies(max_candidates=max_candidates)
-        return self.evidence_cache.get(candidate_id)
+        with self._scan_lock:
+            if self._needs_scan(max_candidates):
+                self.scan_all_typologies(max_candidates=max_candidates)
+            alert = next((a for a in self.detected_alerts if a.candidate_id == candidate_id), None)
+            if alert:
+                self._ensure_attribution(alert)
+            return self.evidence_cache.get(candidate_id)
 
     def get_typologies_for_tx(self, txid: int, max_candidates: Optional[int] = None) -> List[str]:
-        if not self.is_scanned:
-            self.scan_all_typologies(max_candidates=max_candidates)
-        return self.tx_typology_map.get(int(txid), [])
+        with self._scan_lock:
+            if self._needs_scan(max_candidates):
+                self.scan_all_typologies(max_candidates=max_candidates)
+            return self.tx_typology_map.get(int(txid), [])
 
 
 # Global Singleton Instance

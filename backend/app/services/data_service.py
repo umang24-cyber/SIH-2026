@@ -23,6 +23,8 @@ class DataService:
         self.unique_wallets: set = set()
         self.start_time: float = time.time()
         self.is_ready: bool = False
+        self.revision: int = 0
+        self.startup_timings: Dict[str, float] = {}
 
     def initialize(self):
         """Loads master dataset and builds reverse indexes for instant lookups."""
@@ -31,11 +33,17 @@ class DataService:
         logger.info("Initializing in-memory forensic data store...")
         t0 = time.time()
         self.df = load_master_dataset()
+        self.startup_timings["load_parse_seconds"] = time.time() - t0
         
         # Build in-memory fast lookup indexes from master dataset
         logger.info("Indexing addresses and scenario clusters...")
-        records = self.df.to_dict(orient="records")
-        for rec in records:
+        # Helper datetime columns are used only during CSV parsing. Boxing
+        # ~600k pandas Timestamps into dictionaries was a major startup cost.
+        frame = self.df.drop(columns=["timestamp_dt", "relay_timestamp_dt"], errors="ignore")
+        columns = list(frame.columns)
+        t_index = time.perf_counter()
+        for values in frame.itertuples(index=False, name=None):
+            rec = dict(zip(columns, values))
             txid = rec["txid"]
             self.txid_map[txid] = rec
             
@@ -54,6 +62,7 @@ class DataService:
                 self.address_out_map[out_addr].append(txid)
                 self.unique_wallets.add(out_addr)
 
+        self.startup_timings["index_seconds"] = time.perf_counter() - t_index
         # Hydrate all persisted custom transactions from SQLite database
         try:
             persisted_custom_txs = db_service.load_all_custom_transactions()
@@ -66,6 +75,9 @@ class DataService:
 
         elapsed = time.time() - t0
         self.is_ready = True
+        self.revision += 1
+        self.startup_timings["total_seconds"] = elapsed
+        logger.info("Data startup phases: %s", self.startup_timings)
         logger.info(
             f"Data store ready! Indexed {len(self.txid_map)} transactions, "
             f"{len(self.unique_wallets)} unique wallets, "
@@ -185,6 +197,7 @@ class DataService:
 
     def add_transaction(self, record: Dict[str, Any]) -> bool:
         """Dynamically indexes a new transaction into memory and persists to SQLite."""
+        self.revision += 1
         txid = int(record["txid"])
         sc_id = str(record.get("scenario_id") or "")
         if sc_id:
@@ -209,6 +222,8 @@ class DataService:
 
     def add_transactions_batch(self, records: List[Dict[str, Any]]) -> int:
         """Batch-indexes new transactions in memory and persists to SQLite."""
+        if records:
+            self.revision += 1
         new_records = []
         for r in records:
             txid = int(r["txid"])

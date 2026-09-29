@@ -12,6 +12,12 @@ def mock_services():
         mock_data.is_ready = True
         mock_ml.is_loaded = True
         mock_anomaly.is_loaded = True
+        mock_data.revision = 0
+        mock_ml.score_scenarios.side_effect = lambda scenarios, progress=None: {
+            sc_id: mock_ml.score_candidate(records, candidate_id=f"alert_{sc_id}")
+            for sc_id, records in scenarios
+        }
+        mock_anomaly.score_feature_batch.return_value = []
         yield mock_data, mock_ml, mock_anomaly
 
 
@@ -179,12 +185,15 @@ def test_ml_service_caching(mock_services):
     
     real_ml_service = MLService()
     
-    # Pre-populate cache
+    # A scenario name alone must not authorize a stale feature vector.
     scenario_id = "test_scen"
     txs = [create_mock_tx(1, ["w1"])]
     real_ml_service._scenario_feature_cache[scenario_id] = {"feat1": 1.0}
     
-    # This should return the cached dict immediately without throwing errors about missing features
-    res = real_ml_service._feature_dict(txs, scenario_id=scenario_id)
-    assert res == {"feat1": 1.0}
-
+    real_ml_service.feature_names = ["num_txns"]
+    real_ml_service._feature_namespace = "unit-test"
+    real_ml_service.feature_cache.path = None
+    with patch("backend.app.services.ml_service.compute_scenario_features", return_value={"num_txns": 1}), \
+         patch("backend.app.services.ml_service.compute_graph_features", return_value={}):
+        res = real_ml_service._feature_dict(txs, scenario_id=scenario_id)
+    assert res == {"num_txns": 1.0}
