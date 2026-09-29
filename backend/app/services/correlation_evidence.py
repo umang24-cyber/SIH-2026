@@ -46,7 +46,8 @@ def observation(record: dict[str, Any]) -> dict[str, Any]:
 
 
 def evidence(tx_hash: str, ledger: dict[str, Any] | None,
-             relays: list[dict[str, Any]], window_seconds: float) -> dict[str, Any]:
+             relays: list[dict[str, Any]], window_seconds: float,
+             correlation_confidence: float | None = None) -> dict[str, Any]:
     if not math.isfinite(window_seconds) or window_seconds <= 0:
         raise ValueError("max_window_seconds must be finite and greater than zero")
     ledger_time = parse_time(ledger.get("timestamp")) if ledger and ledger.get("timestamp_observed", True) else None
@@ -78,7 +79,7 @@ def evidence(tx_hash: str, ledger: dict[str, Any] | None,
         "observations": observations,
         "timing_delta_seconds": delta,
         "timing_status": timing_status,
-        "correlation_confidence": None,
+        "correlation_confidence": correlation_confidence,
         "attribution_status": "RELAY_OBSERVED_ORIGIN_UNVERIFIED" if relays else "NO_RELAY_OBSERVED",
         "reasons": [reason] + (["Observed timestamps are missing or invalid."] if delta is None else [])
                    + (["Timestamps indicate relay after ledger event; inspect clock/source definitions."] if delta is not None and delta < 0 else [])

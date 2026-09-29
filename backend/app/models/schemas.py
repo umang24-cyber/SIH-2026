@@ -343,3 +343,4 @@ class IngestCorrelationResponse(BaseModel):
     correlation_evidence: List[Dict[str, Any]] = Field(default_factory=list)
     timing_issue_count: int = 0
     conflicting_records: int = 0
+    overall_correlation_confidence: Optional[float] = None

@@ -622,6 +622,26 @@ def get_uploaded_scenario_analysis(scenario_id: str):
 
     txids = data_service.get_scenario_txids(scenario_id)
     if not txids:
+        # Check if input is a numeric or string transaction ID
+        resolved_sc = None
+        try:
+            tx_num = int(scenario_id)
+            if tx_num in data_service.txid_map:
+                resolved_sc = data_service.txid_map[tx_num].get("scenario_id")
+        except (ValueError, TypeError):
+            pass
+        if not resolved_sc:
+            for tx in data_service.txid_map.values():
+                if str(tx.get("transaction_hash", "")) == scenario_id or str(tx.get("txid", "")) == scenario_id:
+                    resolved_sc = tx.get("scenario_id")
+                    break
+        if resolved_sc:
+            cached = scenario_ml_analysis.get(resolved_sc)
+            if cached:
+                return cached
+            scenario_id = resolved_sc
+            txids = data_service.get_scenario_txids(resolved_sc)
+    if not txids:
         raise HTTPException(status_code=404, detail=f"Scenario '{scenario_id}' not found.")
 
     scenario_txs = [
@@ -763,6 +783,7 @@ async def ingest_correlate(
     seen_scenarios = []
     missing_timing_ids = {item["transaction_hash"] for item in correlation_evidence
                           if item["match_status"] == "MATCHED" and item["timing_status"] == "MISSING_TIMESTAMP"}
+    scenario_confidence_map = {}
     for scenario_id, scenario_txs in grouped_records.items():
         seen_scenarios.append(scenario_id)
         sc_key = str(scenario_id)
@@ -787,8 +808,34 @@ async def ingest_correlate(
             )
         else:
             analysis = _analyze_uploaded_scenario(scenario_id, scenario_txs)
+            if analysis.analysis_status == "AVAILABLE":
+                if analysis.is_illicit and analysis.typology_confidence is not None and analysis.typology_confidence > 0:
+                    conf = float(analysis.typology_confidence)
+                elif analysis.binary_confidence is not None and analysis.binary_confidence > 0:
+                    conf = float(analysis.binary_confidence)
+                elif analysis.risk_score is not None:
+                    conf = float(analysis.risk_score) if analysis.is_illicit else float(1.0 - analysis.risk_score)
+                else:
+                    conf = None
+                if conf is not None:
+                    scenario_confidence_map[scenario_id] = round(conf, 4)
         scenario_ml_analysis[scenario_id] = analysis
         scenario_results.append(analysis)
+
+    # Populate XGBoost correlation confidence directly onto matched evidence records
+    tx_to_scenario = {original_id(r): str(r.get("scenario_id")) for r in merged_records if r.get("scenario_id")}
+    for item in correlation_evidence:
+        tx_hash = item.get("transaction_hash")
+        sc_id = tx_to_scenario.get(tx_hash) or str(ledger_map.get(tx_hash, {}).get("scenario_id", ""))
+        if sc_id:
+            item["scenario_id"] = sc_id
+        if item.get("match_status") == "MATCHED" and sc_id and sc_id in scenario_confidence_map:
+            conf_val = scenario_confidence_map[sc_id]
+            item["correlation_confidence"] = conf_val
+            item["reasons"].append(f"Correlated dual-stream telemetry scored by XGBoost V8 with {conf_val * 100:.1f}% confidence.")
+
+    valid_confidences = [item["correlation_confidence"] for item in correlation_evidence if item.get("correlation_confidence") is not None]
+    overall_confidence = round(sum(valid_confidences) / len(valid_confidences), 4) if valid_confidences else None
 
     total_uploaded = len(ledger_map) + len(network_map)
     correlation_rate = (len(matched_txids) / max(len(ledger_map), len(network_map))) if total_uploaded > 0 else 0.0
@@ -813,4 +860,5 @@ async def ingest_correlate(
         correlation_evidence=correlation_evidence,
         timing_issue_count=sum(e["timing_status"] != "WITHIN_WINDOW" for e in correlation_evidence if e["match_status"] == "MATCHED"),
         conflicting_records=len(conflicts),
+        overall_correlation_confidence=overall_confidence,
     )
