@@ -149,7 +149,12 @@ export const TwoStreamUploadView: React.FC<TwoStreamUploadViewProps> = ({ onRunC
           </div>
         </div>
 
-        <CorrelationEvidencePanel phase="complete" evidence={result.correlation_evidence} />
+        <CorrelationEvidencePanel
+          phase="complete"
+          evidence={result.correlation_evidence}
+          overallConfidence={result.overall_correlation_confidence}
+          onRunCommand={onRunCommand}
+        />
 
         {/* Telemetry Summary Stats */}
         <div style={{
@@ -404,7 +409,10 @@ export const TwoStreamUploadView: React.FC<TwoStreamUploadViewProps> = ({ onRunC
         )}
       </div>
 
-      <CorrelationEvidencePanel phase={isUploading ? 'loading' : error ? 'error' : 'idle'} />
+      <CorrelationEvidencePanel
+        phase={isUploading ? 'loading' : error ? 'error' : 'idle'}
+        onRunCommand={onRunCommand}
+      />
 
       {/* 1-Click Demo Preset Banner */}
       <div style={{

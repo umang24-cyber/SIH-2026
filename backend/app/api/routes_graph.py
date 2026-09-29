@@ -18,20 +18,47 @@ SCENARIO_ALIASES = {
 }
 
 def _resolve_scenario_id(scenario_id: str) -> str:
-    if scenario_id in data_service.scenario_tx_map:
-        return scenario_id
-    if scenario_id in SCENARIO_ALIASES and SCENARIO_ALIASES[scenario_id] in data_service.scenario_tx_map:
-        return SCENARIO_ALIASES[scenario_id]
-    low = scenario_id.lower()
+    target = str(scenario_id).strip()
+    if target in data_service.scenario_tx_map:
+        return target
+    if target in SCENARIO_ALIASES and SCENARIO_ALIASES[target] in data_service.scenario_tx_map:
+        return SCENARIO_ALIASES[target]
+
+    # 1. Direct numeric or string TXID lookup
+    try:
+        tx_num = int(target)
+        if tx_num in data_service.txid_map:
+            sc = data_service.txid_map[tx_num].get("scenario_id")
+            if sc and sc in data_service.scenario_tx_map:
+                return sc
+    except (ValueError, TypeError):
+        pass
+
+    for tx in data_service.txid_map.values():
+        if str(tx.get("transaction_hash", "")) == target or str(tx.get("txid", "")) == target:
+            sc = tx.get("scenario_id")
+            if sc and sc in data_service.scenario_tx_map:
+                return sc
+            break
+
+    # 2. Bitcoin address lookup (map address to its scenario)
+    addrs_txs = data_service.address_in_map.get(target) or data_service.address_out_map.get(target)
+    if addrs_txs:
+        for tid in addrs_txs:
+            sc = data_service.txid_map.get(tid, {}).get("scenario_id")
+            if sc and sc in data_service.scenario_tx_map:
+                return sc
+
+    low = target.lower()
     clean = low.replace("sample_", "").replace("live_", "").replace("test_", "")
 
-    # 1. Fuzzy substring match against indexed scenario keys
+    # 3. Fuzzy substring match against indexed scenario keys
     for real_s in data_service.scenario_tx_map:
         real_low = real_s.lower()
         if low in real_low or clean in real_low or real_low in low:
             return real_s
 
-    # 2. Fallback prefix resolution
+    # 4. Fallback prefix resolution
     prefix_map = {
         "licit": "normal_",
         "ransom": "ransomware_",
@@ -46,8 +73,8 @@ def _resolve_scenario_id(scenario_id: str) -> str:
                     return real_s
 
     if low in ["default", "root", "sample", "0", "1", ""]:
-        return next(iter(data_service.scenario_tx_map.keys()), scenario_id)
-    return scenario_id
+        return next(iter(data_service.scenario_tx_map.keys()), target)
+    return target
 
 import time
 from collections import defaultdict
