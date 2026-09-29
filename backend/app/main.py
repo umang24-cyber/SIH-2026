@@ -43,14 +43,21 @@ logger = logging.getLogger(__name__)
 async def lifespan(app: FastAPI):
     """Lifespan startup: Initialize SQLite DB, ingest master CSVs, cluster multi-input entities, scan typologies, load ML models."""
     logger.info("Starting up BitKaun AML Forensics API (100% Offline Engine)...")
-    db_service.ensure_initialized()
-    data_service.initialize()
-    ml_service.load_model()
-    anomaly_service.load_model()
-    clustering_service.build_clusters()
+    timings = {}
+    for name, action in (("database", db_service.ensure_initialized), ("dataset", data_service.initialize),
+                         ("ml_models", ml_service.load_model), ("anomaly_model", anomaly_service.load_model),
+                         ("clustering", clustering_service.build_clusters)):
+        start = time.perf_counter()
+        action()
+        timings[name] = round(time.perf_counter() - start, 3)
+    app.state.startup_timings = timings
+    logger.info("Startup phases (seconds): %s", timings)
     # Alert detection is now lazy-loaded on the first /alerts request
-    yield
-    logger.info("Shutting down BitKaun AML Forensics API...")
+    try:
+        yield
+    finally:
+        ml_service.feature_cache.close()
+        logger.info("Shutting down BitKaun AML Forensics API...")
 
 # Initialize FastAPI Application
 app = FastAPI(

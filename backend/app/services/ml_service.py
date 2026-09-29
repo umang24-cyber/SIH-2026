@@ -11,8 +11,10 @@ Explainability covers BOTH models:
 """
 
 import importlib
+import hashlib
 import json
 import logging
+import os
 import sys
 from pathlib import Path
 from typing import Any, Dict, List, Optional
@@ -20,7 +22,8 @@ from typing import Any, Dict, List, Optional
 import numpy as np
 import pandas as pd
 
-from backend.app.core.config import BASE_DIR
+from backend.app.core.config import BASE_DIR, APP_DATA_DIR
+from backend.app.services.feature_cache import FeatureCache
 
 if str(BASE_DIR) not in sys.path:
     sys.path.insert(0, str(BASE_DIR))
@@ -167,6 +170,9 @@ class MLService:
         self.script_type_encoder: Dict[str, int] = {}
         self.typology_classes: List[str] = []
         self._scenario_feature_cache: Dict[str, Dict[str, float]] = {}
+        self._feature_cache_by_digest: Dict[str, Dict[str, float]] = {}
+        self._feature_namespace = None
+        self.feature_cache = FeatureCache(APP_DATA_DIR / "scenario_features.sqlite3" if os.getenv("BITKAUN_FEATURE_CACHE", "1") != "0" else None)
 
     @staticmethod
     def _read_json(path: Path, description: str) -> Dict[str, Any]:
@@ -293,8 +299,28 @@ class MLService:
         if not scenario_txs:
             raise ValueError("At least one transaction is required for feature extraction")
 
-        if scenario_id is not None and scenario_id in self._scenario_feature_cache:
-            return self._scenario_feature_cache[scenario_id]
+        # Scenario names alone are not cache keys: an upload can replace the
+        # records under the same name. Never reuse features from different data.
+        if self._feature_namespace is None:
+            from importlib.metadata import version
+            implementation = b"".join(Path(function.__code__.co_filename).read_bytes()
+                                      for function in (compute_scenario_features, compute_graph_features))
+            libraries = json.dumps({name: version(name) for name in ("numpy", "pandas", "scipy", "networkx")}).encode()
+            self._feature_namespace = hashlib.sha256(implementation + Path(__file__).read_bytes() + libraries).hexdigest()
+        columns = ("txid", "timestamp", "relay_timestamp", "input_addresses", "output_addresses",
+                   "input_amounts", "output_amounts", "fee_btc", "script_type", "node_type",
+                   "asn", "country_code", "relay_ip", "relay_port", "user_agent")
+        payload = [self._feature_namespace, self.feature_names, self.script_type_encoder,
+                   [[tx.get(name) for name in columns] for tx in scenario_txs]]
+        key = hashlib.sha256(json.dumps(payload, default=str, separators=(",", ":"), sort_keys=True).encode()).hexdigest()
+        cached = self._feature_cache_by_digest.get(key)
+        if cached is None:
+            cached = self.feature_cache.get(key, self.feature_names)
+        if cached is not None:
+            self._feature_cache_by_digest[key] = cached
+            if scenario_id is not None:
+                self._scenario_feature_cache[scenario_id] = cached
+            return cached
 
         grp = pd.DataFrame(scenario_txs)
         grp["timestamp"] = pd.to_datetime(grp["timestamp"])
@@ -317,6 +343,8 @@ class MLService:
             raise RuntimeError(f"Feature extraction did not produce manifest features: {missing}")
         
         result = {name: float(merged[name]) for name in self.feature_names}
+        self._feature_cache_by_digest[key] = result
+        self.feature_cache.put(key, list(result.values()))
         if scenario_id is not None:
             self._scenario_feature_cache[scenario_id] = result
         return result
@@ -541,7 +569,7 @@ class MLService:
             self.load_model()
 
         # candidate_id format is "alert_{sc_id}"
-        scenario_id = candidate_id.replace("alert_", "") if candidate_id and candidate_id.startswith("alert_") else None
+        scenario_id = candidate_id.removeprefix("alert_") if candidate_id else None
 
         import time
         t_start = time.perf_counter()
@@ -618,6 +646,66 @@ class MLService:
             "typology_explanation": typ_explanation,
             "profiling": profiling,
         }
+
+    def score_scenarios(self, scenarios, progress=None):
+        """Batch numeric scoring for alert ranking; SHAP is loaded on demand.
+
+        Uses the same raw-record feature path, thresholds and decoders as
+        score_candidate. Returns full-precision decisions and rounded API scores.
+        """
+        import time
+        if not self.is_loaded:
+            self.load_model()
+        results, vectors, ids = {}, [], []
+        start = time.perf_counter()
+        for index, (scenario_id, records) in enumerate(scenarios):
+            try:
+                values = self._feature_dict(records, scenario_id=scenario_id)
+                vectors.append([values[name] for name in self.feature_names])
+                ids.append(scenario_id)
+                results[scenario_id] = {"_features": values}
+            except Exception as exc:
+                logger.exception("Feature extraction failed for scenario %s", scenario_id)
+                results[scenario_id] = {"error": str(exc), "is_illicit": False}
+            if progress is not None:
+                progress(index + 1, len(scenarios))
+        self.feature_cache.flush()
+        feature_seconds = time.perf_counter() - start
+        if not ids:
+            return results
+        matrix = np.asarray(vectors, dtype=np.float32)
+        start = time.perf_counter()
+        binary = self.model.predict_proba(matrix)[:, 1]
+        binary_seconds = time.perf_counter() - start
+        illicit_indices = np.flatnonzero(binary >= BINARY_ILLICIT_THRESHOLD)
+        start = time.perf_counter()
+        typologies = {}
+        if len(illicit_indices):
+            proba = self.typology_model.predict_proba(matrix[illicit_indices])
+            typologies = dict(zip(illicit_indices, proba))
+        for index, scenario_id in enumerate(ids):
+            score = float(binary[index])
+            illicit = bool(score >= BINARY_ILLICIT_THRESHOLD)
+            typology, confidence, class_index = "normal", 0.0, -1
+            if illicit:
+                probabilities = typologies[index]
+                class_index = int(np.argmax(probabilities))
+                confidence = float(probabilities[class_index])
+                if confidence >= TYPOLOGY_CONFIDENCE_THRESHOLD:
+                    typology = self._decode_typology(class_index)
+                else:
+                    first, second = (int(value) for value in np.argsort(probabilities)[::-1][:2])
+                    typology = f"ambiguous between {self._decode_typology(first)} ({probabilities[first]*100:.1f}%) and {self._decode_typology(second)} ({probabilities[second]*100:.1f}%)"
+            results[scenario_id].update(
+                risk_score=round(score, 4), binary_confidence=round(score, 4),
+                is_illicit=illicit, typology=typology, typology_confidence=round(confidence, 4),
+                typology_class_index=class_index, binary_shap=[], typology_shap=[],
+                typology_explanation="Scenario-level ML classification; feature explanation is loaded when this alert is viewed.",
+            )
+        logger.info("Batch ML: %d scenarios, features %.2fs, binary %.3fs, typology %.3fs; disk feature hits=%d misses=%d",
+                    len(ids), feature_seconds, binary_seconds, time.perf_counter() - start,
+                    self.feature_cache.hits, self.feature_cache.misses)
+        return results
 
 
 ml_service = MLService()

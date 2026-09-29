@@ -12,6 +12,12 @@ from backend.app.services.typology_detector import typology_detector
 
 router = APIRouter(tags=["Alerts"])
 
+
+@router.get("/alerts/scan-status")
+async def scan_status():
+    """Non-blocking progress of the single shared full-dataset alert scan."""
+    return dict(typology_detector.scan_status)
+
 @router.get("/alerts", response_model=AlertListResponse)
 def get_alerts(
     sort_by: str = Query("risk_score", description="Field to sort by (e.g. risk_score)"),

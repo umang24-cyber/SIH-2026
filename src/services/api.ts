@@ -275,7 +275,16 @@ export interface TorSummary {
   methodology: string;
 }
 
+export interface AlertScanStatus {
+  state: 'idle' | 'running' | 'complete' | 'failed';
+  phase: string;
+  processed: number;
+  total: number;
+  elapsed_seconds: number;
+}
+
 export const api = {
+  getAlertScanStatus: (signal?: AbortSignal) => fetchJson<AlertScanStatus>('/alerts/scan-status', { signal }),
   getHealth: () => fetchJson<HealthResponse>('/health'),
   getEntity: (address: string) => fetchJson<EntityResponse>(`/entity/${address}`),
   getEntityCluster: (address: string) => fetchJson<ClusterResponse>(`/entity/${address}/cluster`),
