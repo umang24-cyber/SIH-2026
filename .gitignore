@@ -52,3 +52,6 @@ ml/manifests_v8/
 # Local V7 integrity snapshots
 v7_hashes_before.txt
 v7_hashes_after.txt
+
+.kilo
+brag-output
