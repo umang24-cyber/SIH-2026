@@ -1,4 +1,0 @@
-txid,timestamp,relay_timestamp,input_addresses,output_addresses,input_amounts,output_amounts,fee_btc,scenario_id,node_type,country_code,asn,relay_ip,propagation_delta_ms
-700101,2026-09-06 18:30:00,2026-09-06 18:29:57,"[""1BatchExtortionSrc01""]","[""1BatchExtortionDst01"",""1BatchExtortionChg01""]","[18.5]","[18.0,0.499]","0.001","bulk_ransomware_ring","tor_exit_node","RU","AS49981","185.220.101.99",3000.0
-700102,2026-09-06 18:32:00,2026-09-06 18:31:59,"[""1BatchExtortionDst01""]","[""1BatchMuleHop01"",""1BatchMuleHop02""]","[18.0]","[9.0,8.999]","0.001","bulk_ransomware_ring","bulletproof_host","PA","AS60068","194.26.29.15",1850.0
-700103,2026-09-06 18:35:00,2026-09-06 18:35:00,"[""1BatchLicitPayer99""]","[""1BatchMerchantShop01"",""1BatchLicitPayer99""]","[2.5]","[0.75,1.749]","0.001","bulk_ecommerce_pool","residential","US","AS7922","73.189.44.10",95.0

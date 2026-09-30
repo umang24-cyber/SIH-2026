@@ -38,13 +38,25 @@ compute_graph_features = importlib.import_module(
 logger = logging.getLogger(__name__)
 
 ML_DIR_MODELS = BASE_DIR / "ml" / "models"
+MANIFEST_V9 = BASE_DIR / "ml" / "manifests" / "MANIFEST_v9.json"
 MANIFEST_V8 = BASE_DIR / "ml" / "manifests" / "MANIFEST_v8.json"
 MANIFEST_V7 = BASE_DIR / "ml" / "manifests" / "MANIFEST_v7_candidate.json"
-MANIFEST_PATH = MANIFEST_V8 if MANIFEST_V8.exists() else MANIFEST_V7
+if MANIFEST_V9.exists():
+    MANIFEST_PATH = MANIFEST_V9
+elif MANIFEST_V8.exists():
+    MANIFEST_PATH = MANIFEST_V8
+else:
+    MANIFEST_PATH = MANIFEST_V7
 
+ENCODER_PATH_V9 = BASE_DIR / "data" / "processed_v9" / "script_type_encoder.json"
 ENCODER_PATH_V8 = BASE_DIR / "data" / "processed_v8" / "script_type_encoder.json"
 ENCODER_PATH_V7 = BASE_DIR / "data" / "processed" / "script_type_encoder.json"
-ENCODER_PATH = ENCODER_PATH_V8 if ENCODER_PATH_V8.exists() else ENCODER_PATH_V7
+if ENCODER_PATH_V9.exists():
+    ENCODER_PATH = ENCODER_PATH_V9
+elif ENCODER_PATH_V8.exists():
+    ENCODER_PATH = ENCODER_PATH_V8
+else:
+    ENCODER_PATH = ENCODER_PATH_V7
 TYPOLOGY_ENCODER_PATH = ML_DIR_MODELS / "typology_label_encoder.json"
 FORBIDDEN_FEATURES = {
     "is_illicit",

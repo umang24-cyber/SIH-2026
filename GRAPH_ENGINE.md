@@ -10,7 +10,7 @@ The engine transforms raw transactional and network metadata into a heterogeneou
 
 ## 2. End-to-End Pipeline Architecture
 
-The pipeline is organized into a modular 6-step workflow orchestrated by [`main.py`](file:///c:/Users/HP/OneDrive/Desktop/SIH-2026/graph_engine/main.py):
+The pipeline is organized into a modular 6-step workflow orchestrated by [`main.py`](graph_engine/main.py):
 
 ```
 +---------------------------------------------------------------------------------------+
@@ -63,13 +63,13 @@ The pipeline is organized into a modular 6-step workflow orchestrated by [`main.
 
 ## 3. Module Breakdown & Implemented Work
 
-### 3.1. Ingestion Engine ([`graph_engine/ingest.py`](file:///c:/Users/HP/OneDrive/Desktop/SIH-2026/graph_engine/ingest.py))
+### 3.1. Ingestion Engine ([`graph_engine/ingest.py`](graph_engine/ingest.py))
 * **`RawTxRecord` Schema-Binding Adapter:** Abstracted ingestion layer that decouples the engine from the raw dataset schema. Maps variable CSV field names into a consistent internal `RawTxRecord` dataclass, preventing downstream breakage if the incoming data schema changes.
 * **CSV Parsing & Unpacking:** Reads `blockchain_transactions.csv` and `network_metadata.csv`, decoding stringified array representations for `input_addresses`, `input_amounts`, `output_addresses`, and `output_amounts`.
 * **Join Verification:** Executes a strict inner join on `txid`, verifying row parity with zero transaction drops.
 * **Integrity Validation:** Enforces positive amounts, valid timestamps, non-empty addresses, and valid fee conservation. Rows failing hard validation (e.g., missing timestamps or empty inputs/outputs) are flagged and skipped.
 
-### 3.2. Graph Construction ([`graph_engine/graph_build.py`](file:///c:/Users/HP/OneDrive/Desktop/SIH-2026/graph_engine/graph_build.py))
+### 3.2. Graph Construction ([`graph_engine/graph_build.py`](graph_engine/graph_build.py))
 * **Full Heterogeneous Directed Graph ($G$):**
   * **Type:** `networkx.MultiDiGraph` (defensive correctness against duplicate network relay events and parallel intra-transaction paths).
   * **Nodes:**
@@ -85,7 +85,7 @@ The pipeline is organized into a modular 6-step workflow orchestrated by [`main.
   * `MultiDiGraph` projecting direct transfers from sender wallets to recipient wallets across transactions: $w_A \xrightarrow{\text{SENT}} tx_T \xrightarrow{\text{RECEIVED}} w_B \implies w_A \xrightarrow{(txid, amount, timestamp, fee, script\_type)} w_B$.
   * Explicitly preserves multi-edge granularity and time ordering without collapsing or netting amounts.
 
-### 3.3. Shared Structures ([`graph_engine/structures.py`](file:///c:/Users/HP/OneDrive/Desktop/SIH-2026/graph_engine/structures.py))
+### 3.3. Shared Structures ([`graph_engine/structures.py`](graph_engine/structures.py))
 * **`CandidateStructure` Dataclass:**
   * `candidate_id`: Unique identifier (e.g., `peel_0001`, `layer_0003`, `mix_0012`).
   * `candidate_type`: Typology classification string (`peeling_chain`, `layering`, `mixing`).
@@ -99,7 +99,7 @@ The pipeline is organized into a modular 6-step workflow orchestrated by [`main.
 
 ## 4. Typology Detection Algorithms
 
-### 4.1. Peeling Chain Detector ([`graph_engine/detectors/peeling_chain.py`](file:///c:/Users/HP/OneDrive/Desktop/SIH-2026/graph_engine/detectors/peeling_chain.py))
+### 4.1. Peeling Chain Detector ([`graph_engine/detectors/peeling_chain.py`](graph_engine/detectors/peeling_chain.py))
 * **Concept:** A money laundering pattern where a large UTXO is repeatedly split into a smaller peeled payment (payment/cash-out) and a larger carry-forward change address across consecutive transactions.
 * **Algorithm:**
   1. **Seed Identification:** Identify all 1-to-2 or 2-to-2 transactions with a clear asymmetric amount split.
@@ -107,7 +107,7 @@ The pipeline is organized into a modular 6-step workflow orchestrated by [`main.
   3. **Temporal & Value Consistency:** Ensure transaction time gap $\le 6\text{ hours}$ (`PEEL_MAX_HOP_GAP_SECONDS`), carry amount strictly decays with tolerance $\le 5\%$ (`PEEL_AMOUNT_TOLERANCE`), and downstream transactions continue the 2-output structure.
   4. **Filtering & Deduplication:** Filter chains shorter than $\ge 3\text{ hops}$ (`PEEL_MIN_CHAIN_LENGTH`) and remove strict sub-chains.
 
-### 4.2. Layering Detector ([`graph_engine/detectors/layering.py`](file:///c:/Users/HP/OneDrive/Desktop/SIH-2026/graph_engine/detectors/layering.py))
+### 4.2. Layering Detector ([`graph_engine/detectors/layering.py`](graph_engine/detectors/layering.py))
 * **Concept:** Rapid dispersal of funds from a single source across multiple intermediate intermediary wallets (fan-out), followed by reconvergence into a consolidation sink wallet (fan-in).
 * **Algorithm:**
   1. **Fan-Out Identification:** Identify source wallets with unique out-degree $\ge 5$ (`LAYER_MIN_FANOUT_DEGREE`) in the wallet projection $P$.
@@ -116,7 +116,7 @@ The pipeline is organized into a modular 6-step workflow orchestrated by [`main.
   4. **Exchange Hub Suppression:** Query total node degree in $G$ to filter known high-degree exchange hubs ($> 500\text{ transactions}$).
   5. **Temporal Windowing:** Ensure total duration between initial fan-out and final fan-in is $\le 72\text{ hours}$ (`LAYER_MAX_TIME_WINDOW_SECONDS`).
 
-### 4.3. Mixing Detector ([`graph_engine/detectors/mixing.py`](file:///c:/Users/HP/OneDrive/Desktop/SIH-2026/graph_engine/detectors/mixing.py))
+### 4.3. Mixing Detector ([`graph_engine/detectors/mixing.py`](graph_engine/detectors/mixing.py))
 * **Concept:** CoinJoin-style mixing protocols where multiple independent parties co-sign transactions with identical or standardized output denominations to break transaction graph heuristics.
 * **Algorithm:**
   1. **Bipartite Co-Participation Graph ($CP$):** For all transactions with $\ge 3\text{ inputs}$ and $\ge 3\text{ outputs}$, add co-participation edges between all co-signing input wallets.
@@ -179,16 +179,16 @@ Evaluation against labelled synthetic ground truth:
 
 ## 8. Exported Artifacts
 
-The pipeline generates three deliverables in [`output/`](file:///c:/Users/HP/OneDrive/Desktop/SIH-2026/output):
+The pipeline generates three deliverables in [`output/`](output):
 
-1. **[`graph_export.json`](file:///c:/Users/HP/OneDrive/Desktop/SIH-2026/output/graph_export.json) (196.4 MB):**
+1. **[`graph_export.json`](output/graph_export.json) (196.4 MB):**
    * Complete heterogeneous node & edge topology.
    * Annotated candidate memberships for frontend 3D/2D visualization (`candidate_ids` join keys).
    * Formatted ISO-8601 timestamps and numeric BTC amounts.
-2. **[`candidates_ml_handoff.csv`](file:///c:/Users/HP/OneDrive/Desktop/SIH-2026/output/candidates_ml_handoff.csv):**
+2. **[`candidates_ml_handoff.csv`](output/candidates_ml_handoff.csv):**
    * 158 candidate rows $\times$ 25 feature columns.
    * Includes structural metrics (`chain_length`, `total_peeled_btc`, `fan_out_degree`, `cluster_density`, `output_amount_cv`) and network layer metrics (`unique_ips`, `unique_asns`, `tor_vpn_fraction`).
-3. **[`validation_report.json`](file:///c:/Users/HP/OneDrive/Desktop/SIH-2026/output/validation_report.json):**
+3. **[`validation_report.json`](output/validation_report.json):**
    * Detailed per-candidate TP/FP breakdown, dominant pattern analysis, and scenario coverage reports.
 
 ---

@@ -14,6 +14,10 @@ Thumbs.db
 playwright-report/
 test-results/
 
+# Logs
+*.log
+backend_run.log
+
 # Raw heavy datasets (>100MB)
 data/raw/
 data/raw/*
@@ -25,9 +29,11 @@ __pycache__/
 .ipynb_checkpoints/
 .venv/
 venv/
+.pytest_cache/
 
-
+# Output artifacts
 output/*.json
+output/*.csv
 output/graph_export.json
 public/data/
 
@@ -36,7 +42,7 @@ public/data/
 *.db-wal
 *.db-shm
 
-# Generated V8 datasets
+# Generated datasets (old versions)
 data/processed_v8/
 
 # Real-world datasets
@@ -52,3 +58,8 @@ ml/manifests_v8/
 # Local V7 integrity snapshots
 v7_hashes_before.txt
 v7_hashes_after.txt
+
+# Dev test artifacts
+curl_output.txt
+data_quality_report_v8.json
+sample_batch_investigation.*
